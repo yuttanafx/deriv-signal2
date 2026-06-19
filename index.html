@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terravolteco — Market Structure Terminal (Error Catching Fixed)</title>
+<title>Terravolteco — Market Structure Terminal (Logout/Disconnect Fix)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -440,12 +440,12 @@
     <div class="controls">
       <div class="controls-grid">
         <div class="field">
-          <label for="duration-select">ระยะเวลาหมดอายุ (Adaptive Ticks Scale)</label>
+          <label for="duration-select">ระยะเวลาสัญญา (Expiry Duration)</label>
           <select id="duration-select">
-            <option value="5_ticks" selected>⚡ 5 Ticks (โหมดจับความเร็วสั้นสุด — ปลอดภัย API)</option>
-            <option value="10_ticks">⏳ 10 Ticks (ความเร็วมาตรฐานเหวี่ยง)</option>
-            <option value="25_ticks">📊 25 Ticks (โหมดลากยาวกลาง — คัดกรองสัญญาณ)</option>
-            <option value="50_ticks">🗺️ 50 Ticks (โหมดสวิงยาวสูงสุด — ขยายแนวรับต้านสูง)</option>
+            <option value="5_ticks" selected>5 Ticks (แนะนำความไวสูงสุด)</option>
+            <option value="10_ticks">10 Ticks</option>
+            <option value="5_min">5 นาที (ขั้นต่ำสุดของรูปแบบนาที API)</option>
+            <option value="15_min">15 นาที</option>
           </select>
         </div>
         <div class="field">
@@ -581,26 +581,27 @@
   let watchedSymbols = ['R_75', 'R_100', '1HZ75V'];
   let focusedSymbol = 'R_75';
   let durationVal = '5_ticks';
-  
-  function durationToLookback(v) {
-    if (v === '5_ticks') return 20;   
-    if (v === '10_ticks') return 35;  
-    if (v === '25_ticks') return 60;  
-    if (v === '50_ticks') return 110; 
-    return 20;
-  }
-  
+
+  // 🔧 FIX: lookbackPeriod เดิมผูกกับ duration ที่เลือก (5_min -> 260, 15_min -> 700 ticks)
+  // ทำให้ resistance/support คำนวณจากหน้าต่างยาวเกินไป โอกาสที่ราคาจะ "ทำนิวไฮ/นิวโลว์"
+  // ของ 260-700 ติ๊กที่ผ่านมาแบบสุ่มนั้นต่ำมาก (~1/N) บอทจึงแทบไม่เคยเข้าเงื่อนไขยิงออเดอร์เลย
+  // เมื่อตั้ง expiry เป็น 5 นาที/15 นาที ทั้งที่จริง ๆ ไม่มี error จาก API แต่อย่างใด
+  //
+  // ตอนนี้แยกออกมาเป็นค่าคงที่ SIGNAL_LOOKBACK สำหรับวิเคราะห์โครงสร้างราคาเท่านั้น
+  // ส่วน durationVal จะมีหน้าที่แค่กำหนด duration/duration_unit ที่ส่งให้ Deriv API
+  // และเวลารอผลของดีล (virtual/local tracking) ไม่เกี่ยวกับความถี่ของสัญญาณอีกต่อไป
+  const SIGNAL_LOOKBACK = 30;
+  let lookbackPeriod = SIGNAL_LOOKBACK;
+  let allowedMaxSteps = 5;
+  let martingaleMultiplier = 2.0; 
+
   function durationToWaitTicks(v) {
     if (v === '5_ticks') return 5;
     if (v === '10_ticks') return 10;
-    if (v === '25_ticks') return 25;
-    if (v === '50_ticks') return 50;
+    if (v === '5_min') return 150; 
+    if (v === '15_min') return 450;
     return 5;
   }
-
-  let lookbackPeriod = durationToLookback(durationVal);
-  let allowedMaxSteps = 5;
-  let martingaleMultiplier = 2.0; 
 
   let state = {};
 
@@ -708,26 +709,42 @@
   apiConnectBtn.addEventListener('click', () => {
     const token = apiTokenInput.value.trim();
     if(!token) { alert('กรุณากรอก API Token เพื่อระบุสิทธิ์พอร์ตก่อนครับ'); return; }
+    
     apiToken = token;
     accountMode = accountModeSelect.value; 
+    
     addLog(`🔑 กำลังส่งโครงสร้างสิทธิ์ยืนยันพอร์ตย่อย [โหมด: ${accountMode.toUpperCase()}]...`);
     sendAuthorize();
   });
 
+  // 🛑 LOGOUT / DISCONNECT LOGIC: ล้างสิทธิ์และเปิดฟอร์มสำหรับสลับ Token ใหม่
   apiDisconnectBtn.addEventListener('click', () => {
     if (confirm('คุณต้องการตัดการเชื่อมต่อพอร์ตปัจจุบัน เพื่อเปลี่ยนไปใช้ API Token ชุดอื่นใช่ไหมครับ?')) {
-      addLog(`🔒 กำลังสั่งตัดการเชื่อมต่อพอร์ตเดิม...`);
+      addLog(`🔒 กำลังสั่งตัดการเชื่อมต่อพอร์ตเดิม และคืนโครงสร้างความปลอดภัย...`);
+      
+      // 1. ส่งคำสั่งยกเลิกสตรีมข้อมูลสดทั้งหมดไปยัง Deriv Server
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({ forget_all: "ticks" }));
       }
-      apiToken = ''; isAuthorized = false;
-      accountInfoDisplay.style.display = 'none'; apiGateInputs.style.display = 'flex';
-      apiTokenInput.value = ''; accBalance.textContent = '$0.00'; accEmail.textContent = '—';
+      
+      // 2. เคลียร์ค่าตัวแปรสิทธิ์ให้ว่างเปล่า
+      apiToken = '';
+      isAuthorized = false;
+      
+      // 3. ปรับโครงสร้าง UI ซ่อนข้อมูลพอร์ตเก่า และสลับเปิดฟอร์มกรอกช่องใหม่
+      accountInfoDisplay.style.display = 'none';
+      apiGateInputs.style.display = 'flex';
+      apiTokenInput.value = ''; // เคลียร์รหัสผ่านเก่าออกจากช่องกรอก
+      accBalance.textContent = '$0.00';
+      accEmail.textContent = '—';
+      
+      // 4. ล้างหน้าประวัติและสเตปทบเงินของบ็อต เพื่อป้องกันไม้ต่อเนื่องข้ามพอร์ต
       watchedSymbols.forEach(sym => { state[sym] = freshState(); });
       renderWatchGrid(); 
       if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
       renderCombinedWinRate();
-      addLog('🔓 ปลดล็อกพอร์ตสำเร็จ! เทอร์มินอลเปิดระบบว่างพร้อมรับ Token ตัวใหม่ทำงานแล้วครับ');
+      
+      addLog('🔓 ปลดล็อกพอร์ตสำเร็จ! เทอร์มินอลเปิดระบบว่างแล้ว สามารถระบุ Token ตัวใหม่เข้าไปทำงานต่อได้ทันทีครับ');
     }
   });
 
@@ -751,21 +768,29 @@
 
     const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2));
     const contractType = direction === 'HIGHER' ? 'CALL' : 'PUT';
-    const durationNumber = durationToWaitTicks(durationVal);
+
+    let durationNumber = 5;
+    let durationUnitStr = 't';
+
+    if (durationVal === '5_ticks') { durationNumber = 5; durationUnitStr = 't'; }
+    else if (durationVal === '10_ticks') { durationNumber = 10; durationUnitStr = 't'; }
+    else if (durationVal === '5_min') { durationNumber = 5; durationUnitStr = 'm'; }
+    else if (durationVal === '15_min') { durationNumber = 15; durationUnitStr = 'm'; }
+
+    const calculatedWaitTicks = durationToWaitTicks(durationVal);
 
     if (!isAuthorized || !ws || ws.readyState !== WebSocket.OPEN) {
-      addLog(`📢 [VIRTUAL] สัญญาณ ${direction} ทำงาน (ไม้ M-${s.currentStepCount + 1}) ทุน: $${currentStake} [ระยะเวลา: ${durationNumber} Ticks]`);
+      addLog(`📢 [VIRTUAL] สัญญาณ ${direction} ทำงาน (ไม้ M-${s.currentStepCount + 1}) ทุน: $${currentStake} [ระยะเวลา: ${durationNumber}${durationUnitStr}]`);
       
       const localContract = {
         id: 'ID-VIRTUAL-' + Math.floor(Math.random() * 89999 + 10000),
         dir: direction,
         entryPrice: s.lastPrice,
         entryTick: s.tickCounter,
-        resolveAtTick: s.tickCounter + durationNumber,
+        resolveAtTick: s.tickCounter + calculatedWaitTicks,
         step: s.currentStepCount + 1,
         stakeValue: currentStake,
-        apiTracked: false,
-        contractSymbol: symbol // เพิ่มการผูกรหัสคู่เงินไว้ตรวจสอบเมื่อเกิดข้อผิดพลาด
+        apiTracked: false
       };
       s.pendingContracts.push(localContract);
       return;
@@ -780,7 +805,7 @@
         contract_type: contractType,
         currency: 'USD',
         duration: durationNumber,
-        duration_unit: 't', 
+        duration_unit: durationUnitStr, 
         symbol: symbol
       }
     };
@@ -792,14 +817,13 @@
       dir: direction,
       entryPrice: s.lastPrice,
       entryTick: s.tickCounter,
-      resolveAtTick: s.tickCounter + durationNumber,
+      resolveAtTick: s.tickCounter + calculatedWaitTicks,
       step: s.currentStepCount + 1,
       stakeValue: currentStake,
-      apiTracked: false,
-      contractSymbol: symbol
+      apiTracked: false
     };
     s.pendingContracts.push(apiContract);
-    addLog(`🎯 [${symbol}] ตรวจพบเบรคเอาท์! ส่งคำสั่งยิงออเดอร์ Rise/Fall ไม้ M-${apiContract.step} (ขนาดทุน: $${currentStake})`);
+    addLog(`🎯 [${symbol}] ตรวจพบเบรคเอาท์! ส่งคำสั่งยิงออเดอร์ ไม้ M-${apiContract.step} (ขนาดทุน: $${currentStake})`);
   }
 
   function renderPicker() {
@@ -819,7 +843,10 @@
             unsubscribeSymbol(sym);
           }
         } else {
-          watchedSymbols.push(sym); focusedSymbol = sym; ensureState(sym); subscribeSymbol(sym);
+          watchedSymbols.push(sym);
+          focusedSymbol = sym;
+          ensureState(sym);
+          subscribeSymbol(sym);
         }
         renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
       });
@@ -914,6 +941,7 @@
 
     const total = s.statWins + s.statLosses;
     const wrRateStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
+    
     const currentEstimatedStake = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
 
     document.getElementById('track-count').textContent = `${total + s.pendingContracts.length} ดีล (สเตปปัจจุบัน: M-${s.currentStepCount + 1}/${allowedMaxSteps} | ทุนไม้ถัดไป: $${currentEstimatedStake})`;
@@ -929,7 +957,7 @@
     } else {
       listContainer.innerHTML = s.resolvedContracts.slice(0, 30).map(r => {
         const resCls = r.result.toLowerCase(); const resSym = r.result === 'WIN' ? 'W' : 'L';
-        const dirCls = r.dir.toLowerCase() === 'higher' ? 'buy' : 'sell'; const dirLabel = r.dir === 'HIGHER' ? 'RISE (CALL)' : 'FALL (PUT)';
+        const dirCls = r.dir.toLowerCase() === 'higher' ? 'buy' : 'sell'; const dirLabel = r.dir === 'HIGHER' ? 'CALL' : 'PUT';
         const time = r.resolvedAt.toLocaleTimeString('th-TH', { hour12: false });
         return `<li>
           <span class="tl-result ${resCls}">${resSym}</span>
@@ -958,11 +986,12 @@
   }
 
   durationSelect.addEventListener('change', (e) => {
-    durationVal = e.target.value; 
-    lookbackPeriod = durationToLookback(durationVal); 
+    // durationVal มีผลแค่กับ duration/duration_unit ที่ส่ง API และเวลารอผลของดีล
+    // ไม่กระทบ lookbackPeriod ของการวิเคราะห์โครงสร้างราคาอีกต่อไป (คงที่ที่ SIGNAL_LOOKBACK)
+    durationVal = e.target.value;
     watchedSymbols.forEach(sym => { state[sym] = freshState(); });
     renderWatchGrid(); if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
-    addLog(`⏰ ปรับเป็นโหมด: ${durationSelect.options[durationSelect.selectedIndex].text} (ระบบขยายฐานสแกนแนวรับต้านใหม่เป็น ${lookbackPeriod} Ticks)`);
+    addLog(`⏰ เปลี่ยนเวลาสัญญาร่วมเป็น: ${durationSelect.options[durationSelect.selectedIndex].text} (ล้างประวัติคำนวณฐานใหม่)`);
   });
 
   function connectWS() {
@@ -984,9 +1013,13 @@
           isAuthorized = false; alert(`การยืนยันสิทธิ์ Token ล้มเหลว: ${data.error.message}`);
           addLog('❌ ปฏิเสธการต่อพอร์ต: กรุณาตรวจสอบรหัสสิทธิ์และโหมดพอร์ตพาสเวิร์ด');
         } else {
-          isAuthorized = true; apiGateInputs.style.display = 'none'; accountInfoDisplay.style.display = 'flex'; 
+          isAuthorized = true;
+          apiGateInputs.style.display = 'none'; // ซ่อนฟอร์มใส่ค่า
+          accountInfoDisplay.style.display = 'flex'; // โชว์สถิติพอร์ต
+          
           badgeAccountMode.textContent = accountMode === 'demo' ? 'DEMO 🧪' : 'REAL 💰';
           badgeAccountMode.className = `badge-mode ${accountMode}`;
+          
           accEmail.textContent = data.authorize.email;
           addLog(`✅ บัญชี ${data.authorize.email} เปิดระบบสำเร็จ! [โหมดพอร์ต: ${accountMode.toUpperCase()}]`);
           fetchBalance();
@@ -1000,20 +1033,10 @@
       }
 
       if (data.msg_type === 'buy') {
-        // 🛡️ [CATCH ERROR LOGIC]: กรณีที่เซิร์ฟเวอร์ปฏิเสธดีล
         if(data.error) {
-          addLog(`🚨 [API REJECTED] เซิร์ฟเวอร์ปฏิเสธดีล: ${data.error.message}`);
-          
-          // 🛠️ ค้นหาและล้างตั๋วค้าง (Unlock) ของเหรียญนั้นๆ ออกจากระบบทันที เพื่อไม่ให้พอร์ตแช่แข็งค้างเติ่ง
-          watchedSymbols.forEach(sym => {
-            if(state[sym] && state[sym].pendingContracts.length > 0) {
-              // ล้างรายการดีลที่สถานะเป็นกำลังรอเลขรหัส API ทิ้งไป เพื่อปลดล็อกให้สามารถรับรอบถัดไปได้ทันที
-              state[sym].pendingContracts = state[sym].pendingContracts.filter(c => c.id !== 'AWAITING-API-ID');
-            }
-          });
-          
-          renderWatchGrid();
-          if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
+          addLog(`🚨 [API ERROR] เซิร์ฟเวอร์ปฏิเสธดีล: ${data.error.message}`);
+          const sym = focusedSymbol; 
+          if(state[sym]) state[sym].pendingContracts = [];
         } else {
           const buyInfo = data.buy;
           addLog(`📦 [API ORDER ACCEPTED] ออกคำสั่งซื้อสำเร็จ! เลขที่ดีล: ${buyInfo.contract_id} (จำนวนทุน: $${buyInfo.price.toFixed(2)})`);
@@ -1056,7 +1079,7 @@
 
     evaluatePendingContracts(sym, price, s.tickCounter);
 
-    if (s.ticks.length >= Math.min(15, lookbackPeriod - 2)) {
+    if (s.ticks.length >= 15) {
       s.resistance = Math.max(...s.ticks.slice(0, -2));
       s.support = Math.min(...s.ticks.slice(0, -2));
 
@@ -1075,27 +1098,29 @@
 
       if (price > midMin && price < midMax) {
         s.sigType = 'BLOCK'; s.sigText = 'COMPRESSION: MID-ZONE';
-        s.sigSub = `⏳ สภาพราคาบีบอัดตัวในกรอบสะสมพลัง รอจังหวะสวิงทะลุขอบแนวรับต้าน (ฐานคำนวณ: ${lookbackPeriod} Ticks)`;
+        s.sigSub = `⏳ สภาพราคาบีบอัดตัวในกรอบสะสมพลัง รอจังหวะระเบิดเบรคเอาท์ (เทรนหลัก: ${majorBias})`;
       } 
       else if (price >= s.resistance && majorBias === 'BULLISH') {
         s.sigType = 'BUY'; s.sigText = 'BREAKOUT: HIGHER';
-        s.sigSub = '🟢 สัญญาณทะลุกำแพงแนวต้านสำเร็จเปิดสัญญา RISE (CALL)';
+        s.sigSub = '🟢 สัญญาณเบรคเอาท์ขาขึ้นทำงาน: ทะลุกำแพงแนวต้านสำเร็จเปิดสัญญา CALL';
         
         if (prevSigType !== 'BUY') {
-          playSignalSound('HIGHER'); executeRealContract(sym, 'HIGHER'); 
+          playSignalSound('HIGHER'); 
+          executeRealContract(sym, 'HIGHER'); 
         }
       } 
       else if (price <= s.support && majorBias === 'BEARISH') {
         s.sigType = 'SELL'; s.sigText = 'BREAKOUT: LOWER';
-        s.sigSub = '🔴 สัญญาณหลุดทะลุขอบแนวรับด้านล่างเปิดสัญญา FALL (PUT)';
+        s.sigSub = '🔴 สัญญาณเบรคเอาท์ขาลงทำงาน: หลุดกำแพงแนวรับด้านล่างเปิดสัญญา PUT';
         
         if (prevSigType !== 'SELL') {
-          playSignalSound('LOWER'); executeRealContract(sym, 'LOWER');
+          playSignalSound('LOWER');
+          executeRealContract(sym, 'LOWER');
         }
       } 
       else {
-        s.sigType = 'BLOCK'; s.sigText = 'BLOCK: UNSTABLE MOMENTUM';
-        s.sigSub = '⚠️ ระงับสัญญาณ: ราคาอยู่นอกกรอบสะสมแต่โมเมนตัมทิศทางหลักยังขัดแย้งกัน';
+        s.sigType = 'BLOCK'; s.sigText = 'BLOCK: UNSTABLE BREAK';
+        s.sigSub = '⚠️ ระงับสัญญาณ: ราคาออกนอกกรอบพักตัวแต่ทิศทางมัลติไทม์เฟรมยังขัดแย้งกัน';
       }
     }
 
@@ -1118,10 +1143,11 @@
         addLog(`🎉 [PROFIT] ดีล ${c.id} ชนะที่ไม้ ${c.step}! -> รีเซ็ตกลับไม้ 1`);
         s.currentStepCount = 0; 
       } else {
-        s.statLosses++; s.currentStepCount++; 
+        s.statLosses++;
+        s.currentStepCount++; 
         
         if (s.currentStepCount >= allowedMaxSteps) {
-          addLog(`🛑 [STOP LOSS] พอร์ต [${sym}] ผิดทางถึงลิมิตสูงสุดที่ล็อกไว้ (${allowedMaxSteps} ไม้) ตัดขาดทุนรอบนี้ (Cut Loss) และบังคับรีเซ็ตกลับไม้ 1 ทันที!`);
+          addLog(`🛑 [STOP LOSS] พอร์ต [${sym}] ผิดทางถึงลิมิตสูงสุดที่ล็อกไว้ (${allowedMaxSteps} ไม้) บ็อตตัดขาดทุนรอบนี้ทิ้ง (Cut Loss) และบังคับรีเซ็ตกลับไม้ 1 ทันที!`);
           s.currentStepCount = 0;
         } else {
           const nextLayerStake = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
