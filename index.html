@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="th">
 <head>
-<meta charset="UTF-8"> 
+<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terravolteco — Market Structure Terminal (Adaptive Ticks)</title>
+<title>Terravolteco — Market Structure Terminal (Error Catching Fixed)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -440,10 +440,9 @@
     <div class="controls">
       <div class="controls-grid">
         <div class="field">
-          <!-- 🔄 ปรับปุ่มควบคุมเวลารูปแบบใหม่ ล็อกฐาน Ticks ความยาวพิเศษเพื่อความแม่นยำสูง -->
           <label for="duration-select">ระยะเวลาหมดอายุ (Adaptive Ticks Scale)</label>
           <select id="duration-select">
-            <option value="5_ticks" selected>⚡ 5 Ticks (โหมดจับความเร็วสั้นสุด)</option>
+            <option value="5_ticks" selected>⚡ 5 Ticks (โหมดจับความเร็วสั้นสุด — ปลอดภัย API)</option>
             <option value="10_ticks">⏳ 10 Ticks (ความเร็วมาตรฐานเหวี่ยง)</option>
             <option value="25_ticks">📊 25 Ticks (โหมดลากยาวกลาง — คัดกรองสัญญาณ)</option>
             <option value="50_ticks">🗺️ 50 Ticks (โหมดสวิงยาวสูงสุด — ขยายแนวรับต้านสูง)</option>
@@ -583,12 +582,11 @@
   let focusedSymbol = 'R_75';
   let durationVal = '5_ticks';
   
-  // ⚡ ล็อกกลไกตัวแปรแบบไดนามิก: ยิ่งเพิ่ม Ticks สัญญายาวขึ้น กรอบการสแกนแนวรับต้านจะถูกยกสูงและขยายกว้างขึ้นทันที
   function durationToLookback(v) {
-    if (v === '5_ticks') return 20;   // เก็บสถิติ 20 แท่งล่าสุด
-    if (v === '10_ticks') return 35;  // เก็บสถิติ 35 แท่งล่าสุด
-    if (v === '25_ticks') return 60;  // เก็บสถิติ 60 แท่งล่าสุดเพื่อขยายแนวรับต้านให้กว้างขึ้น
-    if (v === '50_ticks') return 110; // ดึงอดีตลึก 110 แท่ง แนวต้านจะถูกดันสูงขึ้นเพื่อคัดกรองกรอบใหญ่
+    if (v === '5_ticks') return 20;   
+    if (v === '10_ticks') return 35;  
+    if (v === '25_ticks') return 60;  
+    if (v === '50_ticks') return 110; 
     return 20;
   }
   
@@ -749,7 +747,6 @@
     ensureState(symbol);
     const s = state[symbol];
     
-    // 🛡️ LOCK LOGIC: ป้องกันปืนกลเบิ้ลออเดอร์ซ้อนกัน ทำงานทีละไม้เดี่ยวอย่างเสถียร
     if (s.pendingContracts.length > 0) return; 
 
     const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2));
@@ -767,13 +764,13 @@
         resolveAtTick: s.tickCounter + durationNumber,
         step: s.currentStepCount + 1,
         stakeValue: currentStake,
-        apiTracked: false
+        apiTracked: false,
+        contractSymbol: symbol // เพิ่มการผูกรหัสคู่เงินไว้ตรวจสอบเมื่อเกิดข้อผิดพลาด
       };
       s.pendingContracts.push(localContract);
       return;
     }
 
-    // 🎯 ล็อกโครงสร้างข้อมูล Rise / Fall (`CALL / PUT`) มั่นใจได้ว่าเซิร์ฟเวอร์ Deriv ปล่อยผ่านฉลุยทุกความยาว Ticks
     const orderRequest = {
       buy: 1,
       price: currentStake,
@@ -798,7 +795,8 @@
       resolveAtTick: s.tickCounter + durationNumber,
       step: s.currentStepCount + 1,
       stakeValue: currentStake,
-      apiTracked: false
+      apiTracked: false,
+      contractSymbol: symbol
     };
     s.pendingContracts.push(apiContract);
     addLog(`🎯 [${symbol}] ตรวจพบเบรคเอาท์! ส่งคำสั่งยิงออเดอร์ Rise/Fall ไม้ M-${apiContract.step} (ขนาดทุน: $${currentStake})`);
@@ -961,7 +959,7 @@
 
   durationSelect.addEventListener('change', (e) => {
     durationVal = e.target.value; 
-    lookbackPeriod = durationToLookback(durationVal); // รีเซ็ตขีดจำกัดกรอบถอยหลังอัตโนมัติตามสเกล Ticks
+    lookbackPeriod = durationToLookback(durationVal); 
     watchedSymbols.forEach(sym => { state[sym] = freshState(); });
     renderWatchGrid(); if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
     addLog(`⏰ ปรับเป็นโหมด: ${durationSelect.options[durationSelect.selectedIndex].text} (ระบบขยายฐานสแกนแนวรับต้านใหม่เป็น ${lookbackPeriod} Ticks)`);
@@ -1002,9 +1000,20 @@
       }
 
       if (data.msg_type === 'buy') {
+        // 🛡️ [CATCH ERROR LOGIC]: กรณีที่เซิร์ฟเวอร์ปฏิเสธดีล
         if(data.error) {
-          addLog(`🚨 [API ERROR] เซิร์ฟเวอร์ปฏิเสธดีล: ${data.error.message}`);
-          const sym = focusedSymbol; if(state[sym]) state[sym].pendingContracts = [];
+          addLog(`🚨 [API REJECTED] เซิร์ฟเวอร์ปฏิเสธดีล: ${data.error.message}`);
+          
+          // 🛠️ ค้นหาและล้างตั๋วค้าง (Unlock) ของเหรียญนั้นๆ ออกจากระบบทันที เพื่อไม่ให้พอร์ตแช่แข็งค้างเติ่ง
+          watchedSymbols.forEach(sym => {
+            if(state[sym] && state[sym].pendingContracts.length > 0) {
+              // ล้างรายการดีลที่สถานะเป็นกำลังรอเลขรหัส API ทิ้งไป เพื่อปลดล็อกให้สามารถรับรอบถัดไปได้ทันที
+              state[sym].pendingContracts = state[sym].pendingContracts.filter(c => c.id !== 'AWAITING-API-ID');
+            }
+          });
+          
+          renderWatchGrid();
+          if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
         } else {
           const buyInfo = data.buy;
           addLog(`📦 [API ORDER ACCEPTED] ออกคำสั่งซื้อสำเร็จ! เลขที่ดีล: ${buyInfo.contract_id} (จำนวนทุน: $${buyInfo.price.toFixed(2)})`);
@@ -1047,7 +1056,6 @@
 
     evaluatePendingContracts(sym, price, s.tickCounter);
 
-    // คำนวณแนวรับแนวต้านอ้างอิงตาม Lookback Period ที่ยืดหยุ่นตามความกว้างของ Ticks
     if (s.ticks.length >= Math.min(15, lookbackPeriod - 2)) {
       s.resistance = Math.max(...s.ticks.slice(0, -2));
       s.support = Math.min(...s.ticks.slice(0, -2));
