@@ -674,3 +674,614 @@
   const logContainer = document.getElementById('log-container');
   const connDot = document.getElementById('conn-dot');
   const apiStatus = document.getElementById('api-status');
+  const themeToggleBtn = document.getElementById('theme-toggle');
+  
+  const apiGateInputs = document.getElementById('api-gate-inputs');
+  const accountModeSelect = document.getElementById('account-mode-select');
+  const apiTokenInput = document.getElementById('api-token-input');
+  const apiConnectBtn = document.getElementById('api-connect-btn');
+  const accountInfoDisplay = document.getElementById('account-info-display');
+  const badgeAccountMode = document.getElementById('badge-account-mode');
+  const accEmail = document.getElementById('acc-email');
+  const accBalance = document.getElementById('acc-balance');
+  const apiDisconnectBtn = document.getElementById('api-disconnect-btn');
+  const clearApiBtn = document.getElementById('clear-api-btn');
+
+  themeToggleBtn.addEventListener('click', () => {
+    if (document.documentElement.getAttribute('data-theme') === 'light') {
+      document.documentElement.removeAttribute('data-theme');
+      themeToggleBtn.textContent = '🌙';
+    } else {
+      document.documentElement.setAttribute('data-theme', 'light');
+      themeToggleBtn.textContent = '☀️';
+    }
+    renderWatchGrid();
+    renderFocused(focusedSymbol);
+  });
+
+  maxStepsSelect.addEventListener('change', (e) => {
+    allowedMaxSteps = parseInt(e.target.value);
+    addLog(`🛡️ ปรับขีดจำกัดเพดานทบไม้สูงสุดเป็น: ไม่เกิน ${allowedMaxSteps} ไม้`);
+    updateCombinedBanner();
+  });
+
+  martingaleMultiplierSelect.addEventListener('change', (e) => {
+    martingaleMultiplier = parseFloat(e.target.value);
+    addLog(`📈 ปรับสเกลตัวคูณทบเงินมาติงเกลใหม่เมื่อแพ้เป็น: x${martingaleMultiplier}`);
+    updateCombinedBanner();
+    renderFocused(focusedSymbol);
+  });
+
+  clearApiBtn.addEventListener('click', () => {
+    if(confirm('ต้องการรีเซ็ตประวัติและค่า Win Rate ในเซสชันนี้ใช่ไหมครับ?')) {
+      globalStepCount = 0;
+      globalOrderLock = false;
+      currentlyTradingSymbol = null;
+      watchedSymbols.forEach(sym => { state[sym] = freshState(); });
+      renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
+      addLog('🧹 ล้างสถิติประวัติดีลและรีเซ็ตสเตปมาติงเกลกลางเรียบร้อยแล้ว');
+    }
+  });
+
+  function playSignalSound(type) {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      if (type === 'HIGHER') {
+        playTone(audioCtx, 880, 0.1, 0);
+        playTone(audioCtx, 1318.51, 0.15, 0.12);
+      } else if (type === 'LOWER') {
+        playTone(audioCtx, 440, 0.12, 0);
+        playTone(audioCtx, 349.23, 0.2, 0.1);
+      }
+    } catch (e) { console.log("Audio Alert Blocked", e); }
+  }
+
+  function playTone(ctx, freq, duration, delay) {
+    const osc = ctx.createOscillator();
+    const gainNode = ctx.createGain();
+    osc.type = 'sine'; osc.frequency.value = freq;
+    gainNode.gain.setValueAtTime(0.15, ctx.currentTime + delay);
+    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
+    osc.connect(gainNode); gainNode.connect(ctx.destination);
+    osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + duration);
+  }
+
+  apiConnectBtn.addEventListener('click', () => {
+    const token = apiTokenInput.value.trim();
+    if(!token) { alert('กรุณากรอก API Token เพื่อระบุสิทธิ์พอร์ตก่อนครับ'); return; }
+    apiToken = token;
+    accountMode = accountModeSelect.value; 
+    addLog(`🔑 กำลังส่งโครงสร้างสิทธิ์ยืนยันพอร์ตย่อย [โหมด: ${accountMode.toUpperCase()}]...`);
+    sendAuthorize();
+  });
+
+  apiDisconnectBtn.addEventListener('click', () => {
+    if (confirm('คุณต้องการตัดการเชื่อมต่อพอร์ตปัจจุบัน เพื่อเปลี่ยนไปใช้ API Token ชุดอื่นใช่ไหมครับ?')) {
+      addLog(`🔒 กำลังสั่งตัดการเชื่อมต่อพอร์ตเดิม และคืนโครงสร้างความปลอดภัย...`);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({ forget_all: ["ticks", "proposal_open_contract"] }));
+      }
+      apiToken = '';
+      isAuthorized = false;
+      globalOrderLock = false;
+      currentlyTradingSymbol = null;
+      accountInfoDisplay.style.display = 'none';
+      apiGateInputs.style.display = 'flex';
+      apiTokenInput.value = ''; 
+      accBalance.textContent = '$0.00';
+      accEmail.textContent = '—';
+      watchedSymbols.forEach(sym => { state[sym] = freshState(); });
+      renderWatchGrid(); 
+      if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
+      renderCombinedWinRate();
+      addLog('🔓 ปลดล็อกพอร์ตสำเร็จ! เทอร์มินอลเปิดระบบว่างแล้ว สามารถระบุ Token ตัวใหม่ได้ทันที');
+    }
+  });
+
+  function sendAuthorize() {
+    if (ws && ws.readyState === WebSocket.OPEN && apiToken) {
+      ws.send(JSON.stringify({ authorize: apiToken }));
+    }
+  }
+
+  function fetchBalance() {
+    if (ws && ws.readyState === WebSocket.OPEN && isAuthorized) {
+      ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
+    }
+  }
+
+  // 🌍 ดึงตั๋วแบบ PROPOSAL CONTRACT ก่อนซื้อจริง เพื่อเลี่ยง ERROR ขอบเขตสัญญานาทีฝั่งเซิร์ฟเวอร์
+  function executeProposalRequest(symbol, direction) {
+    if (globalOrderLock) return; // 🔒 ล็อกพอร์ตกลาง ห้ามยิงออเดอร์ซ้อนกันเด็ดขาด
+    
+    globalOrderLock = true;
+    currentlyTradingSymbol = symbol;
+    updateCombinedBanner();
+
+    const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2));
+    
+    let durationNumber = 5;
+    let durationUnitStr = 't';
+    let contractType = direction === 'HIGHER' ? 'CALL' : 'PUT';
+
+    if (durationVal === '5_ticks') { durationNumber = 5; durationUnitStr = 't'; }
+    else if (durationVal === '10_ticks') { durationNumber = 10; durationUnitStr = 't'; }
+    else if (durationVal === '1_min') { durationNumber = 1; durationUnitStr = 'm'; }
+    else if (durationVal === '5_min') { durationNumber = 5; durationUnitStr = 'm'; }
+    else if (durationVal === '15_min') { durationNumber = 15; durationUnitStr = 'm'; }
+
+    addLog(`⏳ [${symbol}] ตรวจพบสัญญาณ ${direction}! กำลังส่งสัญญาร้องขอ Proposal เพื่อผูก Epoch... (ไม้ M-${globalStepCount + 1} ทุน: $${currentStake})`);
+
+    if (!isAuthorized || !ws || ws.readyState !== WebSocket.OPEN) {
+      // โหมด VIRTUAL จำลอง (ถ้าพอร์ตจริงไม่ได้ต่อ)
+      const virtualId = 'VT-' + Math.floor(Math.random() * 89999 + 10000);
+      addLog(`📢 [VIRTUAL ACCEPTED] สัญญาจำลองอนุมัติสำเร็จ เลขดีล: ${virtualId}`);
+      
+      const s = state[symbol];
+      const mockContract = {
+        id: virtualId,
+        dir: direction,
+        entryPrice: s.lastPrice,
+        resolveTime: Date.now() + (durationUnitStr === 't' ? durationNumber * 2000 : durationNumber * 60000),
+        step: globalStepCount + 1,
+        stakeValue: currentStake,
+        isVirtual: true
+      };
+      s.pendingContracts.push(mockContract);
+      return;
+    }
+
+    // ส่งข้อร้องขอสัญญา Proposal
+    activeProposalReqId = 'req-' + Date.now();
+    const proposalPayload = {
+      proposal: 1,
+      amount: currentStake,
+      basis: 'stake',
+      contract_type: contractType,
+      currency: 'USD',
+      duration: durationNumber,
+      duration_unit: durationUnitStr,
+      symbol: symbol,
+      req_id: activeProposalReqId
+    };
+    ws.send(JSON.stringify(proposalPayload));
+  }
+
+  function updateCombinedBanner() {
+    document.getElementById('cb-step').textContent = `M-${globalStepCount + 1}`;
+    const nextStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2));
+    document.getElementById('cb-next-stake').textContent = `$${nextStake.toFixed(2)}`;
+    
+    const lockEl = document.getElementById('cb-lock-status');
+    if (globalOrderLock) {
+      lockEl.textContent = `LOCKED 🔒 (${currentlyTradingSymbol || 'AWAITING'})`;
+      lockEl.style.color = 'var(--sell)';
+    } else {
+      lockEl.textContent = 'READY 🟢';
+      lockEl.style.color = 'var(--buy)';
+    }
+  }
+
+  function renderPicker() {
+    pickerContainer.innerHTML = ALL_SYMBOLS.map(item => {
+      const isAct = watchedSymbols.includes(item.sym) ? 'active' : '';
+      return `<div class="chip ${isAct}" data-sym="${item.sym}">${item.sym}</div>`;
+    }).join('');
+    watchCountEl.textContent = `${watchedSymbols.length} รายการ`;
+
+    pickerContainer.querySelectorAll('.chip').forEach(el => {
+      el.addEventListener('click', () => {
+        const sym = el.getAttribute('data-sym');
+        if (watchedSymbols.includes(sym)) {
+          if (watchedSymbols.length > 1) {
+            watchedSymbols = watchedSymbols.filter(s => s !== sym);
+            if (focusedSymbol === sym) focusedSymbol = watchedSymbols[0];
+            unsubscribeSymbol(sym);
+          }
+        } else {
+          watchedSymbols.push(sym);
+          focusedSymbol = sym;
+          ensureState(sym);
+          subscribeSymbol(sym);
+        }
+        renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
+      });
+    });
+  }
+
+  function renderWatchGrid() {
+    if (watchedSymbols.length === 0) { watchEmpty.style.display = 'block'; watchGrid.innerHTML = ''; return; }
+    watchEmpty.style.display = 'none';
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const strokeColor = isLight ? '#4b5563' : '#c8cfdc';
+
+    watchGrid.innerHTML = watchedSymbols.map(sym => {
+      const s = state[sym]; const meta = ALL_SYMBOLS.find(i => i.sym === sym); if (!s) return '';
+      const priceStr = s.lastPrice ? s.lastPrice.toFixed(meta.dec) : '—.——';
+      
+      let badgeCls = 'neutral';
+      if (s.sigType === 'BUY') badgeCls = 'buy';
+      if (s.sigType === 'SELL') badgeCls = 'sell';
+      if (s.sigType === 'BLOCK') badgeCls = 'block';
+
+      const total = s.statWins + s.statLosses;
+      const wrStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
+      const wrCls = total > 0 ? ( (s.statWins/total) >= 0.5 ? 'good' : 'bad' ) : '';
+      const focusedCls = focusedSymbol === sym ? 'focused' : '';
+
+      let polylineHtml = '';
+      if (s.ticks.length >= 2) {
+        const min = Math.min(...s.ticks); const max = Math.max(...s.ticks); const range = max - min;
+        const pts = s.ticks.map((t, idx) => {
+          const x = (idx / (s.ticks.length - 1)) * 120;
+          const y = range === 0 ? 14 : 26 - ((t - min) / range) * 24;
+          return `${x.toFixed(1)},${y.toFixed(1)}`;
+        }).join(' ');
+        polylineHtml = `<polyline fill="none" stroke="${strokeColor}" stroke-width="1.2" points="${pts}"></polyline>`;
+      }
+
+      return `<div class="watch-card ${focusedCls}" data-sym="${sym}">
+        <div class="wc-top"><span class="wc-name">${meta.label}</span><span class="wc-badge ${badgeCls}">${s.sigType}</span></div>
+        <div class="wc-mid"><span class="wc-price">${priceStr}</span><div class="wc-spark-wrap"><svg viewBox="0 0 120 28" preserveAspectRatio="none">${polylineHtml}</svg></div></div>
+        <div class="wc-bottom">
+          <div class="wc-wr">Win Rate: <span class="wc-wr-val ${wrCls}">${wrStr}</span></div>
+          <div>ค้างดีลพูล: ${s.pendingContracts.length} ไม้</div>
+        </div>
+      </div>`;
+    }).join('');
+
+    watchGrid.querySelectorAll('.watch-card').forEach(card => {
+      card.addEventListener('click', () => {
+        focusedSymbol = card.getAttribute('data-sym');
+        watchGrid.querySelectorAll('.watch-card').forEach(c => c.classList.remove('focused'));
+        card.classList.add('focused');
+        renderFocused(focusedSymbol);
+      });
+    });
+  }
+
+  function renderFocused(sym) {
+    const s = state[sym]; const meta = ALL_SYMBOLS.find(i => i.sym === sym); if (!s) { focusSection.style.display = 'none'; return; }
+    focusSection.style.display = 'block';
+    document.getElementById('fl-name').textContent = meta.label;
+    document.getElementById('hero-asset').textContent = sym;
+
+    const priceEl = document.getElementById('current-price'); const deltaEl = document.getElementById('price-delta');
+    if (s.lastPrice !== null) {
+      priceEl.textContent = s.lastPrice.toFixed(meta.dec);
+      if (s.prevPrice !== null && s.lastPrice !== s.prevPrice) {
+        const diff = s.lastPrice - s.prevPrice; const pct = (diff / s.prevPrice) * 100;
+        deltaEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(3) + '%'; deltaEl.className = `price-delta ${pct > 0 ? 'up' : 'down'}`;
+      }
+    }
+    document.getElementById('res-price').textContent = s.resistance ? s.resistance.toFixed(meta.dec) : '0.00';
+    document.getElementById('sup-price').textContent = s.support ? s.support.toFixed(meta.dec) : '0.00';
+
+    const sigPanel = document.getElementById('signal-output'); const sigTxt = document.getElementById('sig-text'); const sigSb = document.getElementById('sig-sub');
+    sigPanel.className = `signal ${s.sigType.toLowerCase()}`; sigTxt.textContent = s.sigText; sigSb.textContent = s.sigSub;
+
+    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
+    const mainStrokeColor = isLight ? 'var(--accent)' : '#5eead4';
+    const polyline = document.getElementById('spark-line'); const polygon = document.getElementById('spark-fill');
+    polyline.setAttribute('stroke', mainStrokeColor);
+
+    if (s.ticks.length >= 2) {
+      const min = Math.min(...s.ticks); const max = Math.max(...s.ticks); const spread = max - min;
+      const pts = s.ticks.map((t, idx) => {
+        const x = (idx / (s.ticks.length - 1)) * 600; const y = spread === 0 ? 32 : 58 - ((t - min) / spread) * 52; return `${x.toFixed(1)},${y.toFixed(1)}`;
+      });
+      const linePts = pts.join(' '); polyline.setAttribute('points', linePts); polygon.setAttribute('points', `0,64 ${linePts} 600,64`);
+    }
+
+    const total = s.statWins + s.statLosses;
+    const wrRateStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
+
+    document.getElementById('track-count').textContent = `${total} ดีลปิดในเซสชัน`;
+    document.getElementById('ts-winrate').textContent = wrRateStr;
+    document.getElementById('ts-wins').textContent = s.statWins;
+    document.getElementById('ts-losses').textContent = s.statLosses;
+    document.getElementById('ts-pending').textContent = s.pendingContracts.length;
+    document.getElementById('tb-fill').style.width = total > 0 ? `${(s.statWins / total) * 100}%` : '0%';
+
+    const listContainer = document.getElementById('track-list');
+    if (s.resolvedContracts.length === 0) {
+      listContainer.innerHTML = '<li class="empty">ยังไม่มีคำสั่งซื้อที่ปิดดีลในเซสชันนี้</li>';
+    } else {
+      listContainer.innerHTML = s.resolvedContracts.slice(0, 30).map(r => {
+        const resCls = r.result.toLowerCase(); const resSym = r.result === 'WIN' ? 'W' : 'L';
+        const dirCls = r.dir.toLowerCase() === 'higher' ? 'buy' : 'sell'; const dirLabel = r.dir === 'HIGHER' ? 'CALL' : 'PUT';
+        const time = r.resolvedAt.toLocaleTimeString('th-TH', { hour12: false });
+        return `<li>
+          <span class="tl-result ${resCls}">${resSym}</span>
+          <span class="tl-dir ${dirCls}">${dirLabel}</span>
+          <span class="tl-prices">${r.entryPrice.toFixed(meta.dec)} → ${r.exitPrice.toFixed(meta.dec)}</span>
+          <span class="tl-time">${time} (ไม้ M-${r.step} | ขนาด $${r.stakeValue.toFixed(2)})</span>
+        </li>`;
+      }).join('');
+    }
+  }
+
+  function renderCombinedWinRate() {
+    const banner = document.getElementById('combined-banner'); const winrateEl = document.getElementById('cb-winrate');
+    let totalWins = 0; let totalLosses = 0;
+    watchedSymbols.forEach(sym => { const s = state[sym]; if (s) { totalWins += s.statWins; totalLosses += s.statLosses; } });
+    const grandTotal = totalWins + totalLosses;
+    if (grandTotal > 0) { banner.style.display = 'flex'; winrateEl.textContent = ((totalWins / grandTotal) * 100).toFixed(1) + '%'; } 
+    else { banner.style.display = 'flex'; winrateEl.textContent = '—'; }
+    updateCombinedBanner();
+  }
+
+  function addLog(text) {
+    const time = new Date().toLocaleTimeString('th-TH', { hour12: false });
+    const li = document.createElement('li'); li.textContent = `${time}  ${text}`;
+    logContainer.insertBefore(li, logContainer.firstChild);
+    while (logContainer.children.length > 60) logContainer.removeChild(logContainer.lastChild);
+  }
+
+  durationSelect.addEventListener('change', (e) => {
+    durationVal = e.target.value;
+    watchedSymbols.forEach(sym => { state[sym] = freshState(); });
+    renderWatchGrid(); if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
+    addLog(`⏰ เปลี่ยนเวลาสัญญาร่วมเป็น: ${durationSelect.options[durationSelect.selectedIndex].text} (ล้างประวัติคำนวณฐานใหม่)`);
+  });
+
+  function connectWS() {
+    if (ws) { try { ws.close(); } catch(e){} }
+    ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
+
+    ws.onopen = () => {
+      connDot.className = 'dot live'; apiStatus.textContent = 'LIVE';
+      addLog('📡 เชื่อมต่อเกตเวย์รับข้อมูลสดผ่าน Deriv WebSocket Server');
+      if(apiToken) sendAuthorize();
+      watchedSymbols.forEach(sym => subscribeSymbol(sym));
+    };
+
+    ws.onmessage = (msg) => {
+      const data = JSON.parse(msg.data);
+      
+      if (data.msg_type === 'authorize') {
+        if(data.error) {
+          isAuthorized = false; alert(`การยืนยันสิทธิ์ Token ล้มเหลว: ${data.error.message}`);
+          addLog('❌ ปฏิเสธการต่อพอร์ต: กรุณาตรวจสอบรหัสสิทธิ์และโหมดพอร์ตพาสเวิร์ด');
+        } else {
+          isAuthorized = true;
+          apiGateInputs.style.display = 'none'; 
+          accountInfoDisplay.style.display = 'flex'; 
+          badgeAccountMode.textContent = accountMode === 'demo' ? 'DEMO 🧪' : 'REAL 💰';
+          badgeAccountMode.className = `badge-mode ${accountMode}`;
+          accEmail.textContent = data.authorize.email;
+          addLog(`✅ บัญชี ${data.authorize.email} เปิดระบบสำเร็จ! [โหมดพอร์ต: ${accountMode.toUpperCase()}]`);
+          fetchBalance();
+        }
+      }
+
+      if (data.msg_type === 'balance') {
+        if(!data.error && data.balance && isAuthorized) {
+          accBalance.textContent = `$${parseFloat(data.balance.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
+        }
+      }
+
+      // 📥 จัดการผลลัพธ์ของ PROPOSAL CONTRACT
+      if (data.msg_type === 'proposal') {
+        if (data.error) {
+          addLog(`🚨 [PROPOSAL ERROR] เซิร์ฟเวอร์ปฏิเสธการร่างสัญญา: ${data.error.message}`);
+          globalOrderLock = false; 
+          currentlyTradingSymbol = null;
+          updateCombinedBanner();
+        } else if (data.proposal && data.req_id === activeProposalReqId) {
+          const propId = data.proposal.id;
+          addLog(`📦 [PROPOSAL OK] ได้รับรหัสตั๋วร่างสัญญา: ${propId} — กำลังกดซื้อทันที...`);
+          
+          // ส่งคำสั่งซื้อผ่าน Proposal ID สากลอย่างเป็นทางการเพื่อหลีกเลี่ยงข้อจำกัดฝั่งนาที
+          ws.send(JSON.stringify({
+            buy: propId,
+            price: data.proposal.ask_price
+          }));
+        }
+      }
+
+      if (data.msg_type === 'buy') {
+        if(data.error) {
+          addLog(`🚨 [API BUY ERROR] เซิร์ฟเวอร์ปฏิเสธการเข้าซื้อตั๋ว: ${data.error.message}`);
+          globalOrderLock = false;
+          currentlyTradingSymbol = null;
+          updateCombinedBanner();
+        } else {
+          const buyInfo = data.buy;
+          const symbol = currentlyTradingSymbol;
+          addLog(`📦 [API ORDER ACCEPTED] อนุมัติสัญญาออปชันสำเร็จ! ดีล ID: ${buyInfo.contract_id}`);
+          
+          // 📡 สตรีมข้อมูลเปิดรับการตรวจสอบสถานะสัญญารายการเปิดโดยตรงฝั่งเซิร์ฟเวอร์
+          ws.send(JSON.stringify({
+            proposal_open_contract: 1,
+            contract_id: buyInfo.contract_id,
+            subscribe: 1
+          }));
+
+          if (symbol && state[symbol]) {
+            const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2));
+            const activeContract = {
+              id: buyInfo.contract_id,
+              dir: data.echo_req.contract_type === 'CALL' ? 'HIGHER' : 'LOWER',
+              entryPrice: state[symbol].lastPrice || 0,
+              step: globalStepCount + 1,
+              stakeValue: currentStake,
+              isVirtual: false
+            };
+            state[symbol].pendingContracts.push(activeContract);
+          }
+        }
+      }
+
+      // 📥 ฟังสถานะดักตรวจสัญญาสดผ่านเซิร์ฟเวอร์แบบ Real-time จนกว่าดีลจะตัดจบ
+      if (data.msg_type === 'proposal_open_contract') {
+        if (data.proposal_open_contract) {
+          const poc = data.proposal_open_contract;
+          if (poc.is_expired || poc.status !== 'open') {
+            // ยกเลิกรับสถานะของตั๋วรายการนี้
+            ws.send(JSON.stringify({ forget: poc.id }));
+            processContractResolution(poc.symbol, poc.id, poc.status, poc.entry_spot, poc.output.contract_outcome, poc.exit_tick);
+          }
+        }
+      }
+
+      if (data.msg_type === 'tick') {
+        onTickReceived(data.tick);
+      }
+    };
+
+    ws.onclose = () => {
+      connDot.className = 'dot'; apiStatus.textContent = 'กำลังเชื่อมต่อ…';
+      isAuthorized = false; setTimeout(connectWS, 4000);
+    };
+  }
+
+  // 🌍 ประมวลผลลัพธ์การปิดดีลมาติงเกลพูลกลาง
+  function processContractResolution(symbol, contractId, status, entryPrice, outcome, exitPrice) {
+    ensureState(symbol);
+    const s = state[symbol];
+    
+    // ค้นหาดีลจากลิสต์ค้างท่อ
+    const targetIdx = s.pendingContracts.findIndex(c => c.id === contractId);
+    if (targetIdx === -1) return;
+    
+    const c = s.pendingContracts[targetIdx];
+    s.pendingContracts.splice(targetIdx, 1);
+
+    let isWin = (outcome === 'won' || status === 'won');
+    let finalResult = isWin ? 'WIN' : 'LOSS';
+    let realEntry = entryPrice || c.entryPrice;
+    let realExit = exitPrice || realEntry;
+
+    if (isWin) {
+      s.statWins++;
+      addLog(`🎉 [GLOBAL PROFIT] ดีล ${c.id} บนคู่ [${symbol}] ชนะที่ไม้ ${c.step}! -> รีเซ็ตมาติงเกลพูลกลางกลับไม้ 1`);
+      globalStepCount = 0; 
+    } else {
+      s.statLosses++;
+      globalStepCount++;
+      
+      if (globalStepCount >= allowedMaxSteps) {
+        addLog(`🛑 [GLOBAL STOP LOSS] พูลกลางผิดทางถึงเพดานสูงสุด (${allowedMaxSteps} ไม้) ตัดขาดทุนรอบนี้ (Cut Loss) และบังคับรีเซ็ตกลับไม้ 1 ทันที!`);
+        globalStepCount = 0;
+      } else {
+        const nextStakeVal = (baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2);
+        addLog(`❌ [GLOBAL LOSS] ดีล ${c.id} บนคู่ [${symbol}] แพ้ที่ไม้ ${c.step}! พูลทบสเตปเงินคูณ x${martingaleMultiplier} (เตรียมไม้ M-${globalStepCount + 1} ขนาดทุน: $${nextStakeVal})`);
+      }
+    }
+
+    s.resolvedContracts.unshift({
+      id: c.id, dir: c.dir, entryPrice: realEntry, exitPrice: realExit, result: finalResult, step: c.step, stakeValue: c.stakeValue, resolvedAt: new Date()
+    });
+
+    // 🔓 ปลดล็อกพอร์ตกลางทันทีเพื่อให้สัญญาณถัดไปของคู่เงินไหนก็ได้สามารถยิงเข้าสู่ระบบได้
+    globalOrderLock = false;
+    currentlyTradingSymbol = null;
+    
+    renderWatchGrid();
+    if (symbol === focusedSymbol || currentlyTradingSymbol === focusedSymbol) renderFocused(focusedSymbol);
+    renderCombinedWinRate();
+  }
+
+  function subscribeSymbol(sym) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ ticks: sym }));
+  }
+  function unsubscribeSymbol(sym) {
+    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ forget: sym }));
+  }
+
+  function onTickReceived(tick) {
+    const sym = tick.symbol; if (!watchedSymbols.includes(sym)) return;
+    ensureState(sym); const s = state[sym]; const price = parseFloat(tick.quote);
+
+    s.tickCounter++; s.prevPrice = s.lastPrice; s.lastPrice = price; s.ticks.push(price);
+    if (s.ticks.length > lookbackPeriod) s.ticks.shift();
+
+    // ⏳ ลอจิกจำลองฝั่ง VIRTUAL CONTRACT (หากไม่ได้ป้อน Token)
+    if (s.pendingContracts.length > 0) {
+      s.pendingContracts.forEach((c, idx) => {
+        if (c.isVirtual && Date.now() >= c.resolveTime) {
+          s.pendingContracts.splice(idx, 1);
+          let isWin = (c.dir === 'HIGHER' && price > c.entryPrice) || (c.dir === 'LOWER' && price < c.entryPrice);
+          let resStr = isWin ? 'WIN' : 'LOSS';
+          
+          if (isWin) {
+            s.statWins++;
+            addLog(`🎉 [VIRTUAL PROFIT] ดีลจำลอง ${c.id} ชนะที่ไม้ ${c.step}! -> รีเซ็ตพูลกลางกลับไม้ 1`);
+            globalStepCount = 0;
+          } else {
+            s.statLosses++;
+            globalStepCount++;
+            if (globalStepCount >= allowedMaxSteps) {
+              addLog(`🛑 [VIRTUAL STOP LOSS] ผิดทางถึงเพดานสูงสุดริบเงินทิ้ง -> บังคับรีเซ็ตกลับไม้ 1`);
+              globalStepCount = 0;
+            } else {
+              const nextStakeVal = (baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2);
+              addLog(`❌ [VIRTUAL LOSS] ดีลจำลอง ${c.id} แพ้ที่ไม้ ${c.step}! ทบพูลกลาง (เตรียมไม้ M-${globalStepCount + 1} ขนาดทุน: $${nextStakeVal})`);
+            }
+          }
+          
+          s.resolvedContracts.unshift({
+            id: c.id, dir: c.dir, entryPrice: c.entryPrice, exitPrice: price, result: resStr, step: c.step, stakeValue: c.stakeValue, resolvedAt: new Date()
+          });
+          
+          globalOrderLock = false;
+          currentlyTradingSymbol = null;
+          renderCombinedWinRate();
+        }
+      });
+    }
+
+    if (s.ticks.length >= 15) {
+      s.resistance = Math.max(...s.ticks.slice(0, -2));
+      s.support = Math.min(...s.ticks.slice(0, -2));
+
+      const largePeriod = s.ticks.length; const shortPeriod = 4;
+      const mtfMainTrend = s.ticks.reduce((a,b)=>a+b,0) / largePeriod; 
+      const currentMomentum = s.ticks.slice(-shortPeriod).reduce((a,b)=>a+b,0) / shortPeriod; 
+
+      let majorBias = 'SIDEWAYS';
+      if (currentMomentum > mtfMainTrend) majorBias = 'BULLISH';
+      if (currentMomentum < mtfMainTrend) majorBias = 'BEARISH';
+
+      const totalRange = s.resistance - s.support;
+      const midMin = s.support + (totalRange * 0.35);
+      const midMax = s.support + (totalRange * 0.65);
+      const prevSigType = s.sigType;
+
+      if (price > midMin && price < midMax) {
+        s.sigType = 'BLOCK'; s.sigText = 'COMPRESSION: MID-ZONE';
+        s.sigSub = `⏳ สภาพราคาบีบอัดตัวในกรอบสะสมพลัง รอจังหวะสวิงทะลุขอบแนวรับต้าน (คำนวณ: ${lookbackPeriod} Ticks)`;
+      } 
+      else if (price >= s.resistance && majorBias === 'BULLISH') {
+        s.sigType = 'BUY'; s.sigText = 'BREAKOUT: HIGHER';
+        s.sigSub = '🟢 สัญญาณเบรคเอาท์แนวต้านขอบบนทำงาน: เตรียมส่งสัญญา CALL/RISE ผ่านระบบพูลกลาง';
+        
+        if (prevSigType !== 'BUY' && !globalOrderLock) {
+          playSignalSound('HIGHER'); 
+          executeProposalRequest(sym, 'HIGHER'); 
+        }
+      } 
+      else if (price <= s.support && majorBias === 'BEARISH') {
+        s.sigType = 'SELL'; s.sigText = 'BREAKOUT: LOWER';
+        s.sigSub = '🔴 สัญญาณหลุดทะลุกรอบแนวรับขอบล่างทำงาน: เตรียมส่งสัญญา PUT/FALL ผ่านระบบพูลกลาง';
+        
+        if (prevSigType !== 'SELL' && !globalOrderLock) {
+          playSignalSound('LOWER');
+          executeProposalRequest(sym, 'LOWER');
+        }
+      } 
+      else {
+        s.sigType = 'BLOCK'; s.sigText = 'BLOCK: UNSTABLE MOMENTUM';
+        s.sigSub = '⚠️ ระงับสัญญาณ: ราคาออกนอกกรอบพักตัวแต่ทิศทางโมเมนตัมหลักยังขัดแย้งกัน';
+      }
+    }
+
+    renderWatchGrid(); if (sym === focusedSymbol) renderFocused(focusedSymbol); renderCombinedWinRate();
+  }
+
+  ensureState(focusedSymbol); renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); connectWS();
+</script>
+
+</body>
+</html>
