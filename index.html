@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terravolteco — Market Structure Terminal (Logout/Disconnect Fix)</title>
+<title>Terravolteco — Market Structure Terminal (Global Martingale & Proposal Minutes)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
@@ -361,6 +361,7 @@
   .tl-time{ color:var(--ink-dim); font-size:10.5px; flex-shrink:0; }
 
   .combined-banner{ display:flex; justify-content:space-between; align-items:center; background:var(--line-soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; margin-bottom:14px; font-family:var(--mono); font-size:12px; }
+  .combined-banner .cb-group { display: flex; align-items: center; gap: 6px; }
   .combined-banner .cb-label{ color:var(--ink-dim); }
   .combined-banner .cb-val{ color:var(--ink-bright); font-weight:700; }
 
@@ -378,7 +379,6 @@
   .log-list::-webkit-scrollbar{ width:6px; }
   .log-list::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
 
-  /* 🎨 Animated background — soft drifting gradient orbs behind the terminal */
   .bg-fx{
     position:fixed; inset:0; z-index:-1;
     overflow:hidden; pointer-events:none;
@@ -398,16 +398,6 @@
     background:radial-gradient(circle, #818cf8, transparent 70%);
     animation: orbDrift2 32s ease-in-out infinite;
   }
-  .bg-fx span.orb-3{
-    width:340px; height:340px; top:42%; left:58%;
-    background:radial-gradient(circle, #f472b6, transparent 70%);
-    animation: orbDrift3 36s ease-in-out infinite;
-  }
-  .bg-fx span.orb-4{
-    width:260px; height:260px; top:8%; right:12%;
-    background:radial-gradient(circle, #fbbf24, transparent 70%);
-    animation: orbDrift4 28s ease-in-out infinite;
-  }
   @keyframes orbDrift1{
     0%,100%{ transform:translate(0,0) scale(1); }
     50%{ transform:translate(80px,90px) scale(1.18); }
@@ -416,17 +406,6 @@
     0%,100%{ transform:translate(0,0) scale(1); }
     50%{ transform:translate(-90px,-60px) scale(1.12); }
   }
-  @keyframes orbDrift3{
-    0%,100%{ transform:translate(0,0) scale(1); }
-    50%{ transform:translate(-60px,70px) scale(0.88); }
-  }
-  @keyframes orbDrift4{
-    0%,100%{ transform:translate(0,0) scale(1); }
-    50%{ transform:translate(50px,-70px) scale(1.2); }
-  }
-  @media (prefers-reduced-motion: reduce){
-    .bg-fx span{ animation:none; }
-  }
 </style>
 </head>
 <body>
@@ -434,8 +413,6 @@
 <div class="bg-fx" aria-hidden="true">
   <span class="orb-1"></span>
   <span class="orb-2"></span>
-  <span class="orb-3"></span>
-  <span class="orb-4"></span>
 </div>
 
 <div class="wrap">
@@ -479,18 +456,18 @@
   <div class="watchlist-picker" id="watchlist-picker"></div>
 
   <div class="combined-banner" id="combined-banner" style="display:none; gap:14px; flex-wrap:wrap;">
-    <div class="cb-group" style="display:flex; align-items:center; gap:6px;">
+    <div class="cb-group">
       <span class="cb-label">Win Rate รวม</span>
       <span class="cb-val" id="cb-winrate">—</span>
     </div>
-    <div class="cb-group" style="display:flex; align-items:center; gap:6px;">
-      <span class="cb-label">มาติงเกล (รวมทุกสัญลักษณ์)</span>
+    <div class="cb-group">
+      <span class="cb-label">มาติงเกลกลาง</span>
       <span class="cb-val" id="cb-step">M-1</span>
-      <span class="cb-val" id="cb-next-stake">$1.00</span>
+      <span class="cb-val" id="cb-next-stake" style="color:var(--accent)">$1.00</span>
     </div>
-    <div class="cb-group" style="display:flex; align-items:center; gap:6px;">
-      <span class="cb-label">สถานะออเดอร์</span>
-      <span class="cb-val" id="cb-lock-status">ว่าง</span>
+    <div class="cb-group">
+      <span class="cb-label">สถานะพอร์ต</span>
+      <span class="cb-val" id="cb-lock-status" style="color:var(--buy)">READY</span>
     </div>
   </div>
 
@@ -512,9 +489,9 @@
           <select id="duration-select">
             <option value="5_ticks" selected>5 Ticks (แนะนำความไวสูงสุด)</option>
             <option value="10_ticks">10 Ticks</option>
-            <option value="1_min">1 นาที</option>
-            <option value="5_min">5 นาที</option>
-            <option value="15_min">15 นาที</option>
+            <option value="1_min">1 นาที (โหมดสัญญาแท้)</option>
+            <option value="5_min">5 นาที (โหมดสัญญาแท้)</option>
+            <option value="15_min">15 นาที (โหมดสัญญาแท้)</option>
           </select>
         </div>
         <div class="field">
@@ -651,26 +628,16 @@
   let focusedSymbol = 'R_75';
   let durationVal = '5_ticks';
 
-  // 🔧 FIX: lookbackPeriod เดิมผูกกับ duration ที่เลือก (5_min -> 260, 15_min -> 700 ticks)
-  // ทำให้ resistance/support คำนวณจากหน้าต่างยาวเกินไป โอกาสที่ราคาจะ "ทำนิวไฮ/นิวโลว์"
-  // ของ 260-700 ติ๊กที่ผ่านมาแบบสุ่มนั้นต่ำมาก (~1/N) บอทจึงแทบไม่เคยเข้าเงื่อนไขยิงออเดอร์เลย
-  // เมื่อตั้ง expiry เป็น 5 นาที/15 นาที ทั้งที่จริง ๆ ไม่มี error จาก API แต่อย่างใด
-  //
-  // ตอนนี้แยกออกมาเป็นค่าคงที่ SIGNAL_LOOKBACK สำหรับวิเคราะห์โครงสร้างราคาเท่านั้น
-  // ส่วน durationVal จะมีหน้าที่แค่กำหนด duration/duration_unit ที่ส่งให้ Deriv API
-  // และเวลารอผลของดีล (virtual/local tracking) ไม่เกี่ยวกับความถี่ของสัญญาณอีกต่อไป
   const SIGNAL_LOOKBACK = 30;
   let lookbackPeriod = SIGNAL_LOOKBACK;
   let allowedMaxSteps = 5;
   let martingaleMultiplier = 2.0; 
 
-  function durationToWaitTicks(v) {
-    if (v === '5_ticks') return 5;
-    if (v === '10_ticks') return 10;
-    if (v === '5_min') return 150; 
-    if (v === '15_min') return 450;
-    return 5;
-  }
+  // 🌍 GLOBAL MARTINGALE GLOBAL POOL VARIABLES
+  let globalStepCount = 0; 
+  let globalOrderLock = false; 
+  let activeProposalReqId = null; 
+  let currentlyTradingSymbol = null; 
 
   let state = {};
 
@@ -688,8 +655,7 @@
       pendingContracts: [], 
       resolvedContracts: [],
       statWins: 0,
-      statLosses: 0,
-      currentStepCount: 0 
+      statLosses: 0
     };
   }
 
@@ -708,530 +674,3 @@
   const logContainer = document.getElementById('log-container');
   const connDot = document.getElementById('conn-dot');
   const apiStatus = document.getElementById('api-status');
-  const themeToggleBtn = document.getElementById('theme-toggle');
-  
-  const apiGateInputs = document.getElementById('api-gate-inputs');
-  const accountModeSelect = document.getElementById('account-mode-select');
-  const apiTokenInput = document.getElementById('api-token-input');
-  const apiConnectBtn = document.getElementById('api-connect-btn');
-  const accountInfoDisplay = document.getElementById('account-info-display');
-  const badgeAccountMode = document.getElementById('badge-account-mode');
-  const accEmail = document.getElementById('acc-email');
-  const accBalance = document.getElementById('acc-balance');
-  const apiDisconnectBtn = document.getElementById('api-disconnect-btn');
-  const clearApiBtn = document.getElementById('clear-api-btn');
-
-  themeToggleBtn.addEventListener('click', () => {
-    if (document.documentElement.getAttribute('data-theme') === 'light') {
-      document.documentElement.removeAttribute('data-theme');
-      themeToggleBtn.textContent = '🌙';
-    } else {
-      document.documentElement.setAttribute('data-theme', 'light');
-      themeToggleBtn.textContent = '☀️';
-    }
-    renderWatchGrid();
-    renderFocused(focusedSymbol);
-  });
-
-  maxStepsSelect.addEventListener('change', (e) => {
-    allowedMaxSteps = parseInt(e.target.value);
-    addLog(`🛡️ ปรับขีดจำกัดเพดานทบไม้สูงสุดเป็น: ไม่เกิน ${allowedMaxSteps} ไม้`);
-  });
-
-  martingaleMultiplierSelect.addEventListener('change', (e) => {
-    martingaleMultiplier = parseFloat(e.target.value);
-    addLog(`📈 ปรับสเกลตัวคูณทบเงินมาติงเกลใหม่เมื่อแพ้เป็น: x${martingaleMultiplier}`);
-    renderFocused(focusedSymbol);
-  });
-
-  clearApiBtn.addEventListener('click', () => {
-    if(confirm('ต้องการรีเซ็ตประวัติและค่า Win Rate ในเซสชันนี้ใช่ไหมครับ?')) {
-      watchedSymbols.forEach(sym => { state[sym] = freshState(); });
-      renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
-      addLog('🧹 ล้างสถิติประวัติดีลบนเทอร์มินอลเรียบร้อยแล้ว');
-    }
-  });
-
-  function playSignalSound(type) {
-    try {
-      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-      if (type === 'HIGHER') {
-        playTone(audioCtx, 880, 0.1, 0);
-        playTone(audioCtx, 1318.51, 0.15, 0.12);
-      } else if (type === 'LOWER') {
-        playTone(audioCtx, 440, 0.12, 0);
-        playTone(audioCtx, 349.23, 0.2, 0.1);
-      }
-    } catch (e) { console.log("Audio Alert Blocked", e); }
-  }
-
-  function playTone(ctx, freq, duration, delay) {
-    const osc = ctx.createOscillator();
-    const gainNode = ctx.createGain();
-    osc.type = 'sine'; osc.frequency.value = freq;
-    gainNode.gain.setValueAtTime(0.15, ctx.currentTime + delay);
-    gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
-    osc.connect(gainNode); gainNode.connect(ctx.destination);
-    osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + duration);
-  }
-
-  apiConnectBtn.addEventListener('click', () => {
-    const token = apiTokenInput.value.trim();
-    if(!token) { alert('กรุณากรอก API Token เพื่อระบุสิทธิ์พอร์ตก่อนครับ'); return; }
-    
-    apiToken = token;
-    accountMode = accountModeSelect.value; 
-    
-    addLog(`🔑 กำลังส่งโครงสร้างสิทธิ์ยืนยันพอร์ตย่อย [โหมด: ${accountMode.toUpperCase()}]...`);
-    sendAuthorize();
-  });
-
-  // 🛑 LOGOUT / DISCONNECT LOGIC: ล้างสิทธิ์และเปิดฟอร์มสำหรับสลับ Token ใหม่
-  apiDisconnectBtn.addEventListener('click', () => {
-    if (confirm('คุณต้องการตัดการเชื่อมต่อพอร์ตปัจจุบัน เพื่อเปลี่ยนไปใช้ API Token ชุดอื่นใช่ไหมครับ?')) {
-      addLog(`🔒 กำลังสั่งตัดการเชื่อมต่อพอร์ตเดิม และคืนโครงสร้างความปลอดภัย...`);
-      
-      // 1. ส่งคำสั่งยกเลิกสตรีมข้อมูลสดทั้งหมดไปยัง Deriv Server
-      if (ws && ws.readyState === WebSocket.OPEN) {
-        ws.send(JSON.stringify({ forget_all: "ticks" }));
-      }
-      
-      // 2. เคลียร์ค่าตัวแปรสิทธิ์ให้ว่างเปล่า
-      apiToken = '';
-      isAuthorized = false;
-      
-      // 3. ปรับโครงสร้าง UI ซ่อนข้อมูลพอร์ตเก่า และสลับเปิดฟอร์มกรอกช่องใหม่
-      accountInfoDisplay.style.display = 'none';
-      apiGateInputs.style.display = 'flex';
-      apiTokenInput.value = ''; // เคลียร์รหัสผ่านเก่าออกจากช่องกรอก
-      accBalance.textContent = '$0.00';
-      accEmail.textContent = '—';
-      
-      // 4. ล้างหน้าประวัติและสเตปทบเงินของบ็อต เพื่อป้องกันไม้ต่อเนื่องข้ามพอร์ต
-      watchedSymbols.forEach(sym => { state[sym] = freshState(); });
-      renderWatchGrid(); 
-      if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
-      renderCombinedWinRate();
-      
-      addLog('🔓 ปลดล็อกพอร์ตสำเร็จ! เทอร์มินอลเปิดระบบว่างแล้ว สามารถระบุ Token ตัวใหม่เข้าไปทำงานต่อได้ทันทีครับ');
-    }
-  });
-
-  function sendAuthorize() {
-    if (ws && ws.readyState === WebSocket.OPEN && apiToken) {
-      ws.send(JSON.stringify({ authorize: apiToken }));
-    }
-  }
-
-  function fetchBalance() {
-    if (ws && ws.readyState === WebSocket.OPEN && isAuthorized) {
-      ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-    }
-  }
-
-  function executeRealContract(symbol, direction) {
-    ensureState(symbol);
-    const s = state[symbol];
-    
-    if (s.pendingContracts.length > 0) return; 
-
-    const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2));
-    const contractType = direction === 'HIGHER' ? 'CALL' : 'PUT';
-
-    let durationNumber = 5;
-    let durationUnitStr = 't';
-
-    if (durationVal === '5_ticks') { durationNumber = 5; durationUnitStr = 't'; }
-    else if (durationVal === '10_ticks') { durationNumber = 10; durationUnitStr = 't'; }
-    else if (durationVal === '5_min') { durationNumber = 5; durationUnitStr = 'm'; }
-    else if (durationVal === '15_min') { durationNumber = 15; durationUnitStr = 'm'; }
-
-    const calculatedWaitTicks = durationToWaitTicks(durationVal);
-
-    if (!isAuthorized || !ws || ws.readyState !== WebSocket.OPEN) {
-      addLog(`📢 [VIRTUAL] สัญญาณ ${direction} ทำงาน (ไม้ M-${s.currentStepCount + 1}) ทุน: $${currentStake} [ระยะเวลา: ${durationNumber}${durationUnitStr}]`);
-      
-      const localContract = {
-        id: 'ID-VIRTUAL-' + Math.floor(Math.random() * 89999 + 10000),
-        dir: direction,
-        entryPrice: s.lastPrice,
-        entryTick: s.tickCounter,
-        resolveAtTick: s.tickCounter + calculatedWaitTicks,
-        step: s.currentStepCount + 1,
-        stakeValue: currentStake,
-        apiTracked: false
-      };
-      s.pendingContracts.push(localContract);
-      return;
-    }
-
-    const orderRequest = {
-      buy: 1,
-      price: currentStake,
-      parameters: {
-        amount: currentStake,
-        basis: 'stake',
-        contract_type: contractType,
-        currency: 'USD',
-        duration: durationNumber,
-        duration_unit: durationUnitStr, 
-        symbol: symbol
-      }
-    };
-
-    ws.send(JSON.stringify(orderRequest));
-    
-    const apiContract = {
-      id: 'AWAITING-API-ID',
-      dir: direction,
-      entryPrice: s.lastPrice,
-      entryTick: s.tickCounter,
-      resolveAtTick: s.tickCounter + calculatedWaitTicks,
-      step: s.currentStepCount + 1,
-      stakeValue: currentStake,
-      apiTracked: false
-    };
-    s.pendingContracts.push(apiContract);
-    addLog(`🎯 [${symbol}] ตรวจพบเบรคเอาท์! ส่งคำสั่งยิงออเดอร์ ไม้ M-${apiContract.step} (ขนาดทุน: $${currentStake})`);
-  }
-
-  function renderPicker() {
-    pickerContainer.innerHTML = ALL_SYMBOLS.map(item => {
-      const isAct = watchedSymbols.includes(item.sym) ? 'active' : '';
-      return `<div class="chip ${isAct}" data-sym="${item.sym}">${item.sym}</div>`;
-    }).join('');
-    watchCountEl.textContent = `${watchedSymbols.length} รายการ`;
-
-    pickerContainer.querySelectorAll('.chip').forEach(el => {
-      el.addEventListener('click', () => {
-        const sym = el.getAttribute('data-sym');
-        if (watchedSymbols.includes(sym)) {
-          if (watchedSymbols.length > 1) {
-            watchedSymbols = watchedSymbols.filter(s => s !== sym);
-            if (focusedSymbol === sym) focusedSymbol = watchedSymbols[0];
-            unsubscribeSymbol(sym);
-          }
-        } else {
-          watchedSymbols.push(sym);
-          focusedSymbol = sym;
-          ensureState(sym);
-          subscribeSymbol(sym);
-        }
-        renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
-      });
-    });
-  }
-
-  function renderWatchGrid() {
-    if (watchedSymbols.length === 0) { watchEmpty.style.display = 'block'; watchGrid.innerHTML = ''; return; }
-    watchEmpty.style.display = 'none';
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    const strokeColor = isLight ? '#4b5563' : '#c8cfdc';
-
-    watchGrid.innerHTML = watchedSymbols.map(sym => {
-      const s = state[sym]; const meta = ALL_SYMBOLS.find(i => i.sym === sym); if (!s) return '';
-      const priceStr = s.lastPrice ? s.lastPrice.toFixed(meta.dec) : '—.——';
-      
-      let badgeCls = 'neutral';
-      if (s.sigType === 'BUY') badgeCls = 'buy';
-      if (s.sigType === 'SELL') badgeCls = 'sell';
-      if (s.sigType === 'BLOCK') badgeCls = 'block';
-
-      const total = s.statWins + s.statLosses;
-      const wrStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
-      const wrCls = total > 0 ? ( (s.statWins/total) >= 0.5 ? 'good' : 'bad' ) : '';
-      const focusedCls = focusedSymbol === sym ? 'focused' : '';
-
-      let polylineHtml = '';
-      if (s.ticks.length >= 2) {
-        const min = Math.min(...s.ticks); const max = Math.max(...s.ticks); const range = max - min;
-        const pts = s.ticks.map((t, idx) => {
-          const x = (idx / (s.ticks.length - 1)) * 120;
-          const y = range === 0 ? 14 : 26 - ((t - min) / range) * 24;
-          return `${x.toFixed(1)},${y.toFixed(1)}`;
-        }).join(' ');
-        polylineHtml = `<polyline fill="none" stroke="${strokeColor}" stroke-width="1.2" points="${pts}"></polyline>`;
-      }
-
-      const nextStakeVal = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
-
-      return `<div class="watch-card ${focusedCls}" data-sym="${sym}">
-        <div class="wc-top"><span class="wc-name">${meta.label}</span><span class="wc-badge ${badgeCls}">${s.sigType}</span></div>
-        <div class="wc-mid"><span class="wc-price">${priceStr}</span><div class="wc-spark-wrap"><svg viewBox="0 0 120 28" preserveAspectRatio="none">${polylineHtml}</svg></div></div>
-        <div class="wc-bottom">
-          <div class="wc-wr">Win Rate: <span class="wc-wr-val ${wrCls}">${wrStr}</span></div>
-          <div>ดีลค้าง: ${s.pendingContracts.length} (M-${s.currentStepCount + 1} = $${nextStakeVal})</div>
-        </div>
-      </div>`;
-    }).join('');
-
-    watchGrid.querySelectorAll('.watch-card').forEach(card => {
-      card.addEventListener('click', () => {
-        focusedSymbol = card.getAttribute('data-sym');
-        watchGrid.querySelectorAll('.watch-card').forEach(c => c.classList.remove('focused'));
-        card.classList.add('focused');
-        renderFocused(focusedSymbol);
-      });
-    });
-  }
-
-  function renderFocused(sym) {
-    const s = state[sym]; const meta = ALL_SYMBOLS.find(i => i.sym === sym); if (!s) { focusSection.style.display = 'none'; return; }
-    focusSection.style.display = 'block';
-    document.getElementById('fl-name').textContent = meta.label;
-    document.getElementById('hero-asset').textContent = sym;
-
-    const priceEl = document.getElementById('current-price'); const deltaEl = document.getElementById('price-delta');
-    if (s.lastPrice !== null) {
-      priceEl.textContent = s.lastPrice.toFixed(meta.dec);
-      if (s.prevPrice !== null && s.lastPrice !== s.prevPrice) {
-        const diff = s.lastPrice - s.prevPrice; const pct = (diff / s.prevPrice) * 100;
-        deltaEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(3) + '%'; deltaEl.className = `price-delta ${pct > 0 ? 'up' : 'down'}`;
-      }
-    }
-    document.getElementById('res-price').textContent = s.resistance ? s.resistance.toFixed(meta.dec) : '0.00';
-    document.getElementById('sup-price').textContent = s.support ? s.support.toFixed(meta.dec) : '0.00';
-
-    const sigPanel = document.getElementById('signal-output'); const sigTxt = document.getElementById('sig-text'); const sigSb = document.getElementById('sig-sub');
-    sigPanel.className = `signal ${s.sigType.toLowerCase()}`; sigTxt.textContent = s.sigText; sigSb.textContent = s.sigSub;
-
-    const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-    const mainStrokeColor = isLight ? 'var(--accent)' : '#5eead4';
-    const polyline = document.getElementById('spark-line'); const polygon = document.getElementById('spark-fill');
-    polyline.setAttribute('stroke', mainStrokeColor);
-
-    if (s.ticks.length >= 2) {
-      const min = Math.min(...s.ticks); const max = Math.max(...s.ticks); const spread = max - min;
-      const pts = s.ticks.map((t, idx) => {
-        const x = (idx / (s.ticks.length - 1)) * 600; const y = spread === 0 ? 32 : 58 - ((t - min) / spread) * 52; return `${x.toFixed(1)},${y.toFixed(1)}`;
-      });
-      const linePts = pts.join(' '); polyline.setAttribute('points', linePts); polygon.setAttribute('points', `0,64 ${linePts} 600,64`);
-    }
-
-    const total = s.statWins + s.statLosses;
-    const wrRateStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
-    
-    const currentEstimatedStake = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
-
-    document.getElementById('track-count').textContent = `${total + s.pendingContracts.length} ดีล (สเตปปัจจุบัน: M-${s.currentStepCount + 1}/${allowedMaxSteps} | ทุนไม้ถัดไป: $${currentEstimatedStake})`;
-    document.getElementById('ts-winrate').textContent = wrRateStr;
-    document.getElementById('ts-wins').textContent = s.statWins;
-    document.getElementById('ts-losses').textContent = s.statLosses;
-    document.getElementById('ts-pending').textContent = s.pendingContracts.length;
-    document.getElementById('tb-fill').style.width = total > 0 ? `${(s.statWins / total) * 100}%` : '0%';
-
-    const listContainer = document.getElementById('track-list');
-    if (s.resolvedContracts.length === 0) {
-      listContainer.innerHTML = '<li class="empty">ยังไม่มีคำสั่งซื้อที่ปิดดีลในเซสชันนี้</li>';
-    } else {
-      listContainer.innerHTML = s.resolvedContracts.slice(0, 30).map(r => {
-        const resCls = r.result.toLowerCase(); const resSym = r.result === 'WIN' ? 'W' : 'L';
-        const dirCls = r.dir.toLowerCase() === 'higher' ? 'buy' : 'sell'; const dirLabel = r.dir === 'HIGHER' ? 'CALL' : 'PUT';
-        const time = r.resolvedAt.toLocaleTimeString('th-TH', { hour12: false });
-        return `<li>
-          <span class="tl-result ${resCls}">${resSym}</span>
-          <span class="tl-dir ${dirCls}">${dirLabel}</span>
-          <span class="tl-prices">${r.entryPrice.toFixed(meta.dec)} → ${r.exitPrice.toFixed(meta.dec)}</span>
-          <span class="tl-time">${time} (ไม้ M-${r.step} | ขนาด $${r.stakeValue.toFixed(2)})</span>
-        </li>`;
-      }).join('');
-    }
-  }
-
-  function renderCombinedWinRate() {
-    const banner = document.getElementById('combined-banner'); const winrateEl = document.getElementById('cb-winrate');
-    let totalWins = 0; let totalLosses = 0;
-    watchedSymbols.forEach(sym => { const s = state[sym]; if (s) { totalWins += s.statWins; totalLosses += s.statLosses; } });
-    const grandTotal = totalWins + totalLosses;
-    if (grandTotal > 0) { banner.style.display = 'flex'; winrateEl.textContent = ((totalWins / grandTotal) * 100).toFixed(1) + '%'; } 
-    else { banner.style.display = 'none'; }
-  }
-
-  function addLog(text) {
-    const time = new Date().toLocaleTimeString('th-TH', { hour12: false });
-    const li = document.createElement('li'); li.textContent = `${time}  ${text}`;
-    logContainer.insertBefore(li, logContainer.firstChild);
-    while (logContainer.children.length > 60) logContainer.removeChild(logContainer.lastChild);
-  }
-
-  durationSelect.addEventListener('change', (e) => {
-    // durationVal มีผลแค่กับ duration/duration_unit ที่ส่ง API และเวลารอผลของดีล
-    // ไม่กระทบ lookbackPeriod ของการวิเคราะห์โครงสร้างราคาอีกต่อไป (คงที่ที่ SIGNAL_LOOKBACK)
-    durationVal = e.target.value;
-    watchedSymbols.forEach(sym => { state[sym] = freshState(); });
-    renderWatchGrid(); if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
-    addLog(`⏰ เปลี่ยนเวลาสัญญาร่วมเป็น: ${durationSelect.options[durationSelect.selectedIndex].text} (ล้างประวัติคำนวณฐานใหม่)`);
-  });
-
-  function connectWS() {
-    if (ws) { try { ws.close(); } catch(e){} }
-    ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
-
-    ws.onopen = () => {
-      connDot.className = 'dot live'; apiStatus.textContent = 'LIVE';
-      addLog('📡 เชื่อมต่อเกตเวย์รับข้อมูลสดผ่าน Deriv WebSocket Server');
-      if(apiToken) sendAuthorize();
-      watchedSymbols.forEach(sym => subscribeSymbol(sym));
-    };
-
-    ws.onmessage = (msg) => {
-      const data = JSON.parse(msg.data);
-      
-      if (data.msg_type === 'authorize') {
-        if(data.error) {
-          isAuthorized = false; alert(`การยืนยันสิทธิ์ Token ล้มเหลว: ${data.error.message}`);
-          addLog('❌ ปฏิเสธการต่อพอร์ต: กรุณาตรวจสอบรหัสสิทธิ์และโหมดพอร์ตพาสเวิร์ด');
-        } else {
-          isAuthorized = true;
-          apiGateInputs.style.display = 'none'; // ซ่อนฟอร์มใส่ค่า
-          accountInfoDisplay.style.display = 'flex'; // โชว์สถิติพอร์ต
-          
-          badgeAccountMode.textContent = accountMode === 'demo' ? 'DEMO 🧪' : 'REAL 💰';
-          badgeAccountMode.className = `badge-mode ${accountMode}`;
-          
-          accEmail.textContent = data.authorize.email;
-          addLog(`✅ บัญชี ${data.authorize.email} เปิดระบบสำเร็จ! [โหมดพอร์ต: ${accountMode.toUpperCase()}]`);
-          fetchBalance();
-        }
-      }
-
-      if (data.msg_type === 'balance') {
-        if(!data.error && data.balance && isAuthorized) {
-          accBalance.textContent = `$${parseFloat(data.balance.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-        }
-      }
-
-      if (data.msg_type === 'buy') {
-        if(data.error) {
-          addLog(`🚨 [API ERROR] เซิร์ฟเวอร์ปฏิเสธดีล: ${data.error.message}`);
-          const sym = focusedSymbol; 
-          if(state[sym]) state[sym].pendingContracts = [];
-        } else {
-          const buyInfo = data.buy;
-          addLog(`📦 [API ORDER ACCEPTED] ออกคำสั่งซื้อสำเร็จ! เลขที่ดีล: ${buyInfo.contract_id} (จำนวนทุน: $${buyInfo.price.toFixed(2)})`);
-          
-          watchedSymbols.forEach(sym => {
-            ensureState(sym);
-            state[sym].pendingContracts.forEach(c => {
-              if(c.id === 'AWAITING-API-ID' && !c.apiTracked) {
-                c.id = buyInfo.contract_id; c.apiTracked = true;
-              }
-            });
-          });
-        }
-      }
-
-      if (data.msg_type === 'tick') {
-        onTickReceived(data.tick);
-      }
-    };
-
-    ws.onclose = () => {
-      connDot.className = 'dot'; apiStatus.textContent = 'กำลังเชื่อมต่อ…';
-      isAuthorized = false; setTimeout(connectWS, 4000);
-    };
-  }
-
-  function subscribeSymbol(sym) {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ ticks: sym }));
-  }
-  function unsubscribeSymbol(sym) {
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ forget: sym }));
-  }
-
-  function onTickReceived(tick) {
-    const sym = tick.symbol; if (!watchedSymbols.includes(sym)) return;
-    ensureState(sym); const s = state[sym]; const price = parseFloat(tick.quote);
-
-    s.tickCounter++; s.prevPrice = s.lastPrice; s.lastPrice = price; s.ticks.push(price);
-    if (s.ticks.length > lookbackPeriod) s.ticks.shift();
-
-    evaluatePendingContracts(sym, price, s.tickCounter);
-
-    if (s.ticks.length >= 15) {
-      s.resistance = Math.max(...s.ticks.slice(0, -2));
-      s.support = Math.min(...s.ticks.slice(0, -2));
-
-      const largePeriod = s.ticks.length; const shortPeriod = 4;
-      const mtfMainTrend = s.ticks.reduce((a,b)=>a+b,0) / largePeriod; 
-      const currentMomentum = s.ticks.slice(-shortPeriod).reduce((a,b)=>a+b,0) / shortPeriod; 
-
-      let majorBias = 'SIDEWAYS';
-      if (currentMomentum > mtfMainTrend) majorBias = 'BULLISH';
-      if (currentMomentum < mtfMainTrend) majorBias = 'BEARISH';
-
-      const totalRange = s.resistance - s.support;
-      const midMin = s.support + (totalRange * 0.35);
-      const midMax = s.support + (totalRange * 0.65);
-      const prevSigType = s.sigType;
-
-      if (price > midMin && price < midMax) {
-        s.sigType = 'BLOCK'; s.sigText = 'COMPRESSION: MID-ZONE';
-        s.sigSub = `⏳ สภาพราคาบีบอัดตัวในกรอบสะสมพลัง รอจังหวะระเบิดเบรคเอาท์ (เทรนหลัก: ${majorBias})`;
-      } 
-      else if (price >= s.resistance && majorBias === 'BULLISH') {
-        s.sigType = 'BUY'; s.sigText = 'BREAKOUT: HIGHER';
-        s.sigSub = '🟢 สัญญาณเบรคเอาท์ขาขึ้นทำงาน: ทะลุกำแพงแนวต้านสำเร็จเปิดสัญญา CALL';
-        
-        if (prevSigType !== 'BUY') {
-          playSignalSound('HIGHER'); 
-          executeRealContract(sym, 'HIGHER'); 
-        }
-      } 
-      else if (price <= s.support && majorBias === 'BEARISH') {
-        s.sigType = 'SELL'; s.sigText = 'BREAKOUT: LOWER';
-        s.sigSub = '🔴 สัญญาณเบรคเอาท์ขาลงทำงาน: หลุดกำแพงแนวรับด้านล่างเปิดสัญญา PUT';
-        
-        if (prevSigType !== 'SELL') {
-          playSignalSound('LOWER');
-          executeRealContract(sym, 'LOWER');
-        }
-      } 
-      else {
-        s.sigType = 'BLOCK'; s.sigText = 'BLOCK: UNSTABLE BREAK';
-        s.sigSub = '⚠️ ระงับสัญญาณ: ราคาออกนอกกรอบพักตัวแต่ทิศทางมัลติไทม์เฟรมยังขัดแย้งกัน';
-      }
-    }
-
-    renderWatchGrid(); if (sym === focusedSymbol) renderFocused(focusedSymbol); renderCombinedWinRate();
-  }
-
-  function evaluatePendingContracts(sym, currentPrice, currentTickNum) {
-    const s = state[sym]; if (!s.pendingContracts.length) return;
-    
-    const toResolve = s.pendingContracts.filter(c => currentTickNum >= c.resolveAtTick);
-    s.pendingContracts = s.pendingContracts.filter(c => currentTickNum < c.resolveAtTick);
-
-    toResolve.forEach(c => {
-      let result = 'LOSS';
-      if (c.dir === 'HIGHER' && currentPrice > c.entryPrice) result = 'WIN';
-      if (c.dir === 'LOWER' && currentPrice < c.entryPrice) result = 'WIN';
-
-      if (result === 'WIN') {
-        s.statWins++;
-        addLog(`🎉 [PROFIT] ดีล ${c.id} ชนะที่ไม้ ${c.step}! -> รีเซ็ตกลับไม้ 1`);
-        s.currentStepCount = 0; 
-      } else {
-        s.statLosses++;
-        s.currentStepCount++; 
-        
-        if (s.currentStepCount >= allowedMaxSteps) {
-          addLog(`🛑 [STOP LOSS] พอร์ต [${sym}] ผิดทางถึงลิมิตสูงสุดที่ล็อกไว้ (${allowedMaxSteps} ไม้) บ็อตตัดขาดทุนรอบนี้ทิ้ง (Cut Loss) และบังคับรีเซ็ตกลับไม้ 1 ทันที!`);
-          s.currentStepCount = 0;
-        } else {
-          const nextLayerStake = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
-          addLog(`❌ [LOSS] ดีล ${c.id} แพ้ที่ไม้ ${c.step}! ระบบทบเงินมาติงเกลด้วยตัวคูณ x${martingaleMultiplier} (เตรียมไม้ M-${s.currentStepCount + 1} ขนาดทุน: $${nextLayerStake})`);
-        }
-      }
-
-      s.resolvedContracts.unshift({
-        id: c.id, dir: c.dir, entryPrice: c.entryPrice, exitPrice: currentPrice, result: result, step: c.step, stakeValue: c.stakeValue, resolvedAt: new Date()
-      });
-    });
-  }
-
-  ensureState(focusedSymbol); renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); connectWS();
-</script>
-
-</body>
-</html>
