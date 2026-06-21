@@ -1,2474 +1,1644 @@
 <!DOCTYPE html>
-
 <html lang="th">
-
 <head>
-
 <meta charset="UTF-8">
-
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <title>Terravolteco — Market Structure Terminal (Logout/Disconnect Fix)</title>
-
 <link rel="preconnect" href="https://fonts.googleapis.com">
-
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-
 <style>
-
   :root {
-
     --bg:        #0a0c11;
-
     --panel:     #11141c;
-
     --line:      #232838;
-
     --line-soft: #1a1e2a;
-
     --ink:       #c8cfdc;
-
     --ink-dim:   #6b7384;
-
     --ink-bright:#eef1f7;
-
     --accent:    #5eead4;
-
     --buy:       #34d399;
-
     --sell:      #f87171;
-
     --block:     #fbbf24;
-
     --mono: 'IBM Plex Mono', monospace;
-
     --sans: 'Inter', sans-serif;
-
   }
-
-
 
   [data-theme="light"] {
-
     --bg:        #f3f4f6;
-
     --panel:     #ffffff;
-
     --line:      #e5e7eb;
-
     --line-soft: #f9fafb;
-
     --ink:       #374151;
-
     --ink-dim:   #9ca3af;
-
     --ink-bright:#111827;
-
     --accent:    #0d9488;
-
   }
-
-
 
   *{ box-sizing:border-box; }
-
   html{ -webkit-tap-highlight-color: transparent; }
 
-
-
   body{
-
     margin:0;
-
     background:
-
       radial-gradient(ellipse 900px 500px at 50% -10%, rgba(94,234,212,0.05), transparent 60%),
-
       var(--bg);
-
     color:var(--ink);
-
     font-family:var(--sans);
-
     padding:18px 14px 40px;
-
     min-height:100vh;
-
     transition: background 0.3s, color 0.3s;
-
   }
-
-
 
   .wrap{ max-width:780px; margin:0 auto; }
 
-
-
   header{
-
     display:flex;
-
     justify-content:space-between;
-
     align-items:flex-end;
-
     padding-bottom:16px;
-
     margin-bottom:18px;
-
     border-bottom:1px solid var(--line);
-
   }
-
   .brand{ display:flex; flex-direction:column; gap:4px; }
-
   .brand .mark{
-
     font-family:var(--mono);
-
     font-size:11px;
-
     letter-spacing:.18em;
-
     color:var(--accent);
-
     text-transform:uppercase;
-
   }
-
   .brand h1{
-
     margin:0;
-
     font-size:19px;
-
     font-weight:600;
-
     color:var(--ink-bright);
-
     letter-spacing:-0.01em;
-
   }
-
   
-
   .header-controls {
-
     display: flex;
-
     align-items:center;
-
     gap: 16px;
-
   }
-
-
 
   .theme-toggle-btn {
-
     background: var(--panel);
-
     border: 1px solid var(--line);
-
     color: var(--ink-bright);
-
     width: 36px;
-
     height: 36px;
-
     border-radius: 8px;
-
     cursor: pointer;
-
     display: flex;
-
     align-items: center;
-
     justify-content: center;
-
     font-size: 16px;
-
     transition: background 0.2s, border-color 0.2s;
-
   }
-
   .theme-toggle-btn:hover { border-color: var(--accent); }
 
-
-
   .conn{
-
     display:flex;
-
     align-items:center;
-
     gap:7px;
-
     font-family:var(--mono);
-
     font-size:11px;
-
     color:var(--ink-dim);
-
   }
-
   .dot{
-
     width:7px; height:7px; border-radius:50%;
-
     background:var(--sell);
-
     box-shadow:0 0 0 3px rgba(248,113,113,0.15);
-
     transition:background .3s, box-shadow .3s;
-
   }
-
   .dot.live{
-
     background:var(--buy);
-
     box-shadow:0 0 0 3px rgba(52,211,153,0.15);
-
     animation:pulse 2s ease-in-out infinite;
-
   }
-
   @keyframes pulse{
-
     0%,100%{ opacity:1; }
-
     50%{ opacity:.45; }
-
   }
-
-
 
   .api-panel {
-
     background: var(--panel);
-
     border: 1px solid var(--line);
-
     border-radius: 10px;
-
     padding: 14px;
-
     margin-bottom: 18px;
-
     display: flex;
-
     flex-wrap: wrap;
-
     gap: 12px;
-
     align-items: center;
-
     justify-content: space-between;
-
   }
-
   .api-input-group {
-
     display: flex;
-
     gap: 8px;
-
     flex: 1;
-
     min-width: 280px;
-
   }
-
   .api-input {
-
     background: var(--bg);
-
     border: 1px solid var(--line);
-
     color: var(--ink-bright);
-
     padding: 10px 12px;
-
     border-radius: 6px;
-
     font-family: var(--mono);
-
     font-size: 13px;
-
     flex: 1;
-
     outline: none;
-
   }
-
   .api-input:focus { border-color: var(--accent); }
-
   
-
   .account-mode-select {
-
     background: var(--bg);
-
     color: var(--ink-bright);
-
     border: 1px solid var(--line);
-
     padding: 10px;
-
     border-radius: 6px;
-
     font-family: var(--sans);
-
     font-size: 13px;
-
     outline: none;
-
     cursor: pointer;
-
   }
-
-
 
   .api-btn {
-
     background: var(--accent);
-
     color: #000;
-
     border: none;
-
     padding: 10px 16px;
-
     border-radius: 6px;
-
     font-weight: 600;
-
     font-size: 13px;
-
     cursor: pointer;
-
     font-family: var(--sans);
-
   }
-
   .api-btn:active { transform: scale(0.98); }
-
   
-
   .disconnect-btn {
-
     background: rgba(248, 113, 113, 0.15);
-
     color: var(--sell);
-
     border: 1px solid rgba(248, 113, 113, 0.3);
-
     padding: 8px 12px;
-
     border-radius: 6px;
-
     font-size: 12px;
-
     font-weight: 500;
-
     cursor: pointer;
-
     font-family: var(--sans);
-
     transition: all 0.2s;
-
   }
-
   .disconnect-btn:hover {
-
     background: var(--sell);
-
     color: #fff;
-
   }
-
-
 
   .account-info {
-
     font-family: var(--mono);
-
     font-size: 12px;
-
     color: var(--ink-dim);
-
     display: flex;
-
     flex-wrap: wrap;
-
     gap: 14px;
-
     align-items: center;
-
     flex: 1;
-
     justify-content: space-between;
-
   }
-
   .account-meta-group {
-
     display: flex;
-
     align-items: center;
-
     gap: 12px;
-
   }
-
   .badge-mode {
-
     padding: 2px 6px;
-
     border-radius: 4px;
-
     font-size: 10px;
-
     font-weight: 700;
-
     text-transform: uppercase;
-
   }
-
   .badge-mode.demo { background: rgba(59, 130, 246, 0.15); color: #60a5fa; border: 1px solid #3b82f6; }
-
   .badge-mode.real { background: rgba(16, 185, 129, 0.15); color: var(--buy); border: 1px solid var(--buy); }
-
   .balance-val { color: var(--buy); font-weight: 700; }
 
-
-
   .section-label{
-
     font-family:var(--mono);
-
     font-size:10px;
-
     letter-spacing:.14em;
-
     text-transform:uppercase;
-
     color:var(--ink-dim);
-
     margin:0 0 10px;
-
     display:flex;
-
     align-items:center;
-
     justify-content:space-between;
-
   }
-
-
 
   .watchlist-picker{
-
     display:flex;
-
     flex-wrap:wrap;
-
     gap:7px;
-
     margin-bottom:20px;
-
   }
-
   .chip{
-
     font-family:var(--mono);
-
     font-size:12px;
-
     padding:8px 12px;
-
     border-radius:7px;
-
     border:1px solid var(--line);
-
     background:var(--panel);
-
     color:var(--ink-dim);
-
     cursor:pointer;
-
     user-select:none;
-
   }
-
   .chip.active{
-
     border-color:var(--accent);
-
     color:var(--ink-bright);
-
     background:rgba(94,234,212,0.08);
-
   }
-
-
 
   .watch-grid{
-
     display:grid;
-
     grid-template-columns:1fr;
-
     gap:8px;
-
     margin-bottom:20px;
-
   }
-
   .watch-card{
-
     background:var(--panel);
-
     border:1px solid var(--line);
-
     border-radius:9px;
-
     padding:12px 14px;
-
     cursor:pointer;
-
   }
-
   .watch-card.focused{ border-color:var(--accent); }
-
+  .watch-card.bestcard{ box-shadow: 0 0 0 1px var(--accent) inset; }
   .wc-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; }
-
   .wc-name{ font-family:var(--mono); font-size:12px; font-weight:600; color:var(--ink-bright); }
-
   .wc-badge{ font-family:var(--mono); font-size:10px; font-weight:700; padding:3px 8px; border-radius:5px; text-transform:uppercase; }
-
   .wc-badge.neutral{ background:rgba(255,255,255,0.05); color:var(--ink-dim); }
-
   .wc-badge.buy{ background:rgba(52,211,153,0.12); color:var(--buy); }
-
   .wc-badge.sell{ background:rgba(248,113,113,0.12); color:var(--sell); }
-
   .wc-badge.block{ background:rgba(251,191,36,0.12); color:var(--block); }
-
   .wc-mid{ display:flex; align-items:center; gap:12px; }
-
   .wc-price{ font-family:var(--mono); font-size:17px; font-weight:600; color:var(--ink-bright); font-variant-numeric: tabular-nums; }
-
   .wc-spark-wrap{ flex:1; height:28px; }
-
   .wc-spark-wrap svg{ width:100%; height:100%; display:block; }
-
   .wc-bottom{ display:flex; justify-content:space-between; align-items:center; margin-top:9px; padding-top:9px; border-top:1px solid var(--line-soft); font-family:var(--mono); font-size:11px; color:var(--ink-dim); }
-
   .wc-wr-val.good{ color:var(--buy); font-weight:600; }
-
   .wc-wr-val.bad{ color:var(--sell); font-weight:600; }
-
+  .wc-best-tag{ font-family:var(--mono); font-size:9.5px; font-weight:700; color:var(--accent); border:1px solid var(--accent); padding:1px 6px; border-radius:4px; margin-left:6px; }
   .watch-empty{ text-align:center; padding:30px 16px; color:var(--ink-dim); font-size:13px; border:1px dashed var(--line); border-radius:9px; }
 
-
-
   .focus-label{ display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-
   .focus-label .fl-tag{ font-family:var(--mono); font-size:10px; letter-spacing:.12em; text-transform:uppercase; color:var(--ink-dim); }
-
   .focus-label .fl-name{ font-family:var(--mono); font-size:13px; color:var(--accent); font-weight:600; }
 
-
-
   .hero{ background:var(--panel); border:1px solid var(--line); border-radius:10px; padding:18px 18px 0; margin-bottom:14px; overflow:hidden; position:relative; }
-
   .hero-top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:2px; }
-
   .hero-label{ font-family:var(--mono); font-size:10px; color:var(--ink-dim); text-transform:uppercase; }
-
   .hero-asset{ font-family:var(--mono); font-size:11px; color:var(--ink-dim); }
-
   .price-row{ display:flex; align-items:baseline; gap:10px; margin-bottom:8px; }
-
   .price-value{ font-family:var(--mono); font-size:38px; font-weight:600; color:var(--ink-bright); font-variant-numeric: tabular-nums; }
-
   .price-delta{ font-family:var(--mono); font-size:13px; font-weight:500; padding:2px 7px; border-radius:4px; }
-
   .price-delta.up{ color:var(--buy); background:rgba(52,211,153,0.1); }
-
   .price-delta.down{ color:var(--sell); background:rgba(248,113,113,0.1); }
-
   .price-delta.flat{ color:var(--ink-dim); background:rgba(255,255,255,0.04); }
 
-
-
   .spark-wrap{ margin:0 -18px; height:64px; position:relative; }
-
   svg.spark{ width:100%; height:100%; display:block; }
-
   .spark-fill{ opacity:.14; }
 
-
-
   .sr-rail{ display:grid; grid-template-columns:1fr 1fr; border-top:1px solid var(--line); margin-top:14px; }
-
   .sr-cell{ padding:12px 18px 14px; font-family:var(--mono); }
-
   .sr-cell + .sr-cell{ border-left:1px solid var(--line); }
-
   .sr-cell .sr-label{ font-size:10px; text-transform:uppercase; color:var(--ink-dim); margin-bottom:4px; display:flex; align-items:center; gap:6px; }
-
   .sr-cell .sr-label::before{ content:''; width:6px; height:6px; border-radius:1px; }
-
   .sr-cell.res .sr-label::before{ background:var(--sell); }
-
   .sr-cell.sup .sr-label::before{ background:var(--buy); }
-
   .sr-cell .sr-val{ font-size:18px; font-weight:600; color:var(--ink-bright); }
 
-
-
   .controls{ margin-bottom:14px; }
-
   .controls-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
-
   .field{ display:flex; flex-direction:column; gap:6px; }
-
   .field label{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--ink-dim); }
-
   select{ appearance:none; background:var(--panel); color:var(--ink-bright); border:1px solid var(--line); padding:11px 36px 11px 12px; border-radius:6px; font-family:var(--mono); font-size:13px; outline:none; width:100%; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7384' stroke-width='1.4' fill='none'/%3E%3C/svg%3E"); background-repeat:no-repeat; background-position:right 14px center; }
 
-
-
   .signal{ border:1px solid var(--line); border-radius:10px; padding:20px; text-align:center; margin-bottom:14px; }
-
   .signal .sig-eyebrow{ font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--ink-dim); margin-bottom:8px; }
-
   .signal .sig-text{ font-family:var(--mono); font-size:21px; font-weight:700; }
-
   .signal .sig-sub{ margin-top:6px; font-size:12.5px; color:var(--ink-dim); }
-
   .signal.neutral{ background:var(--panel); }
-
   .signal.neutral .sig-text{ color:var(--ink-dim); }
-
   .signal.buy{ background:rgba(52,211,153,0.06); border-color:rgba(52,211,153,0.35); }
-
   .signal.buy .sig-text{ color:var(--buy); }
-
   .signal.sell{ background:rgba(248,113,113,0.06); border-color:rgba(248,113,113,0.35); }
-
   .signal.sell .sig-text{ color:var(--sell); }
-
   .signal.block{ background:rgba(251,191,36,0.06); border-color:rgba(251,191,36,0.35); }
-
   .signal.block .sig-text{ color:var(--block); font-size:16px; }
 
-
-
   .track-panel{ border:1px solid var(--line); border-radius:10px; padding:16px 18px; margin-bottom:14px; background:var(--panel); }
-
   .track-head{ display:flex; justify-content:space-between; align-items:center; font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--ink-dim); margin-bottom:14px; }
-
   .track-stats{ display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:12px; }
-
   .track-stat{ display:flex; flex-direction:column; gap:4px; text-align:center; padding:8px 4px; border-radius:6px; background:rgba(255,255,255,0.02); }
-
   [data-theme="light"] .track-stat { background: rgba(0, 0, 0, 0.03); }
-
   .ts-label{ font-family:var(--mono); font-size:9.5px; text-transform:uppercase; color:var(--ink-dim); }
-
   .ts-label.win{ color:var(--buy); }
-
   .ts-label.loss{ color:var(--sell); }
-
   .ts-val{ font-family:var(--mono); font-size:18px; font-weight:700; color:var(--ink-bright); font-variant-numeric: tabular-nums; }
-
   .ts-val.win{ color:var(--buy); }
-
   .ts-val.loss{ color:var(--sell); }
-
   .ts-val.pending{ color:var(--block); font-size:16px; }
-
   .track-bar{ height:6px; border-radius:3px; background:rgba(248,113,113,0.25); overflow:hidden; margin-bottom:14px; }
-
   .tb-fill{ height:100%; background:var(--buy); border-radius:3px; transition:width .4s ease; }
 
-
-
   .track-list{ list-style:none; margin:0; padding:0; max-height:150px; overflow-y:auto; }
-
   .track-list li{ display:flex; align-items:center; gap:10px; padding:7px 4px; border-bottom:1px solid var(--line-soft); font-family:var(--mono); font-size:11.5px; }
-
   .track-list li.empty{ color:var(--ink-dim); justify-content:center; }
-
   .tl-result{ width:18px; height:18px; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:700; flex-shrink:0; }
-
   .tl-result.win{ background:rgba(52,211,153,0.15); color:var(--buy); }
-
   .tl-result.loss{ background:rgba(248,113,113,0.15); color:var(--sell); }
-
   .tl-dir{ color:var(--ink-dim); width:34px; flex-shrink:0; }
-
   .tl-dir.buy{ color:var(--buy); }
-
   .tl-dir.sell{ color:var(--sell); }
-
   .tl-prices{ color:var(--ink-dim); flex:1; }
-
   .tl-time{ color:var(--ink-dim); font-size:10.5px; flex-shrink:0; }
 
-
-
   .combined-banner{ display:flex; justify-content:space-between; align-items:center; background:var(--line-soft); border:1px solid var(--line); border-radius:9px; padding:11px 16px; margin-bottom:14px; font-family:var(--mono); font-size:12px; }
-
   .combined-banner .cb-label{ color:var(--ink-dim); }
-
   .combined-banner .cb-val{ color:var(--ink-bright); font-weight:700; }
 
-
-
   .disclosure{ display:flex; gap:10px; padding:13px 16px; border:1px solid var(--line); border-radius:8px; background:var(--line-soft); margin-bottom:14px; font-size:12px; line-height:1.55; color:var(--ink-dim); }
-
   .disclosure .ic{ font-family:var(--mono); color:var(--block); flex-shrink:0; font-weight:700; }
-
   .disclosure b{ color:var(--ink); font-weight:600; }
 
-
-
   .log-panel{ border:1px solid var(--line); border-radius:10px; overflow:hidden; }
-
   .log-head{ padding:12px 16px; border-bottom:1px solid var(--line); font-family:var(--mono); font-size:10px; text-transform:uppercase; color:var(--ink-dim); background:var(--panel); }
-
   .log-list{ list-style:none; margin:0; padding:0; max-height:200px; overflow-y:auto; background:#0d1018; }
-
   [data-theme="light"] .log-list { background: #f9fafb; }
-
   .log-list li{ padding:9px 16px; border-bottom:1px solid var(--line-soft); font-family:var(--mono); font-size:11.5px; color:var(--ink-dim); line-height:1.5; }
-
   .log-list li:first-child{ color:var(--ink); }
-
   [data-theme="light"] .log-list li:first-child { color: var(--ink-bright); }
-
   .log-list::-webkit-scrollbar{ width:6px; }
-
   .log-list::-webkit-scrollbar-thumb{ background:var(--line); border-radius:3px; }
 
-
-
   /* 🎨 Animated background — soft drifting gradient orbs behind the terminal */
-
   .bg-fx{
-
     position:fixed; inset:0; z-index:-1;
-
     overflow:hidden; pointer-events:none;
-
   }
-
   .bg-fx span{
-
     position:absolute; border-radius:50%; filter:blur(70px);
-
     opacity:.32; mix-blend-mode:screen; will-change:transform;
-
   }
-
   [data-theme="light"] .bg-fx span{ opacity:.16; mix-blend-mode:normal; }
-
   .bg-fx span.orb-1{
-
     width:480px; height:480px; top:-160px; left:-120px;
-
     background:radial-gradient(circle, #5eead4, transparent 70%);
-
     animation: orbDrift1 26s ease-in-out infinite;
-
   }
-
   .bg-fx span.orb-2{
-
     width:400px; height:400px; bottom:-140px; right:-100px;
-
     background:radial-gradient(circle, #818cf8, transparent 70%);
-
     animation: orbDrift2 32s ease-in-out infinite;
-
   }
-
   .bg-fx span.orb-3{
-
     width:340px; height:340px; top:42%; left:58%;
-
     background:radial-gradient(circle, #f472b6, transparent 70%);
-
     animation: orbDrift3 36s ease-in-out infinite;
-
   }
-
   .bg-fx span.orb-4{
-
     width:260px; height:260px; top:8%; right:12%;
-
     background:radial-gradient(circle, #fbbf24, transparent 70%);
-
     animation: orbDrift4 28s ease-in-out infinite;
-
   }
-
   @keyframes orbDrift1{
-
     0%,100%{ transform:translate(0,0) scale(1); }
-
     50%{ transform:translate(80px,90px) scale(1.18); }
-
   }
-
   @keyframes orbDrift2{
-
     0%,100%{ transform:translate(0,0) scale(1); }
-
     50%{ transform:translate(-90px,-60px) scale(1.12); }
-
   }
-
   @keyframes orbDrift3{
-
     0%,100%{ transform:translate(0,0) scale(1); }
-
     50%{ transform:translate(-60px,70px) scale(0.88); }
-
   }
-
   @keyframes orbDrift4{
-
     0%,100%{ transform:translate(0,0) scale(1); }
-
     50%{ transform:translate(50px,-70px) scale(1.2); }
-
   }
-
   @media (prefers-reduced-motion: reduce){
-
     .bg-fx span{ animation:none; }
-
   }
-
 </style>
-
 </head>
-
 <body>
 
-
-
-<div class="bg-fx" aria-hidden="true">
-
-  <span class="orb-1"></span>
-
-  <span class="orb-2"></span>
-
-  <span class="orb-3"></span>
-
-  <span class="orb-4"></span>
-
+<!-- 🔒 LOCK SCREEN: ต้องล็อกอินด้วยบัญชีแอดมินผ่าน Firebase Authentication ก่อนเข้าใช้งานหน้านี้
+     เช็กกับเซิร์ฟเวอร์ Firebase จริง (ไม่ได้เทียบรหัสในไฟล์ JS ตรง ๆ แบบเดิมแล้ว)
+     ล็อกอินค้างไว้ข้ามการรีโหลดหน้า จนกว่าจะกดปุ่ม Logout เอง (browserLocalPersistence)
+     ไม่ได้ไปแก้ไข/ยุ่งกับโลจิกของระบบเทอร์มินอลด้านล่างเลย เป็นแค่ฉากกั้นทับด้านบนสุด (z-index สูงสุด) -->
+<div id="lock-screen" style="
+    position:fixed; inset:0; z-index:99999;
+    display:flex; align-items:center; justify-content:center;
+    background:#05060a; padding:20px;
+  ">
+  <div style="
+      width:100%; max-width:340px;
+      background:#11141c; border:1px solid #232838; border-radius:12px;
+      padding:28px 24px; text-align:center;
+      font-family:'IBM Plex Mono', monospace;
+    ">
+    <div style="font-size:11px; letter-spacing:.18em; color:#5eead4; text-transform:uppercase; margin-bottom:6px;">Terravolteco</div>
+    <div style="font-size:16px; font-weight:600; color:#eef1f7; margin-bottom:18px; font-family:'Inter', sans-serif;">เข้าสู่ระบบแอดมิน</div>
+    <input type="email" id="lock-email-input" placeholder="อีเมลแอดมิน…" autocomplete="username" style="
+        width:100%; box-sizing:border-box; background:#0a0c11; border:1px solid #232838; color:#eef1f7;
+        padding:12px 14px; border-radius:8px; font-family:'IBM Plex Mono', monospace; font-size:14px;
+        outline:none; margin-bottom:10px; text-align:center;
+      ">
+    <input type="password" id="lock-password-input" placeholder="รหัสผ่าน…" autocomplete="current-password" style="
+        width:100%; box-sizing:border-box; background:#0a0c11; border:1px solid #232838; color:#eef1f7;
+        padding:12px 14px; border-radius:8px; font-family:'IBM Plex Mono', monospace; font-size:14px;
+        outline:none; margin-bottom:12px; text-align:center;
+      ">
+    <button id="lock-submit-btn" style="
+        width:100%; background:#5eead4; color:#000; border:none; padding:12px;
+        border-radius:8px; font-weight:600; font-size:13px; cursor:pointer; font-family:'Inter', sans-serif;
+      ">เข้าสู่ระบบ</button>
+    <div id="lock-error-msg" style="margin-top:12px; font-size:12px; color:#f87171; min-height:14px;"></div>
+  </div>
 </div>
 
+<script type="module">
+  // 🔒 ตัวจัดการล็อกอินแอดมินผ่าน Firebase Authentication — แยกเป็นโมดูลอิสระ
+  // ไม่แตะ/ไม่ผูกกับตัวแปรหรือฟังก์ชันของระบบเทอร์มินอลด้านล่างเลย
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+  import {
+    getAuth,
+    setPersistence,
+    browserLocalPersistence,
+    onAuthStateChanged,
+    signInWithEmailAndPassword,
+    signOut
+  } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
 
+  // 🔧 Firebase config ของโปรเจกต์ deriv-signal3 (เป็นค่า public ใส่ฝั่ง client ได้ตามปกติ ไม่ใช่ secret key)
+  const firebaseConfig = {
+    apiKey: "AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",
+    authDomain: "deriv-signal3.firebaseapp.com",
+    projectId: "deriv-signal3",
+    storageBucket: "deriv-signal3.firebasestorage.app",
+    messagingSenderId: "1047757017057",
+    appId: "1:1047757017057:web:02cb845e7f8fc345988ca0",
+    measurementId: "G-ZV32T1XVJC"
+  };
+
+  const fbApp = initializeApp(firebaseConfig);
+  const auth = getAuth(fbApp);
+
+  const lockScreenEl = document.getElementById('lock-screen');
+  const lockEmailEl = document.getElementById('lock-email-input');
+  const lockPasswordEl = document.getElementById('lock-password-input');
+  const lockBtnEl = document.getElementById('lock-submit-btn');
+  const lockErrorEl = document.getElementById('lock-error-msg');
+  const adminLogoutBtn = document.getElementById('admin-logout-btn');
+
+  // 🆕 จำการล็อกอินไว้ "ข้ามการรีโหลดหน้า" จนกว่าจะกด Logout เอง ตามที่ขอ
+  setPersistence(auth, browserLocalPersistence).catch((err) => console.error('Auth persistence error:', err));
+
+  function attemptLogin() {
+    lockErrorEl.textContent = '';
+    lockBtnEl.disabled = true;
+    lockBtnEl.textContent = 'กำลังตรวจสอบ…';
+    const email = lockEmailEl.value.trim();
+    const password = lockPasswordEl.value;
+
+    signInWithEmailAndPassword(auth, email, password)
+      .catch(() => {
+        lockErrorEl.textContent = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้งครับ';
+        lockPasswordEl.value = '';
+        lockPasswordEl.focus();
+      })
+      .finally(() => {
+        lockBtnEl.disabled = false;
+        lockBtnEl.textContent = 'เข้าสู่ระบบ';
+      });
+  }
+
+  lockBtnEl.addEventListener('click', attemptLogin);
+  [lockEmailEl, lockPasswordEl].forEach((el) => {
+    el.addEventListener('keydown', (e) => { if (e.key === 'Enter') attemptLogin(); });
+  });
+
+  if (adminLogoutBtn) {
+    adminLogoutBtn.addEventListener('click', () => {
+      if (confirm('ต้องการออกจากระบบแอดมินใช่ไหมครับ? ครั้งหน้าจะต้องล็อกอินใหม่อีกครั้ง')) {
+        signOut(auth);
+      }
+    });
+  }
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      lockScreenEl.style.display = 'none';
+      document.body.style.overflow = '';
+      if (adminLogoutBtn) adminLogoutBtn.style.display = 'inline-flex';
+    } else {
+      lockScreenEl.style.display = 'flex';
+      document.body.style.overflow = 'hidden';
+      if (adminLogoutBtn) adminLogoutBtn.style.display = 'none';
+      lockEmailEl.focus();
+    }
+  });
+</script>
+
+<div class="bg-fx" aria-hidden="true">
+  <span class="orb-1"></span>
+  <span class="orb-2"></span>
+  <span class="orb-3"></span>
+  <span class="orb-4"></span>
+</div>
 
 <div class="wrap">
 
-
-
   <header>
-
     <div class="brand">
-
       <span class="mark">Terravolteco</span>
-
       <h1>Market Structure Terminal</h1>
-
     </div>
-
     
-
     <div class="header-controls">
-
+      <button id="admin-logout-btn" style="
+          display:none; background:rgba(248, 113, 113, 0.15); color:#f87171;
+          border:1px solid rgba(248, 113, 113, 0.3); padding:8px 12px; border-radius:8px;
+          font-size:11px; font-weight:600; cursor:pointer; font-family:'Inter', sans-serif;
+        ">🔒 Logout (Admin)</button>
       <button class="theme-toggle-btn" id="theme-toggle" title="สลับโหมด มืด/สว่าง">🌙</button>
-
       <div class="conn">
-
         <span class="dot" id="conn-dot"></span>
-
         <span id="api-status">กำลังเชื่อมต่อ…</span>
-
       </div>
-
     </div>
-
   </header>
 
-
-
   <div class="api-panel">
-
     <div class="api-input-group" id="api-gate-inputs">
-
       <select class="account-mode-select" id="account-mode-select">
-
         <option value="demo">🧪 บัญชีจำลอง (Demo)</option>
-
         <option value="real">💰 บัญชีจริง (Real Account)</option>
-
       </select>
-
       <input type="password" class="api-input" id="api-token-input" placeholder="ใส่ Deriv API Token ของโหมดที่เลือก...">
-
       <button class="api-btn" id="api-connect-btn">เชื่อมต่อพอร์ต</button>
-
     </div>
-
     
-
     <div class="account-info" id="account-info-display" style="display: none;">
-
       <div class="account-meta-group">
-
         <span class="badge-mode demo" id="badge-account-mode">DEMO</span>
-
         <span>ID: <b id="acc-email" style="color:var(--ink-bright)">—</b></span>
-
         <span>Balance: <b class="balance-val" id="acc-balance">$0.00</b></span>
-
       </div>
-
       <button class="disconnect-btn" id="api-disconnect-btn">🔒 สลับบัญชี / Logout</button>
-
     </div>
-
   </div>
 
-
+  <!-- 🆕 VIRTUAL DEMO BALANCE PANEL: ยอดเงินเดโมทดสอบจำลองฝั่ง client เริ่มต้นที่ $10,000
+       แสดงเฉพาะตอนยังไม่ authorize ผ่าน API จริง (โหมดทดสอบ/รัน virtual) ไม่เกี่ยวกับ
+       ยอดเงินจริงที่ดึงจาก Deriv balance subscription (account-info-display ด้านบน) -->
+  <div class="api-panel" id="virtual-balance-panel" style="padding:10px 14px;">
+    <div class="account-info" style="justify-content:flex-start;">
+      <div class="account-meta-group">
+        <span class="badge-mode demo">DEMO TEST</span>
+        <span>ยอดเงินเดโมทดสอบ (จำลองในเครื่อง ไม่เกี่ยวกับยอด Deriv จริง): <b class="balance-val" id="virtual-balance-val">$10,000.00</b></span>
+      </div>
+    </div>
+  </div>
 
   <p class="section-label">เลือกสินทรัพย์ที่ติดตาม <small id="watch-count">0 รายการ</small></p>
-
   <div class="watchlist-picker" id="watchlist-picker"></div>
 
-
-
   <div class="combined-banner" id="combined-banner" style="display:none; gap:14px; flex-wrap:wrap;">
-
     <div class="cb-group" style="display:flex; align-items:center; gap:6px;">
-
       <span class="cb-label">Win Rate รวม</span>
-
       <span class="cb-val" id="cb-winrate">—</span>
-
     </div>
-
     <div class="cb-group" style="display:flex; align-items:center; gap:6px;">
-
       <span class="cb-label">มาติงเกล (รวมทุกสัญลักษณ์)</span>
-
       <span class="cb-val" id="cb-step">M-1</span>
-
       <span class="cb-val" id="cb-next-stake">$1.00</span>
-
     </div>
-
     <div class="cb-group" style="display:flex; align-items:center; gap:6px;">
-
       <span class="cb-label">สถานะออเดอร์</span>
-
       <span class="cb-val" id="cb-lock-status">ว่าง</span>
-
     </div>
-
   </div>
-
-
 
   <p class="section-label">รายการติดตาม (กดการ์ดเพื่อดูรายละเอียด)</p>
-
   <div class="watch-grid" id="watch-grid">
-
     <div class="watch-empty" id="watch-empty">ยังไม่ได้เลือกสินทรัพย์ — แตะชิปด้านบนเพื่อเริ่มติดตาม</div>
-
   </div>
-
-
 
   <div id="focus-section" style="display:none;">
-
     <div class="focus-label">
-
       <span class="fl-tag">กำลังดูรายละเอียด</span>
-
       <span class="fl-name" id="fl-name">—</span>
-
     </div>
-
-
 
     <div class="controls">
-
       <div class="controls-grid">
-
         <div class="field">
-
           <label for="duration-select">ระยะเวลาสัญญา (Expiry Duration)</label>
-
           <select id="duration-select">
-
-            <option value="5_ticks" selected>5 Ticks (แนะนำความไวสูงสุด)</option>
-
-            <option value="10_ticks">10 Ticks</option>
-
-            <option value="1_min">1 นาที</option>
-
-            <option value="5_min">5 นาที</option>
-
-            <option value="15_min">15 นาที</option>
-
+            <option value="5_min" selected>5 นาที (5M)</option>
+            <option value="15_min">15 นาที (15M)</option>
+            <option value="30_min">30 นาที (30M)</option>
+            <option value="1_hour">1 ชั่วโมง (1H)</option>
           </select>
-
         </div>
-
         <div class="field">
-
           <label for="martingale-multiplier-select">📈 ตัวคูณเงินทบมาติงเกล (Multiplier)</label>
-
           <select id="martingale-multiplier-select">
-
             <option value="1.5">x1.5 (ทบแบบถนอมทุน ปลอดภัยสูง)</option>
-
             <option value="2.0" selected>x2.0 (ทบแบบดับเบิ้ล มาตรฐานระบบ)</option>
-
             <option value="2.5">x2.5 (ทบแบบดึงกำไรครอบคลุมพิเศษ)</option>
-
             <option value="3.0">x3.0 (ทบบ้าระห่ำ ดึงทุนคืนไวสุด)</option>
-
           </select>
-
         </div>
-
         <div class="field" style="grid-column: span 2; margin-top: 4px;">
-
-          <label for="max-steps-select">จำนวนไม้สูงสุด (Martingale Layer Limit)</label>
-
-          <select id="max-steps-select">
-
-            <option value="3">สูงสุด 3 ไม้ (เสี่ยงต่ำ)</option>
-
-            <option value="5" selected>สูงสุด 5 ไม้ (มาตรฐาน)</option>
-
-            <option value="7">สูงสุด 7 ไม้ (ทุนหนา)</option>
-
-            <option value="10">สูงสุด 10 ไม้ (เต็มระบบ)</option>
-
-          </select>
-
+          <label for="base-stake-input">💵 ทุนเริ่มต้นต่อไม้ (Base Stake $)</label>
+          <input type="number" id="base-stake-input" class="api-input" style="width:100%; padding:11px 12px;" min="0.35" step="0.01" value="1.00">
         </div>
-
+        <div class="field" style="grid-column: span 2; margin-top: 4px;">
+          <label for="max-steps-select">จำนวนไม้สูงสุด (Martingale Layer Limit)</label>
+          <select id="max-steps-select">
+            <option value="3">สูงสุด 3 ไม้ (เสี่ยงต่ำ)</option>
+            <option value="5" selected>สูงสุด 5 ไม้ (มาตรฐาน)</option>
+            <option value="7">สูงสุด 7 ไม้ (ทุนหนา)</option>
+            <option value="10">สูงสุด 10 ไม้ (เต็มระบบ)</option>
+          </select>
+        </div>
       </div>
-
     </div>
 
-
+    <!-- 🆕 INDICATOR FILTER PANEL: ตัวกรองเสริมแบบเปิด/ปิดได้ทีละตัว
+         ไม่กระทบโลจิกสัญญาณเดิม (S/R breakout + MTF bias) ที่ยังทำงานเหมือนเดิมทุกอย่าง
+         ตัวกรองเหล่านี้เป็น "เกตเพิ่ม" ก่อนจะอนุญาตให้ยิงออเดอร์จริง (executeRealContract)
+         ถ้าปิดทุกตัว ระบบจะทำงานเหมือนเดิม 100% -->
+    <div class="track-panel" id="indicator-filter-panel">
+      <div class="track-head">
+        <span>ตัวกรองอินดิเคเตอร์เสริม (เปิด/ปิดได้ทีละตัว)</span>
+        <span id="ind-filter-summary">0/4 เปิดใช้</span>
+      </div>
+      <div class="watchlist-picker" style="margin-bottom:0;">
+        <div class="chip ind-toggle-chip" data-ind="rsi" id="chip-ind-rsi">RSI/Stoch กรอง Overbought-Oversold</div>
+        <div class="chip ind-toggle-chip" data-ind="atr" id="chip-ind-atr">ATR ปรับ Lookback/Threshold ตาม Volatility</div>
+        <div class="chip ind-toggle-chip" data-ind="velocity" id="chip-ind-velocity">Tick Velocity (ความเร็วราคา)</div>
+        <div class="chip ind-toggle-chip" data-ind="deepmtf" id="chip-ind-deepmtf">Deep MTF Confirmation (3-4 ช่วงเวลา)</div>
+      </div>
+    </div>
 
     <div class="hero">
-
       <div class="hero-top">
-
         <span class="hero-label">Last Price</span>
-
         <span class="hero-asset" id="hero-asset">—</span>
-
       </div>
-
       <div class="price-row">
-
         <span class="price-value" id="current-price">0.00</span>
-
         <span class="price-delta flat" id="price-delta">0.00%</span>
-
       </div>
-
       <div class="spark-wrap">
-
         <svg class="spark" id="spark-svg" viewBox="0 0 600 64" preserveAspectRatio="none">
-
           <defs>
-
             <linearGradient id="sparkGrad" x1="0" y1="0" x2="0" y2="1">
-
               <stop offset="0%" stop-color="#5eead4" stop-opacity="0.5"/>
-
               <stop offset="100%" stop-color="#5eead4" stop-opacity="0"/>
-
             </linearGradient>
-
           </defs>
-
           <polygon class="spark-fill" id="spark-fill" fill="url(#sparkGrad)" points=""></polygon>
-
           <polyline id="spark-line" fill="none" stroke="#5eead4" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round" points=""></polyline>
-
         </svg>
-
       </div>
-
       <div class="sr-rail">
-
         <div class="sr-cell res">
-
           <div class="sr-label">Resistance</div>
-
           <div class="sr-val" id="res-price">0.00</div>
-
         </div>
-
         <div class="sr-cell sup">
-
           <div class="sr-label">Support</div>
-
           <div class="sr-val" id="sup-price">0.00</div>
-
         </div>
-
       </div>
-
     </div>
-
-
 
     <div class="signal neutral" id="signal-output">
-
       <div class="sig-eyebrow">Signal</div>
-
       <div class="sig-text" id="sig-text">กำลังวิเคราะห์โครงสร้างราคา…</div>
-
       <div class="sig-sub" id="sig-sub">รอข้อมูล tick เพื่อคำนวณกรอบราคา</div>
-
     </div>
-
-
 
     <div class="track-panel">
-
       <div class="track-head">
-
         <span>Track Record — บัญชีเชื่อมต่อ</span>
-
         <span id="track-count">0 สัญญาณ</span>
-
       </div>
-
       <div class="track-stats">
-
         <div class="track-stat">
-
           <span class="ts-label">Win Rate</span>
-
           <span class="ts-val" id="ts-winrate">—</span>
-
         </div>
-
         <div class="track-stat">
-
           <span class="ts-label win">ถูก</span>
-
           <span class="ts-val win" id="ts-wins">0</span>
-
         </div>
-
         <div class="track-stat">
-
           <span class="ts-label loss">ผิด</span>
-
           <span class="ts-val loss" id="ts-losses">0</span>
-
         </div>
-
         <div class="track-stat">
-
           <span class="ts-label">รอผล</span>
-
           <span class="ts-val pending" id="ts-pending">0</span>
-
         </div>
-
       </div>
-
       <div class="track-bar" id="track-bar">
-
         <div class="tb-fill" id="tb-fill" style="width:0%"></div>
-
       </div>
-
       <button id="clear-api-btn" style="background:transparent; border:1px solid var(--line); color:var(--ink-dim); padding:4px 8px; border-radius:4px; font-size:11px; cursor:pointer; font-family:var(--mono); margin-top:10px;">RESET STATS</button>
-
       <ul class="track-list" id="track-list" style="margin-top:12px;">
-
         <li class="empty">ยังไม่มีคำสั่งซื้อที่ปิดดีลในเซสชันนี้</li>
-
       </ul>
-
     </div>
-
   </div>
-
-
 
   <div class="disclosure">
-
     <span class="ic">!</span>
-
     <span><b>ข้อมูลนี้ไม่ใช่คำแนะนำการลงทุน</b> — ระบบส่งคำสั่งออปชันอัตโนมัติรองรับทั้งพอร์ตเดโมเสมือนและพอร์ตจริง การสลับโหมดจะเปลี่ยนเป้าหมายเงินทุนทันที โปรดระมัดระวังและตั้งค่าจำนวนไม้สูงสุดควบคุม drawdown เสมอ</span>
-
   </div>
-
-
 
   <div class="log-panel">
-
     <div class="log-head">Terminal Log — ข้อมูลสตรีมมิ่ง API</div>
-
     <ul class="log-list" id="log-container">
-
       <li>ระบบพร้อมทำงาน — ป้อน API Token ตามโหมดที่ต้องการแล้วเริ่มทำงาน</li>
-
     </ul>
-
   </div>
-
 </div>
 
-
-
 <script>
-
+  // 🆕 เปลี่ยนสัญลักษณ์ภายในทั้งหมดจาก Volatility Index เดิม มาเป็นคริปโต + Forex ตามที่ขอ
+  // โครงสร้างเดิมของ object คงไว้ (sym/label/dec) แต่เพิ่ม 2 ฟิลด์ใหม่เท่านั้น:
+  //   - source: 'binance' = ดึงราคา/วิเคราะห์สัญญาณจากฟีดราคาสาธารณะของ Binance (เร็ว ไม่ต้องล็อกอิน ไม่มีปัญหา CORS)
+  //             'deriv'   = ดึงราคา + ยิงออเดอร์ทั้งหมดผ่าน Deriv เหมือนเดิมทุกอย่าง (ใช้กับคู่ Forex จริง)
+  //   - execSymbol: สัญลักษณ์ที่ใช้ "ยิงออเดอร์จริง" ผ่าน Deriv buy API เท่านั้น
+  //       (คริปโต: ราคามาจาก Binance แต่ออเดอร์จริงยิงเข้า Deriv ด้วยสัญลักษณ์ cry* ของ Deriv เอง
+  //        เพราะ Binance Futures วางออเดอร์ตรงจากเบราว์เซอร์ไม่ได้ ติด CORS ของ endpoint ที่ต้องเซ็นชื่อ)
+  //       (Forex: execSymbol เหมือนกับ sym เป๊ะ ๆ เพราะราคา+ออเดอร์มาจาก Deriv ตัวเดิมทั้งหมด ไม่มีอะไรเปลี่ยน)
+  //   - binanceStream: ชื่อสตรีมราคาสาธารณะของ Binance (เฉพาะ source: 'binance')
+  // ⚠️ รายชื่อ cry*/frx* ด้านล่างอ้างจากสัญลักษณ์มาตรฐานของ Deriv ที่เคยเปิดให้เทรดทั่วไป
+  // แต่สัญลักษณ์ที่ "เปิดเทรดได้จริง" อาจต่างกันไปตาม landing company/ประเทศของบัญชีคุณ
+  // แนะนำเช็กให้ชัวร์อีกรอบด้วยการยิง active_symbols ผ่าน Deriv API ก่อนใช้เงินจริงนะครับ
   const ALL_SYMBOLS = [
-
-    { sym: 'R_10',     label: 'Volatility 10 Index',    dec: 3 },
-
-    { sym: 'R_25',     label: 'Volatility 25 Index',    dec: 3 },
-
-    { sym: 'R_50',     label: 'Volatility 50 Index',    dec: 4 },
-
-    { sym: 'R_75',     label: 'Volatility 75 Index',    dec: 4 },
-
-    { sym: 'R_100',    label: 'Volatility 100 Index',   dec: 2 },
-
-    { sym: '1HZ10V',   label: 'Volatility 10 (1s) Index', dec: 3 },
-
-    { sym: '1HZ25V',   label: 'Volatility 25 (1s) Index', dec: 3 },
-
-    { sym: '1HZ30V',   label: 'Volatility 30 (1s) Index', dec: 3 },
-
-    { sym: '1HZ50V',   label: 'Volatility 50 (1s) Index', dec: 4 },
-
-    { sym: '1HZ75V',   label: 'Volatility 75 (1s) Index', dec: 4 },
-
-    { sym: '1HZ100V',  label: 'Volatility 100 (1s) Index',dec: 2 },
-
-    { sym: 'R_150',    label: 'Volatility 150 Index',   dec: 4 },
-
-    { sym: 'R_250',    label: 'Volatility 250 Index',   dec: 4 }
-
+    // ── คริปโต: ราคา/สัญญาณจาก Binance, ยิงออเดอร์จริงผ่าน Deriv ──
+    { sym: 'BTCUSDT', label: 'Bitcoin / USDT (ราคา Binance → ออเดอร์ Deriv)', dec: 2, source: 'binance', binanceStream: 'btcusdt@trade', execSymbol: 'cryBTCUSD' },
+    { sym: 'ETHUSDT', label: 'Ethereum / USDT (ราคา Binance → ออเดอร์ Deriv)', dec: 2, source: 'binance', binanceStream: 'ethusdt@trade', execSymbol: 'cryETHUSD' },
+    { sym: 'LTCUSDT', label: 'Litecoin / USDT (ราคา Binance → ออเดอร์ Deriv)', dec: 2, source: 'binance', binanceStream: 'ltcusdt@trade', execSymbol: 'cryLTCUSD' },
+    { sym: 'XRPUSDT', label: 'XRP / USDT (ราคา Binance → ออเดอร์ Deriv)', dec: 4, source: 'binance', binanceStream: 'xrpusdt@trade', execSymbol: 'cryXRPUSD' },
+    { sym: 'BCHUSDT', label: 'Bitcoin Cash / USDT (ราคา Binance → ออเดอร์ Deriv)', dec: 2, source: 'binance', binanceStream: 'bchusdt@trade', execSymbol: 'cryBCHUSD' },
+    // ── Forex จริง: ราคา + ออเดอร์ทั้งหมดผ่าน Deriv เหมือนเดิม 100% ──
+    { sym: 'frxEURUSD', label: 'EUR/USD', dec: 5, source: 'deriv', execSymbol: 'frxEURUSD' },
+    { sym: 'frxGBPUSD', label: 'GBP/USD', dec: 5, source: 'deriv', execSymbol: 'frxGBPUSD' },
+    { sym: 'frxUSDJPY', label: 'USD/JPY', dec: 3, source: 'deriv', execSymbol: 'frxUSDJPY' },
+    { sym: 'frxAUDUSD', label: 'AUD/USD', dec: 5, source: 'deriv', execSymbol: 'frxAUDUSD' },
+    { sym: 'frxUSDCAD', label: 'USD/CAD', dec: 5, source: 'deriv', execSymbol: 'frxUSDCAD' }
   ];
 
-
-
   const APP_ID = '1089';
-
   let ws = null;
-
   let apiToken = '';
-
   let isAuthorized = false;
-
   let accountMode = 'demo'; 
+  let baseStake = 1.0; // 🆕 ตอนนี้ตั้งค่าได้จาก #base-stake-input (ดูตัวจัดการ event ด้านล่าง) ค่าเริ่มต้นยังคงเป็น 1.0 เหมือนเดิม
 
-  let baseStake = 1.0; 
+  // 🆕 VIRTUAL DEMO BALANCE — ยอดเงินเดโมทดสอบจำลองฝั่ง client เริ่มต้นที่ $10,000
+  // ใช้แสดง/อัปเดตเฉพาะตอนดีลที่ปิดเป็นดีลจำลอง (isVirtual: true, คือยังไม่ authorize ผ่าน API จริง)
+  // ไม่กระทบยอดเงินจริงจาก Deriv balance subscription (accBalance) และไม่กระทบโลจิกสัญญาณ/มาติงเกลเดิมเลย
+  let virtualDemoBalance = 10000;
+  // ⚠️ Deriv ไม่ส่ง payout จริงมาให้ฝั่ง client ก่อนซื้อ (ต้องขอ price proposal) จึง "ประมาณการ" ไว้ที่ 85%
+  // ใช้คำนวณ P/L ของดีลจำลองเพื่อแสดงผลเท่านั้น ไม่ใช่ตัวเลขที่ยิงไปจริงกับ Deriv
+  const VIRTUAL_PAYOUT_RATIO = 0.85;
 
-
-
-  let watchedSymbols = ['R_75', 'R_100', '1HZ75V'];
-
-  let focusedSymbol = 'R_75';
-
-  let durationVal = '5_ticks';
-
-
+  let watchedSymbols = ['BTCUSDT', 'ETHUSDT', 'frxEURUSD'];
+  let focusedSymbol = 'BTCUSDT';
+  let durationVal = '5_min';
 
   // 🔧 FIX: lookbackPeriod เดิมผูกกับ duration ที่เลือก (5_min -> 260, 15_min -> 700 ticks)
-
   // ทำให้ resistance/support คำนวณจากหน้าต่างยาวเกินไป โอกาสที่ราคาจะ "ทำนิวไฮ/นิวโลว์"
-
   // ของ 260-700 ติ๊กที่ผ่านมาแบบสุ่มนั้นต่ำมาก (~1/N) บอทจึงแทบไม่เคยเข้าเงื่อนไขยิงออเดอร์เลย
-
   // เมื่อตั้ง expiry เป็น 5 นาที/15 นาที ทั้งที่จริง ๆ ไม่มี error จาก API แต่อย่างใด
-
   //
-
   // ตอนนี้แยกออกมาเป็นค่าคงที่ SIGNAL_LOOKBACK สำหรับวิเคราะห์โครงสร้างราคาเท่านั้น
-
   // ส่วน durationVal จะมีหน้าที่แค่กำหนด duration/duration_unit ที่ส่งให้ Deriv API
-
   // และเวลารอผลของดีล (virtual/local tracking) ไม่เกี่ยวกับความถี่ของสัญญาณอีกต่อไป
-
   const SIGNAL_LOOKBACK = 30;
-
   let lookbackPeriod = SIGNAL_LOOKBACK;
-
   let allowedMaxSteps = 5;
-
   let martingaleMultiplier = 2.0; 
 
+  // ──────────────────────────────────────────────────────────────────
+  // 🆕 GLOBAL CROSS-SYMBOL MARTINGALE LOCK
+  // เดิมมาติงเกลผูกกับ s.currentStepCount ของแต่ละสัญลักษณ์แยกกัน
+  // ตอนนี้เพิ่ม "ระบบกลาง" คลุมทุกสัญลักษณ์ที่ติดตามอยู่:
+  //   - มีดีลค้างได้แค่ 1 ดีลทั้งระบบ (globalLockedSymbol) — ต้องรอให้ดีลก่อนหน้าหมดอายุ/ปิดก่อน
+  //     จึงจะยิงไม้ใหม่ได้ ไม่ว่าไม้ใหม่นั้นจะเป็นสัญลักษณ์เดิมหรือสัญลักษณ์อื่นก็ตาม
+  //   ✏️ (แก้ไขล่าสุด) ไม่ใช้ Win Rate เลือกสัญลักษณ์ที่จะยิงอีกต่อไป — สัญลักษณ์ไหนก็ได้ที่
+  //     สัญญาณผ่านตัวกรองเดิม (S/R breakout + MTF bias) และผ่านตัวกรองอินดิเคเตอร์เสริม
+  //     (ถ้าเปิดใช้) ก่อนใคร จะได้ยิงไม้นั้นไปก่อน
+  //   - ขนาดทุนไม้ถัดไปคำนวณจาก globalStepCount (สเตปกลาง ไม่ใช่ของสัญลักษณ์เดิม)
+  //   - ชนะเมื่อไหร่ -> รีเซ็ต globalStepCount กลับ 0 ทันที (กลับจุดเริ่มต้น)
+  // โลจิกเดิมต่อสัญลักษณ์ (s.currentStepCount, s.statWins, s.statLosses ฯลฯ)
+  // ยังคงอยู่ครบสำหรับสถิติ/แสดงผลรายสัญลักษณ์ ไม่ได้ถูกลบออก
+  // ──────────────────────────────────────────────────────────────────
+  let globalStepCount = 0;
+  let globalLockedSymbol = null; // สัญลักษณ์ที่กำลังมีดีลค้างอยู่ (ล็อกทั้งระบบ)
+
+  // ──────────────────────────────────────────────────────────────────
+  // 🆕 INDICATOR FILTER TOGGLES — เปิด/ปิดได้ทีละตัว ไม่กระทบสัญญาณเดิม
+  // ถ้าตัวไหนปิดอยู่ (false) เงื่อนไขของตัวนั้นจะถือว่า "ผ่านเสมอ" (ไม่กรอง)
+  // โลจิกสัญญาณเดิม (S/R breakout + MTF bias 2 ช่วงเวลา) ยังทำงานเหมือนเดิม
+  // ตัวกรองพวกนี้เป็นแค่เกตเสริมก่อนจะอนุญาตให้ยิงออเดอร์จริงเท่านั้น
+  // ──────────────────────────────────────────────────────────────────
+  let indicatorToggles = { rsi: false, atr: false, velocity: false, deepmtf: false };
 
 
-  function durationToWaitTicks(v) {
-
-    if (v === '5_ticks') return 5;
-
-    if (v === '10_ticks') return 10;
-
-    if (v === '5_min') return 150; 
-
-    if (v === '15_min') return 450;
-
-    return 5;
-
+  function getSymbolWinRate(sym) {
+    const s = state[sym];
+    if (!s) return -1;
+    const total = s.statWins + s.statLosses;
+    if (total === 0) return -1; // ยังไม่มีข้อมูล ให้ถือว่าต่ำสุด (รอให้สัญลักษณ์อื่นมีสถิติก่อน)
+    return s.statWins / total;
   }
 
+  function getBestWinRateSymbol() {
+    let best = null; let bestRate = -Infinity;
+    watchedSymbols.forEach(sym => {
+      const rate = getSymbolWinRate(sym);
+      if (rate > bestRate) { bestRate = rate; best = sym; }
+    });
+    // ถ้าทุกสัญลักษณ์ยังไม่มีสถิติเลย (-1 ทั้งหมด) ให้ปริยายเป็นสัญลักษณ์ที่กำลังโฟกัสอยู่
+    if (best === null) best = focusedSymbol;
+    return best;
+  }
 
+  function isGlobalOrderLocked() {
+    return globalLockedSymbol !== null;
+  }
+
+  function renderGlobalBanner() {
+    const stepEl = document.getElementById('cb-step');
+    const stakeEl = document.getElementById('cb-next-stake');
+    const lockEl = document.getElementById('cb-lock-status');
+    if (!stepEl) return;
+    stepEl.textContent = `M-${globalStepCount + 1}`;
+    stakeEl.textContent = `$${(baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2)}`;
+    lockEl.textContent = isGlobalOrderLocked() ? `กำลังถือดีล (${globalLockedSymbol})` : 'ว่าง';
+  }
+
+  // 🆕 อัปเดต/แสดงผลแบนเนอร์ยอดเงินเดโมทดสอบ — โชว์เฉพาะตอนยังไม่ได้ authorize ผ่าน API จริง
+  // (ตอน authorize สำเร็จแล้ว ยอดเงินจริงจาก Deriv balance subscription จะเป็นตัวแสดงผลแทน)
+  function renderVirtualBalance() {
+    if (!virtualBalancePanel) return;
+    virtualBalancePanel.style.display = isAuthorized ? 'none' : 'flex';
+    if (virtualBalanceVal) {
+      virtualBalanceVal.textContent = `$${virtualDemoBalance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    }
+  }
+
+  // ⚠️ หมายเหตุสำคัญ: ฟังก์ชันนี้ยังใช้กลไกเดิม (นับ "จำนวน tick ที่เข้ามา" แทนเวลานาฬิกาจริง)
+  // ทำงานแม่นยำกับ Deriv ticks ที่มาค่อนข้างสม่ำเสมอ (~1 ครั้ง/วินาที) แต่ฟีดราคา Binance (BTCUSDT ฯลฯ)
+  // เป็นสตรีม "เทรดจริง" ซึ่งบางช่วงอาจมาถี่กว่านี้มาก (หลายครั้ง/วินาที) ดีลคริปโตอาจ "หมดเวลา" เร็วกว่า
+  // 5/15/30/60 นาทีจริงได้ ถ้าต้องการความแม่นยำเป็นนาฬิกาจริงล้วน ๆ ต้องเปลี่ยนไปนับเวลาแทนจำนวน tick
+  // (ยังไม่แก้ตรงนี้ตามที่ขอไว้ว่าไม่ให้ยุ่งกับกลไกเดิม) — อัตราส่วน 30 tick/นาที อิงจากค่าเดิมที่มีอยู่แล้ว
+  // (5_min เดิม = 150 ticks, 15_min เดิม = 450 ticks) แค่ต่อสเกลเดียวกันให้ครบ 30 นาที/1 ชั่วโมงเท่านั้น
+  function durationToWaitTicks(v) {
+    if (v === '5_min') return 150;
+    if (v === '15_min') return 450;
+    if (v === '30_min') return 900;
+    if (v === '1_hour') return 1800;
+    return 150;
+  }
 
   let state = {};
 
-
-
   function freshState() {
-
     return {
-
       ticks: [],
-
       tickCounter: 0,
-
       lastPrice: null,
-
       prevPrice: null,
-
       resistance: null,
-
       support: null,
-
       sigType: 'NEUTRAL',
-
       sigText: 'กำลังวิเคราะห์โครงสร้างราคา…',
-
       sigSub: 'รอข้อมูล tick เพื่อคำนวณกรอบราคา',
-
       pendingContracts: [], 
-
       resolvedContracts: [],
-
       statWins: 0,
-
       statLosses: 0,
-
-      currentStepCount: 0 
-
+      currentStepCount: 0,
+      // 🆕 ฟิลด์เสริมสำหรับตัวกรองอินดิเคเตอร์ (ไม่กระทบฟิลด์เดิมด้านบน)
+      gains: [],       // สำหรับคำนวณ RSI
+      losses: [],      // สำหรับคำนวณ RSI
+      rsiValue: null,
+      stochValue: null,
+      trueRanges: [],  // สำหรับคำนวณ ATR
+      atrValue: null,
+      lastFilterNote: '' // เก็บเหตุผลล่าสุดที่ถูกกรอง (ใช้โชว์ใน log)
     };
-
   }
-
-
 
   function ensureState(sym) {
-
     if (!state[sym]) state[sym] = freshState();
-
   }
-
-
 
   const pickerContainer = document.getElementById('watchlist-picker');
-
   const watchCountEl = document.getElementById('watch-count');
-
   const watchGrid = document.getElementById('watch-grid');
-
   const watchEmpty = document.getElementById('watch-empty');
-
   const focusSection = document.getElementById('focus-section');
-
   const durationSelect = document.getElementById('duration-select');
-
   const maxStepsSelect = document.getElementById('max-steps-select');
-
   const martingaleMultiplierSelect = document.getElementById('martingale-multiplier-select');
-
   const logContainer = document.getElementById('log-container');
-
   const connDot = document.getElementById('conn-dot');
-
   const apiStatus = document.getElementById('api-status');
-
   const themeToggleBtn = document.getElementById('theme-toggle');
-
   
-
   const apiGateInputs = document.getElementById('api-gate-inputs');
-
   const accountModeSelect = document.getElementById('account-mode-select');
-
   const apiTokenInput = document.getElementById('api-token-input');
-
   const apiConnectBtn = document.getElementById('api-connect-btn');
-
   const accountInfoDisplay = document.getElementById('account-info-display');
-
   const badgeAccountMode = document.getElementById('badge-account-mode');
-
   const accEmail = document.getElementById('acc-email');
-
   const accBalance = document.getElementById('acc-balance');
-
   const apiDisconnectBtn = document.getElementById('api-disconnect-btn');
-
   const clearApiBtn = document.getElementById('clear-api-btn');
+  const baseStakeInput = document.getElementById('base-stake-input');
+  const virtualBalancePanel = document.getElementById('virtual-balance-panel');
+  const virtualBalanceVal = document.getElementById('virtual-balance-val');
 
+  // 🆕 ผูกปุ่มเปิด/ปิดตัวกรองอินดิเคเตอร์เสริมแต่ละตัว
+  document.querySelectorAll('.ind-toggle-chip').forEach(chip => {
+    chip.addEventListener('click', () => {
+      const key = chip.getAttribute('data-ind');
+      indicatorToggles[key] = !indicatorToggles[key];
+      chip.classList.toggle('active', indicatorToggles[key]);
+      renderIndicatorFilterSummary();
+      const labelMap = {
+        rsi: 'RSI/Stochastic กรอง Overbought-Oversold',
+        atr: 'ATR ปรับ Lookback/Threshold ตาม Volatility',
+        velocity: 'Tick Velocity (ความเร็วราคา)',
+        deepmtf: 'Deep MTF Confirmation (3-4 ช่วงเวลา)'
+      };
+      addLog(`${indicatorToggles[key] ? '✅ เปิดใช้' : '⛔ ปิดใช้'}ตัวกรอง: ${labelMap[key]}`);
+    });
+  });
 
+  function renderIndicatorFilterSummary() {
+    const count = Object.values(indicatorToggles).filter(Boolean).length;
+    const el = document.getElementById('ind-filter-summary');
+    if (el) el.textContent = `${count}/4 เปิดใช้`;
+  }
 
   themeToggleBtn.addEventListener('click', () => {
-
     if (document.documentElement.getAttribute('data-theme') === 'light') {
-
       document.documentElement.removeAttribute('data-theme');
-
       themeToggleBtn.textContent = '🌙';
-
     } else {
-
       document.documentElement.setAttribute('data-theme', 'light');
-
       themeToggleBtn.textContent = '☀️';
-
     }
-
     renderWatchGrid();
-
     renderFocused(focusedSymbol);
-
   });
-
-
 
   maxStepsSelect.addEventListener('change', (e) => {
-
     allowedMaxSteps = parseInt(e.target.value);
-
     addLog(`🛡️ ปรับขีดจำกัดเพดานทบไม้สูงสุดเป็น: ไม่เกิน ${allowedMaxSteps} ไม้`);
-
   });
-
-
 
   martingaleMultiplierSelect.addEventListener('change', (e) => {
-
     martingaleMultiplier = parseFloat(e.target.value);
-
     addLog(`📈 ปรับสเกลตัวคูณทบเงินมาติงเกลใหม่เมื่อแพ้เป็น: x${martingaleMultiplier}`);
-
     renderFocused(focusedSymbol);
-
+    renderGlobalBanner();
   });
 
-
+  // 🆕 ตั้งค่าทุนเริ่มต้นต่อไม้ (Base Stake) ได้จากหน้าจอ — ไม่กระทบโลจิกมาติงเกล/สัญญาณเดิม
+  // มีผลกับการคำนวณ currentStake ใน executeRealContract และยอดที่แสดงในแบนเนอร์/การ์ดต่าง ๆ ทันที
+  baseStakeInput.addEventListener('change', (e) => {
+    const val = parseFloat(e.target.value);
+    if (!isNaN(val) && val > 0) {
+      baseStake = val;
+      addLog(`💵 ปรับทุนเริ่มต้นต่อไม้ (Base Stake) ใหม่เป็น: $${baseStake.toFixed(2)}`);
+      renderGlobalBanner(); renderWatchGrid();
+      if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
+    } else {
+      e.target.value = baseStake.toFixed(2); // ค่าไม่ถูกต้อง -> คืนค่าเดิม
+    }
+  });
 
   clearApiBtn.addEventListener('click', () => {
-
     if(confirm('ต้องการรีเซ็ตประวัติและค่า Win Rate ในเซสชันนี้ใช่ไหมครับ?')) {
-
       watchedSymbols.forEach(sym => { state[sym] = freshState(); });
-
-      renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
-
-      addLog('🧹 ล้างสถิติประวัติดีลบนเทอร์มินอลเรียบร้อยแล้ว');
-
+      globalStepCount = 0; globalLockedSymbol = null;
+      virtualDemoBalance = 10000; // 🆕 รีเซ็ตยอดเงินเดโมทดสอบกลับ $10,000 พร้อมสถิติอื่น
+      renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate(); renderGlobalBanner(); renderVirtualBalance();
+      addLog('🧹 ล้างสถิติประวัติดีลบนเทอร์มินอลเรียบร้อยแล้ว (รวมรีเซ็ตสเตปมาติงเกลกลาง และยอดเงินเดโมทดสอบ)');
     }
-
   });
-
-
 
   function playSignalSound(type) {
-
     try {
-
       const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-
       if (type === 'HIGHER') {
-
         playTone(audioCtx, 880, 0.1, 0);
-
         playTone(audioCtx, 1318.51, 0.15, 0.12);
-
       } else if (type === 'LOWER') {
-
         playTone(audioCtx, 440, 0.12, 0);
-
         playTone(audioCtx, 349.23, 0.2, 0.1);
-
       }
-
     } catch (e) { console.log("Audio Alert Blocked", e); }
-
   }
-
-
 
   function playTone(ctx, freq, duration, delay) {
-
     const osc = ctx.createOscillator();
-
     const gainNode = ctx.createGain();
-
     osc.type = 'sine'; osc.frequency.value = freq;
-
     gainNode.gain.setValueAtTime(0.15, ctx.currentTime + delay);
-
     gainNode.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + duration);
-
     osc.connect(gainNode); gainNode.connect(ctx.destination);
-
     osc.start(ctx.currentTime + delay); osc.stop(ctx.currentTime + delay + duration);
-
   }
-
-
 
   apiConnectBtn.addEventListener('click', () => {
-
     const token = apiTokenInput.value.trim();
-
     if(!token) { alert('กรุณากรอก API Token เพื่อระบุสิทธิ์พอร์ตก่อนครับ'); return; }
-
     
-
     apiToken = token;
-
     accountMode = accountModeSelect.value; 
-
     
-
     addLog(`🔑 กำลังส่งโครงสร้างสิทธิ์ยืนยันพอร์ตย่อย [โหมด: ${accountMode.toUpperCase()}]...`);
-
     sendAuthorize();
-
   });
-
-
 
   // 🛑 LOGOUT / DISCONNECT LOGIC: ล้างสิทธิ์และเปิดฟอร์มสำหรับสลับ Token ใหม่
-
   apiDisconnectBtn.addEventListener('click', () => {
-
     if (confirm('คุณต้องการตัดการเชื่อมต่อพอร์ตปัจจุบัน เพื่อเปลี่ยนไปใช้ API Token ชุดอื่นใช่ไหมครับ?')) {
-
       addLog(`🔒 กำลังสั่งตัดการเชื่อมต่อพอร์ตเดิม และคืนโครงสร้างความปลอดภัย...`);
-
       
-
       // 1. ส่งคำสั่งยกเลิกสตรีมข้อมูลสดทั้งหมดไปยัง Deriv Server
-
       if (ws && ws.readyState === WebSocket.OPEN) {
-
         ws.send(JSON.stringify({ forget_all: "ticks" }));
-
       }
-
       
-
       // 2. เคลียร์ค่าตัวแปรสิทธิ์ให้ว่างเปล่า
-
       apiToken = '';
-
       isAuthorized = false;
-
       
-
       // 3. ปรับโครงสร้าง UI ซ่อนข้อมูลพอร์ตเก่า และสลับเปิดฟอร์มกรอกช่องใหม่
-
       accountInfoDisplay.style.display = 'none';
-
       apiGateInputs.style.display = 'flex';
-
       apiTokenInput.value = ''; // เคลียร์รหัสผ่านเก่าออกจากช่องกรอก
-
       accBalance.textContent = '$0.00';
-
       accEmail.textContent = '—';
-
       
-
       // 4. ล้างหน้าประวัติและสเตปทบเงินของบ็อต เพื่อป้องกันไม้ต่อเนื่องข้ามพอร์ต
-
       watchedSymbols.forEach(sym => { state[sym] = freshState(); });
-
+      globalStepCount = 0; globalLockedSymbol = null;
+      virtualDemoBalance = 10000; // 🆕 รีเซ็ตยอดเงินเดโมทดสอบกลับ $10,000 พร้อมสลับพอร์ต
       renderWatchGrid(); 
-
       if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
-
       renderCombinedWinRate();
-
+      renderGlobalBanner();
+      renderVirtualBalance();
       
-
       addLog('🔓 ปลดล็อกพอร์ตสำเร็จ! เทอร์มินอลเปิดระบบว่างแล้ว สามารถระบุ Token ตัวใหม่เข้าไปทำงานต่อได้ทันทีครับ');
-
     }
-
   });
 
-
-
   function sendAuthorize() {
-
     if (ws && ws.readyState === WebSocket.OPEN && apiToken) {
-
       ws.send(JSON.stringify({ authorize: apiToken }));
-
     }
-
   }
-
-
 
   function fetchBalance() {
-
     if (ws && ws.readyState === WebSocket.OPEN && isAuthorized) {
-
       ws.send(JSON.stringify({ balance: 1, subscribe: 1 }));
-
     }
-
   }
 
-
-
   function executeRealContract(symbol, direction) {
-
     ensureState(symbol);
-
     const s = state[symbol];
 
-    
+    // ✏️ เงื่อนไขใหม่ (แก้ไขตามที่สั่ง): ไม่ใช้ Win Rate เลือกสัญลักษณ์อีกต่อไป
+    // เปลี่ยนเป็น "สัญลักษณ์ใดก็ได้" ที่สัญญาณผ่านตัวกรอง (logic เดิม + indicator filter) ก่อน จะได้ยิงก่อน
+    // เงื่อนไขเดียวที่ยังคุมอยู่คือ: ต้องรอออเดอร์ก่อนหน้า (ไม่ว่าจะเป็นสัญลักษณ์ไหน) หมดอายุ/ปิดดีลก่อน
+    // ถึงจะยิงไม้ใหม่ได้ — เพื่อให้สเตปมาติงเกลกลาง (globalStepCount) ยังนับต่อเนื่องถูกต้อง
+    // ดีลค้างได้แค่ 1 ดีลทั้งระบบ (ครอบทุกสัญลักษณ์ ไม่ใช่แค่ตัวนี้)
+    if (isGlobalOrderLocked()) {
+      addLog(`⏭️ [${symbol}] มีสัญญาณเบรคเอาท์ แต่มีออเดอร์ค้างอยู่ที่ ${globalLockedSymbol} — รอให้หมดอายุก่อนจึงยิงไม้ใหม่ได้`);
+      return;
+    }
 
-    if (s.pendingContracts.length > 0) return; 
-
-
-
-    const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2));
-
+    // 🆕 ใช้ "สเตปกลาง" (globalStepCount) แทนสเตปรายสัญลักษณ์ ในการคำนวณขนาดทุนไม้ต่อไป
+    const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2));
     const contractType = direction === 'HIGHER' ? 'CALL' : 'PUT';
 
-
+    // 🆕 หาสัญลักษณ์ที่ "ยิงออเดอร์จริง" ผ่าน Deriv (execSymbol) — สำหรับคริปโตจะเป็นสัญลักษณ์ cry* ของ Deriv
+    // (ราคา/สัญญาณวิเคราะห์จาก Binance แต่ของจริงต้องยิงเข้า Deriv เพราะ Binance วางออเดอร์ตรงจากเบราว์เซอร์ไม่ได้)
+    // ส่วน Forex execSymbol จะเท่ากับ symbol เดิมเป๊ะ ๆ (ไม่มีอะไรเปลี่ยนสำหรับ Forex)
+    const symMeta = ALL_SYMBOLS.find(i => i.sym === symbol);
+    const derivExecSymbol = symMeta ? symMeta.execSymbol : symbol;
 
     let durationNumber = 5;
+    let durationUnitStr = 'm';
 
-    let durationUnitStr = 't';
-
-
-
-    if (durationVal === '5_ticks') { durationNumber = 5; durationUnitStr = 't'; }
-
-    else if (durationVal === '10_ticks') { durationNumber = 10; durationUnitStr = 't'; }
-
-    else if (durationVal === '5_min') { durationNumber = 5; durationUnitStr = 'm'; }
-
+    if (durationVal === '5_min') { durationNumber = 5; durationUnitStr = 'm'; }
     else if (durationVal === '15_min') { durationNumber = 15; durationUnitStr = 'm'; }
-
-
+    else if (durationVal === '30_min') { durationNumber = 30; durationUnitStr = 'm'; }
+    else if (durationVal === '1_hour') { durationNumber = 60; durationUnitStr = 'm'; }
 
     const calculatedWaitTicks = durationToWaitTicks(durationVal);
 
-
+    // 🆕 ล็อกระบบกลางไว้ที่สัญลักษณ์นี้ จนกว่าดีลจะปิด
+    globalLockedSymbol = symbol;
 
     if (!isAuthorized || !ws || ws.readyState !== WebSocket.OPEN) {
-
-      addLog(`📢 [VIRTUAL] สัญญาณ ${direction} ทำงาน (ไม้ M-${s.currentStepCount + 1}) ทุน: $${currentStake} [ระยะเวลา: ${durationNumber}${durationUnitStr}]`);
-
+      addLog(`📢 [VIRTUAL] สัญญาณ ${direction} ทำงานที่ ${symbol} (ไม้กลาง M-${globalStepCount + 1}) ทุน: $${currentStake} [ระยะเวลา: ${durationNumber}${durationUnitStr}]`);
       
-
       const localContract = {
-
         id: 'ID-VIRTUAL-' + Math.floor(Math.random() * 89999 + 10000),
-
         dir: direction,
-
         entryPrice: s.lastPrice,
-
         entryTick: s.tickCounter,
-
         resolveAtTick: s.tickCounter + calculatedWaitTicks,
-
-        step: s.currentStepCount + 1,
-
+        step: globalStepCount + 1,
         stakeValue: currentStake,
-
-        apiTracked: false
-
+        apiTracked: false,
+        isVirtual: true // 🆕 ดีลจำลอง (ยังไม่ authorize ผ่าน API จริง) ใช้ปรับยอดเงินเดโมทดสอบตอนปิดดีล
       };
-
       s.pendingContracts.push(localContract);
-
+      renderGlobalBanner();
       return;
-
     }
-
-
 
     const orderRequest = {
-
       buy: 1,
-
       price: currentStake,
-
       parameters: {
-
         amount: currentStake,
-
         basis: 'stake',
-
         contract_type: contractType,
-
         currency: 'USD',
-
         duration: durationNumber,
-
         duration_unit: durationUnitStr, 
-
-        symbol: symbol
-
+        symbol: derivExecSymbol // 🆕 ยิงเข้า Deriv ด้วย execSymbol จริง (เดิมใช้ "symbol" ตัวเดียวกันกับที่ติดตามราคา)
       }
-
     };
-
-
 
     ws.send(JSON.stringify(orderRequest));
-
     
-
     const apiContract = {
-
       id: 'AWAITING-API-ID',
-
       dir: direction,
-
       entryPrice: s.lastPrice,
-
       entryTick: s.tickCounter,
-
       resolveAtTick: s.tickCounter + calculatedWaitTicks,
-
-      step: s.currentStepCount + 1,
-
+      step: globalStepCount + 1,
       stakeValue: currentStake,
-
-      apiTracked: false
-
+      apiTracked: false,
+      isVirtual: false // 🆕 ดีลจริงที่ส่งให้ Deriv แล้ว ไม่แตะยอดเงินเดโมทดสอบ
     };
-
     s.pendingContracts.push(apiContract);
-
-    addLog(`🎯 [${symbol}] ตรวจพบเบรคเอาท์! ส่งคำสั่งยิงออเดอร์ ไม้ M-${apiContract.step} (ขนาดทุน: $${currentStake})`);
-
+    addLog(`🎯 [${symbol}] สัญญาณผ่านตัวกรองและไม่มีออเดอร์ค้าง! ส่งคำสั่งยิงออเดอร์เข้า Deriv (${derivExecSymbol}) ไม้กลาง M-${apiContract.step} (ขนาดทุน: $${currentStake})`);
+    renderGlobalBanner();
   }
-
-
 
   function renderPicker() {
-
     pickerContainer.innerHTML = ALL_SYMBOLS.map(item => {
-
       const isAct = watchedSymbols.includes(item.sym) ? 'active' : '';
-
       return `<div class="chip ${isAct}" data-sym="${item.sym}">${item.sym}</div>`;
-
     }).join('');
-
     watchCountEl.textContent = `${watchedSymbols.length} รายการ`;
 
-
-
     pickerContainer.querySelectorAll('.chip').forEach(el => {
-
       el.addEventListener('click', () => {
-
         const sym = el.getAttribute('data-sym');
-
         if (watchedSymbols.includes(sym)) {
-
           if (watchedSymbols.length > 1) {
-
             watchedSymbols = watchedSymbols.filter(s => s !== sym);
-
             if (focusedSymbol === sym) focusedSymbol = watchedSymbols[0];
-
             unsubscribeSymbol(sym);
-
           }
-
         } else {
-
           watchedSymbols.push(sym);
-
           focusedSymbol = sym;
-
           ensureState(sym);
-
           subscribeSymbol(sym);
-
         }
-
-        renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate();
-
+        renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); renderCombinedWinRate(); renderGlobalBanner();
       });
-
     });
-
   }
-
-
 
   function renderWatchGrid() {
-
     if (watchedSymbols.length === 0) { watchEmpty.style.display = 'block'; watchGrid.innerHTML = ''; return; }
-
     watchEmpty.style.display = 'none';
-
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-
     const strokeColor = isLight ? '#4b5563' : '#c8cfdc';
 
-
-
     watchGrid.innerHTML = watchedSymbols.map(sym => {
-
       const s = state[sym]; const meta = ALL_SYMBOLS.find(i => i.sym === sym); if (!s) return '';
-
       const priceStr = s.lastPrice ? s.lastPrice.toFixed(meta.dec) : '—.——';
-
       
-
       let badgeCls = 'neutral';
-
       if (s.sigType === 'BUY') badgeCls = 'buy';
-
       if (s.sigType === 'SELL') badgeCls = 'sell';
-
       if (s.sigType === 'BLOCK') badgeCls = 'block';
 
-
-
       const total = s.statWins + s.statLosses;
-
       const wrStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
-
       const wrCls = total > 0 ? ( (s.statWins/total) >= 0.5 ? 'good' : 'bad' ) : '';
-
       const focusedCls = focusedSymbol === sym ? 'focused' : '';
 
-
-
       let polylineHtml = '';
-
       if (s.ticks.length >= 2) {
-
         const min = Math.min(...s.ticks); const max = Math.max(...s.ticks); const range = max - min;
-
         const pts = s.ticks.map((t, idx) => {
-
           const x = (idx / (s.ticks.length - 1)) * 120;
-
           const y = range === 0 ? 14 : 26 - ((t - min) / range) * 24;
-
           return `${x.toFixed(1)},${y.toFixed(1)}`;
-
         }).join(' ');
-
         polylineHtml = `<polyline fill="none" stroke="${strokeColor}" stroke-width="1.2" points="${pts}"></polyline>`;
-
       }
 
-
-
-      const nextStakeVal = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
-
-
+      // 🆕 ขนาดทุนไม้ถัดไปที่แสดงต่อการ์ด อ้างอิงจาก "สเตปกลาง" (ใช้ร่วมกันทุกสัญลักษณ์)
+      const nextStakeVal = (baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2);
 
       return `<div class="watch-card ${focusedCls}" data-sym="${sym}">
-
         <div class="wc-top"><span class="wc-name">${meta.label}</span><span class="wc-badge ${badgeCls}">${s.sigType}</span></div>
-
         <div class="wc-mid"><span class="wc-price">${priceStr}</span><div class="wc-spark-wrap"><svg viewBox="0 0 120 28" preserveAspectRatio="none">${polylineHtml}</svg></div></div>
-
         <div class="wc-bottom">
-
           <div class="wc-wr">Win Rate: <span class="wc-wr-val ${wrCls}">${wrStr}</span></div>
-
-          <div>ดีลค้าง: ${s.pendingContracts.length} (M-${s.currentStepCount + 1} = $${nextStakeVal})</div>
-
+          <div>ดีลค้าง: ${s.pendingContracts.length} (กลาง M-${globalStepCount + 1} = $${nextStakeVal})</div>
         </div>
-
       </div>`;
-
     }).join('');
 
-
-
     watchGrid.querySelectorAll('.watch-card').forEach(card => {
-
       card.addEventListener('click', () => {
-
         focusedSymbol = card.getAttribute('data-sym');
-
         watchGrid.querySelectorAll('.watch-card').forEach(c => c.classList.remove('focused'));
-
         card.classList.add('focused');
-
         renderFocused(focusedSymbol);
-
       });
-
     });
 
+    renderGlobalBanner();
   }
-
-
 
   function renderFocused(sym) {
-
     const s = state[sym]; const meta = ALL_SYMBOLS.find(i => i.sym === sym); if (!s) { focusSection.style.display = 'none'; return; }
-
     focusSection.style.display = 'block';
-
     document.getElementById('fl-name').textContent = meta.label;
-
     document.getElementById('hero-asset').textContent = sym;
 
-
-
     const priceEl = document.getElementById('current-price'); const deltaEl = document.getElementById('price-delta');
-
     if (s.lastPrice !== null) {
-
       priceEl.textContent = s.lastPrice.toFixed(meta.dec);
-
       if (s.prevPrice !== null && s.lastPrice !== s.prevPrice) {
-
         const diff = s.lastPrice - s.prevPrice; const pct = (diff / s.prevPrice) * 100;
-
         deltaEl.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(3) + '%'; deltaEl.className = `price-delta ${pct > 0 ? 'up' : 'down'}`;
-
       }
-
     }
-
     document.getElementById('res-price').textContent = s.resistance ? s.resistance.toFixed(meta.dec) : '0.00';
-
     document.getElementById('sup-price').textContent = s.support ? s.support.toFixed(meta.dec) : '0.00';
 
-
-
     const sigPanel = document.getElementById('signal-output'); const sigTxt = document.getElementById('sig-text'); const sigSb = document.getElementById('sig-sub');
-
     sigPanel.className = `signal ${s.sigType.toLowerCase()}`; sigTxt.textContent = s.sigText; sigSb.textContent = s.sigSub;
 
-
-
     const isLight = document.documentElement.getAttribute('data-theme') === 'light';
-
     const mainStrokeColor = isLight ? 'var(--accent)' : '#5eead4';
-
     const polyline = document.getElementById('spark-line'); const polygon = document.getElementById('spark-fill');
-
     polyline.setAttribute('stroke', mainStrokeColor);
 
-
-
     if (s.ticks.length >= 2) {
-
       const min = Math.min(...s.ticks); const max = Math.max(...s.ticks); const spread = max - min;
-
       const pts = s.ticks.map((t, idx) => {
-
         const x = (idx / (s.ticks.length - 1)) * 600; const y = spread === 0 ? 32 : 58 - ((t - min) / spread) * 52; return `${x.toFixed(1)},${y.toFixed(1)}`;
-
       });
-
       const linePts = pts.join(' '); polyline.setAttribute('points', linePts); polygon.setAttribute('points', `0,64 ${linePts} 600,64`);
-
     }
-
-
 
     const total = s.statWins + s.statLosses;
-
     const wrRateStr = total > 0 ? ((s.statWins / total) * 100).toFixed(0) + '%' : '—';
-
     
+    // 🆕 ทุนไม้ถัดไปที่แสดงในแถบ track ใช้สเตปกลางเช่นกัน เพื่อให้ตรงกับสิ่งที่จะเกิดขึ้นจริง
+    const currentEstimatedStake = (baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2);
 
-    const currentEstimatedStake = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
-
-
-
-    document.getElementById('track-count').textContent = `${total + s.pendingContracts.length} ดีล (สเตปปัจจุบัน: M-${s.currentStepCount + 1}/${allowedMaxSteps} | ทุนไม้ถัดไป: $${currentEstimatedStake})`;
-
+    document.getElementById('track-count').textContent = `${total + s.pendingContracts.length} ดีล (สเตปกลางปัจจุบัน: M-${globalStepCount + 1}/${allowedMaxSteps} | ทุนไม้ถัดไป: $${currentEstimatedStake})`;
     document.getElementById('ts-winrate').textContent = wrRateStr;
-
     document.getElementById('ts-wins').textContent = s.statWins;
-
     document.getElementById('ts-losses').textContent = s.statLosses;
-
     document.getElementById('ts-pending').textContent = s.pendingContracts.length;
-
     document.getElementById('tb-fill').style.width = total > 0 ? `${(s.statWins / total) * 100}%` : '0%';
 
-
-
     const listContainer = document.getElementById('track-list');
-
     if (s.resolvedContracts.length === 0) {
-
       listContainer.innerHTML = '<li class="empty">ยังไม่มีคำสั่งซื้อที่ปิดดีลในเซสชันนี้</li>';
-
     } else {
-
       listContainer.innerHTML = s.resolvedContracts.slice(0, 30).map(r => {
-
         const resCls = r.result.toLowerCase(); const resSym = r.result === 'WIN' ? 'W' : 'L';
-
         const dirCls = r.dir.toLowerCase() === 'higher' ? 'buy' : 'sell'; const dirLabel = r.dir === 'HIGHER' ? 'CALL' : 'PUT';
-
         const time = r.resolvedAt.toLocaleTimeString('th-TH', { hour12: false });
-
         return `<li>
-
           <span class="tl-result ${resCls}">${resSym}</span>
-
           <span class="tl-dir ${dirCls}">${dirLabel}</span>
-
           <span class="tl-prices">${r.entryPrice.toFixed(meta.dec)} → ${r.exitPrice.toFixed(meta.dec)}</span>
-
           <span class="tl-time">${time} (ไม้ M-${r.step} | ขนาด $${r.stakeValue.toFixed(2)})</span>
-
         </li>`;
-
       }).join('');
-
     }
 
+    renderGlobalBanner();
   }
-
-
 
   function renderCombinedWinRate() {
-
     const banner = document.getElementById('combined-banner'); const winrateEl = document.getElementById('cb-winrate');
-
     let totalWins = 0; let totalLosses = 0;
-
     watchedSymbols.forEach(sym => { const s = state[sym]; if (s) { totalWins += s.statWins; totalLosses += s.statLosses; } });
-
     const grandTotal = totalWins + totalLosses;
-
     if (grandTotal > 0) { banner.style.display = 'flex'; winrateEl.textContent = ((totalWins / grandTotal) * 100).toFixed(1) + '%'; } 
-
     else { banner.style.display = 'none'; }
-
+    renderGlobalBanner();
   }
-
-
 
   function addLog(text) {
-
     const time = new Date().toLocaleTimeString('th-TH', { hour12: false });
-
     const li = document.createElement('li'); li.textContent = `${time}  ${text}`;
-
     logContainer.insertBefore(li, logContainer.firstChild);
-
     while (logContainer.children.length > 60) logContainer.removeChild(logContainer.lastChild);
-
   }
-
-
 
   durationSelect.addEventListener('change', (e) => {
-
     // durationVal มีผลแค่กับ duration/duration_unit ที่ส่ง API และเวลารอผลของดีล
-
     // ไม่กระทบ lookbackPeriod ของการวิเคราะห์โครงสร้างราคาอีกต่อไป (คงที่ที่ SIGNAL_LOOKBACK)
-
     durationVal = e.target.value;
-
     watchedSymbols.forEach(sym => { state[sym] = freshState(); });
-
+    globalStepCount = 0; globalLockedSymbol = null;
     renderWatchGrid(); if (watchedSymbols.includes(focusedSymbol)) renderFocused(focusedSymbol);
-
-    addLog(`⏰ เปลี่ยนเวลาสัญญาร่วมเป็น: ${durationSelect.options[durationSelect.selectedIndex].text} (ล้างประวัติคำนวณฐานใหม่)`);
-
+    addLog(`⏰ เปลี่ยนเวลาสัญญาร่วมเป็น: ${durationSelect.options[durationSelect.selectedIndex].text} (ล้างประวัติคำนวณฐานใหม่ และรีเซ็ตสเตปมาติงเกลกลาง)`);
   });
 
-
-
   function connectWS() {
-
     if (ws) { try { ws.close(); } catch(e){} }
-
     ws = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${APP_ID}`);
 
-
-
     ws.onopen = () => {
-
       connDot.className = 'dot live'; apiStatus.textContent = 'LIVE';
-
       addLog('📡 เชื่อมต่อเกตเวย์รับข้อมูลสดผ่าน Deriv WebSocket Server');
-
       if(apiToken) sendAuthorize();
-
       watchedSymbols.forEach(sym => subscribeSymbol(sym));
-
     };
-
-
 
     ws.onmessage = (msg) => {
-
       const data = JSON.parse(msg.data);
-
       
-
       if (data.msg_type === 'authorize') {
-
         if(data.error) {
-
           isAuthorized = false; alert(`การยืนยันสิทธิ์ Token ล้มเหลว: ${data.error.message}`);
-
           addLog('❌ ปฏิเสธการต่อพอร์ต: กรุณาตรวจสอบรหัสสิทธิ์และโหมดพอร์ตพาสเวิร์ด');
-
+          renderVirtualBalance();
         } else {
-
           isAuthorized = true;
-
           apiGateInputs.style.display = 'none'; // ซ่อนฟอร์มใส่ค่า
-
           accountInfoDisplay.style.display = 'flex'; // โชว์สถิติพอร์ต
-
+          renderVirtualBalance(); // 🆕 ซ่อนแบนเนอร์ยอดเงินเดโมทดสอบ เพราะเปลี่ยนไปใช้ยอดจริงจาก Deriv แทน
           
-
           badgeAccountMode.textContent = accountMode === 'demo' ? 'DEMO 🧪' : 'REAL 💰';
-
           badgeAccountMode.className = `badge-mode ${accountMode}`;
-
           
-
           accEmail.textContent = data.authorize.email;
-
           addLog(`✅ บัญชี ${data.authorize.email} เปิดระบบสำเร็จ! [โหมดพอร์ต: ${accountMode.toUpperCase()}]`);
-
           fetchBalance();
-
         }
-
       }
-
-
 
       if (data.msg_type === 'balance') {
-
         if(!data.error && data.balance && isAuthorized) {
-
           accBalance.textContent = `$${parseFloat(data.balance.balance).toLocaleString('en-US', {minimumFractionDigits: 2})}`;
-
         }
-
       }
-
-
 
       if (data.msg_type === 'buy') {
-
         if(data.error) {
-
           addLog(`🚨 [API ERROR] เซิร์ฟเวอร์ปฏิเสธดีล: ${data.error.message}`);
-
           const sym = focusedSymbol; 
-
           if(state[sym]) state[sym].pendingContracts = [];
-
+          // 🆕 ปลดล็อกระบบกลางถ้าออเดอร์ถูกปฏิเสธ ไม่งั้นระบบจะค้างคิดว่ามีดีลถืออยู่ตลอดไป
+          globalLockedSymbol = null;
+          renderGlobalBanner();
         } else {
-
           const buyInfo = data.buy;
-
           addLog(`📦 [API ORDER ACCEPTED] ออกคำสั่งซื้อสำเร็จ! เลขที่ดีล: ${buyInfo.contract_id} (จำนวนทุน: $${buyInfo.price.toFixed(2)})`);
-
           
-
           watchedSymbols.forEach(sym => {
-
             ensureState(sym);
-
             state[sym].pendingContracts.forEach(c => {
-
               if(c.id === 'AWAITING-API-ID' && !c.apiTracked) {
-
                 c.id = buyInfo.contract_id; c.apiTracked = true;
-
               }
-
             });
-
           });
-
         }
-
       }
-
-
 
       if (data.msg_type === 'tick') {
-
         onTickReceived(data.tick);
-
       }
-
     };
-
-
 
     ws.onclose = () => {
-
       connDot.className = 'dot'; apiStatus.textContent = 'กำลังเชื่อมต่อ…';
-
-      isAuthorized = false; setTimeout(connectWS, 4000);
-
+      isAuthorized = false; renderVirtualBalance(); setTimeout(connectWS, 4000);
     };
-
   }
-
-
 
   function subscribeSymbol(sym) {
-
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ ticks: sym }));
-
+    const meta = ALL_SYMBOLS.find(i => i.sym === sym);
+    if (meta && meta.source === 'binance') {
+      // 🆕 ติดตามราคาจาก Binance (สาธารณะ ไม่ต้องล็อกอิน) — ใช้แค่ดูราคา/วิเคราะห์สัญญาณเท่านั้น
+      if (binanceWs && binanceWs.readyState === WebSocket.OPEN) {
+        binanceWs.send(JSON.stringify({ method: 'SUBSCRIBE', params: [meta.binanceStream], id: Date.now() }));
+      }
+    } else {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ ticks: sym }));
+    }
   }
-
   function unsubscribeSymbol(sym) {
-
-    if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ forget: sym }));
-
+    const meta = ALL_SYMBOLS.find(i => i.sym === sym);
+    if (meta && meta.source === 'binance') {
+      if (binanceWs && binanceWs.readyState === WebSocket.OPEN) {
+        binanceWs.send(JSON.stringify({ method: 'UNSUBSCRIBE', params: [meta.binanceStream], id: Date.now() }));
+      }
+    } else {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ forget: sym }));
+    }
   }
 
+  // ──────────────────────────────────────────────────────────────────
+  // 🆕 BINANCE PUBLIC PRICE FEED — เชื่อมต่อแยกอิสระจาก Deriv WebSocket ด้านบน
+  // ใช้ "แค่ดูราคา/วิเคราะห์สัญญาณ" สำหรับสัญลักษณ์คริปโต (source: 'binance') เท่านั้น
+  // เป็น endpoint สาธารณะของ Binance ไม่ต้อง API Key/Secret และไม่ติดปัญหา CORS เหมือน endpoint
+  // ที่ต้องเซ็นชื่อ (วางออเดอร์จริงยังคงยิงผ่าน Deriv เหมือนเดิมทั้งหมด ดูที่ executeRealContract)
+  // ⚠️ ไม่ได้แก้โลจิกวิเคราะห์สัญญาณ/มาติงเกล/ล็อกระบบกลางใด ๆ เลย — แค่ "แปลง" ราคาที่ได้จาก Binance
+  // ให้อยู่ในรูป tick เดียวกับ Deriv แล้วส่งเข้า onTickReceived() ฟังก์ชันเดิมต่อ ใช้ตรรกะเดิม 100%
+  // ──────────────────────────────────────────────────────────────────
+  let binanceWs = null;
 
+  function connectBinanceWS() {
+    if (binanceWs) { try { binanceWs.close(); } catch(e){} }
+    binanceWs = new WebSocket('wss://stream.binance.com:9443/ws');
+
+    binanceWs.onopen = () => {
+      addLog('📡 เชื่อมต่อฟีดราคาสาธารณะของ Binance สำเร็จ (ใช้ดูราคา/วิเคราะห์สัญญาณคริปโตเท่านั้น ไม่ใช้ยิงออเดอร์จริง)');
+      watchedSymbols.forEach(sym => subscribeSymbol(sym));
+    };
+
+    binanceWs.onmessage = (msg) => {
+      let data;
+      try { data = JSON.parse(msg.data); } catch (e) { return; }
+      if (data && data.e === 'trade' && data.s && data.p) {
+        onBinanceTradeReceived(data.s, parseFloat(data.p));
+      }
+    };
+
+    binanceWs.onclose = () => { setTimeout(connectBinanceWS, 4000); };
+  }
+
+  // แปลง trade ของ Binance ให้เป็น tick รูปแบบเดียวกับ Deriv แล้วส่งเข้า onTickReceived เดิมเป๊ะ ๆ
+  function onBinanceTradeReceived(streamSymbolUpper, price) {
+    onTickReceived({ symbol: streamSymbolUpper, quote: price });
+  }
 
   function onTickReceived(tick) {
-
     const sym = tick.symbol; if (!watchedSymbols.includes(sym)) return;
-
     ensureState(sym); const s = state[sym]; const price = parseFloat(tick.quote);
 
-
-
     s.tickCounter++; s.prevPrice = s.lastPrice; s.lastPrice = price; s.ticks.push(price);
-
     if (s.ticks.length > lookbackPeriod) s.ticks.shift();
-
-
 
     evaluatePendingContracts(sym, price, s.tickCounter);
 
-
-
     if (s.ticks.length >= 15) {
-
       s.resistance = Math.max(...s.ticks.slice(0, -2));
-
       s.support = Math.min(...s.ticks.slice(0, -2));
 
-
-
       const largePeriod = s.ticks.length; const shortPeriod = 4;
-
       const mtfMainTrend = s.ticks.reduce((a,b)=>a+b,0) / largePeriod; 
-
       const currentMomentum = s.ticks.slice(-shortPeriod).reduce((a,b)=>a+b,0) / shortPeriod; 
 
-
-
       let majorBias = 'SIDEWAYS';
-
       if (currentMomentum > mtfMainTrend) majorBias = 'BULLISH';
-
       if (currentMomentum < mtfMainTrend) majorBias = 'BEARISH';
 
-
-
       const totalRange = s.resistance - s.support;
-
       const midMin = s.support + (totalRange * 0.35);
-
       const midMax = s.support + (totalRange * 0.65);
-
       const prevSigType = s.sigType;
 
-
-
       if (price > midMin && price < midMax) {
-
         s.sigType = 'BLOCK'; s.sigText = 'COMPRESSION: MID-ZONE';
-
         s.sigSub = `⏳ สภาพราคาบีบอัดตัวในกรอบสะสมพลัง รอจังหวะระเบิดเบรคเอาท์ (เทรนหลัก: ${majorBias})`;
-
       } 
-
       else if (price >= s.resistance && majorBias === 'BULLISH') {
-
         s.sigType = 'BUY'; s.sigText = 'BREAKOUT: HIGHER';
-
         s.sigSub = '🟢 สัญญาณเบรคเอาท์ขาขึ้นทำงาน: ทะลุกำแพงแนวต้านสำเร็จเปิดสัญญา CALL';
-
         
-
         if (prevSigType !== 'BUY') {
-
           playSignalSound('HIGHER'); 
-
           executeRealContract(sym, 'HIGHER'); 
-
         }
-
       } 
-
       else if (price <= s.support && majorBias === 'BEARISH') {
-
         s.sigType = 'SELL'; s.sigText = 'BREAKOUT: LOWER';
-
         s.sigSub = '🔴 สัญญาณเบรคเอาท์ขาลงทำงาน: หลุดกำแพงแนวรับด้านล่างเปิดสัญญา PUT';
-
         
-
         if (prevSigType !== 'SELL') {
-
           playSignalSound('LOWER');
-
           executeRealContract(sym, 'LOWER');
-
         }
-
       } 
-
       else {
-
         s.sigType = 'BLOCK'; s.sigText = 'BLOCK: UNSTABLE BREAK';
-
         s.sigSub = '⚠️ ระงับสัญญาณ: ราคาออกนอกกรอบพักตัวแต่ทิศทางมัลติไทม์เฟรมยังขัดแย้งกัน';
-
       }
-
     }
 
-
-
     renderWatchGrid(); if (sym === focusedSymbol) renderFocused(focusedSymbol); renderCombinedWinRate();
-
   }
-
-
 
   function evaluatePendingContracts(sym, currentPrice, currentTickNum) {
-
     const s = state[sym]; if (!s.pendingContracts.length) return;
-
     
-
     const toResolve = s.pendingContracts.filter(c => currentTickNum >= c.resolveAtTick);
-
     s.pendingContracts = s.pendingContracts.filter(c => currentTickNum < c.resolveAtTick);
 
-
-
     toResolve.forEach(c => {
-
       let result = 'LOSS';
-
       if (c.dir === 'HIGHER' && currentPrice > c.entryPrice) result = 'WIN';
-
       if (c.dir === 'LOWER' && currentPrice < c.entryPrice) result = 'WIN';
 
-
-
       if (result === 'WIN') {
-
         s.statWins++;
-
-        addLog(`🎉 [PROFIT] ดีล ${c.id} ชนะที่ไม้ ${c.step}! -> รีเซ็ตกลับไม้ 1`);
-
+        addLog(`🎉 [PROFIT] ดีล ${c.id} (${sym}) ชนะที่ไม้กลาง ${c.step}! -> รีเซ็ตสเตปกลางกลับไม้ 1`);
         s.currentStepCount = 0; 
-
+        // 🆕 ชนะ -> รีเซ็ตสเตปกลาง "กลับจุดเริ่มต้น" ทันที ไม่ว่าจะชนะจากสัญลักษณ์ไหนก็ตาม
+        globalStepCount = 0;
+        // 🆕 ดีลจำลอง (โหมดทดสอบ ยังไม่ authorize จริง) ชนะ -> บวกกำไรเข้ายอดเงินเดโมทดสอบ
+        // (ใช้ payout ประมาณการ VIRTUAL_PAYOUT_RATIO เพราะ client ไม่รู้ payout จริงก่อนซื้อ)
+        if (c.isVirtual) { virtualDemoBalance += c.stakeValue * VIRTUAL_PAYOUT_RATIO; renderVirtualBalance(); }
       } else {
-
         s.statLosses++;
-
         s.currentStepCount++; 
-
+        // 🆕 แพ้ -> เดินสเตปกลางต่อ (ไม่ผูกกับสัญลักษณ์เดิม) เพื่อให้ไม้ถัดไปไปยิงที่
+        // สัญลักษณ์ Win Rate สูงสุด ณ ขณะนั้น ซึ่งอาจเป็นคนละสัญลักษณ์กับไม้นี้
+        globalStepCount++;
+        // 🆕 ดีลจำลองแพ้ -> หักทุนไม้นั้นออกจากยอดเงินเดโมทดสอบ
+        if (c.isVirtual) { virtualDemoBalance -= c.stakeValue; renderVirtualBalance(); }
         
-
-        if (s.currentStepCount >= allowedMaxSteps) {
-
-          addLog(`🛑 [STOP LOSS] พอร์ต [${sym}] ผิดทางถึงลิมิตสูงสุดที่ล็อกไว้ (${allowedMaxSteps} ไม้) บ็อตตัดขาดทุนรอบนี้ทิ้ง (Cut Loss) และบังคับรีเซ็ตกลับไม้ 1 ทันที!`);
-
+        if (globalStepCount >= allowedMaxSteps) {
+          addLog(`🛑 [STOP LOSS] ระบบกลางผิดทางถึงลิมิตสูงสุดที่ล็อกไว้ (${allowedMaxSteps} ไม้) บ็อตตัดขาดทุนรอบนี้ทิ้ง (Cut Loss) และบังคับรีเซ็ตสเตปกลางกลับไม้ 1 ทันที!`);
+          globalStepCount = 0;
           s.currentStepCount = 0;
-
         } else {
-
-          const nextLayerStake = (baseStake * Math.pow(martingaleMultiplier, s.currentStepCount)).toFixed(2);
-
-          addLog(`❌ [LOSS] ดีล ${c.id} แพ้ที่ไม้ ${c.step}! ระบบทบเงินมาติงเกลด้วยตัวคูณ x${martingaleMultiplier} (เตรียมไม้ M-${s.currentStepCount + 1} ขนาดทุน: $${nextLayerStake})`);
-
+          const nextLayerStake = (baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(2);
+          addLog(`❌ [LOSS] ดีล ${c.id} (${sym}) แพ้ที่ไม้กลาง ${c.step}! ระบบทบเงินมาติงเกลด้วยตัวคูณ x${martingaleMultiplier} (เตรียมไม้กลาง M-${globalStepCount + 1} ขนาดทุน: $${nextLayerStake} — จะยิงที่สัญลักษณ์ Win Rate สูงสุด ณ ขณะนั้น)`);
         }
-
       }
 
-
+      // 🆕 ดีลปิดแล้ว -> ปลดล็อกระบบกลาง เพื่อให้ยิงไม้ถัดไปได้ (อาจเป็นสัญลักษณ์อื่น)
+      if (globalLockedSymbol === sym) globalLockedSymbol = null;
 
       s.resolvedContracts.unshift({
-
         id: c.id, dir: c.dir, entryPrice: c.entryPrice, exitPrice: currentPrice, result: result, step: c.step, stakeValue: c.stakeValue, resolvedAt: new Date()
-
       });
-
     });
 
+    renderGlobalBanner();
   }
 
-
-
-  ensureState(focusedSymbol); renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); connectWS();
-
+  ensureState(focusedSymbol); renderPicker(); renderWatchGrid(); renderFocused(focusedSymbol); renderGlobalBanner(); connectWS(); connectBinanceWS();
 </script>
 
-
-
 </body>
-
-</html> 
-
+</html>
