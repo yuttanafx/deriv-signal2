@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deriv V28 PRO - TradingView Full Chart</title>
+<title>Deriv V30 PRO - Show Pine Script Button</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -29,7 +29,7 @@ button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px
   <div class="brand">
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M13 2L24 13L13 24L2 13Z" fill="rgba(74,158,255,.14)" stroke="#4a9eff" stroke-width="1.5"/><circle cx="13" cy="13" r="3.7" fill="#4a9eff"/><path d="M8 15.5L12 11.5L15 14.5L19 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".82"/></svg>
     <span class="brand-name">deriv<em>.</em>pro</span>
-    <span class="v-badge">V27 LOG</span>
+    <span class="v-badge">V30 SCRIPT</span>
   </div>
   <div class="tabs" id="tabs"></div>
   <div class="actions">
@@ -37,7 +37,7 @@ button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px
     <button class="btn green" onclick="applyClipboardSignal()">GET VALUE</button>
     <button class="btn green" onclick="showPanel('signalPanel')">PASTE SIGNAL</button>
     <button class="btn amber" onclick="showPanel('manualPanel')">MANUAL FILTER</button>
-    <button class="btn" onclick="showPanel('pinePanel')">PINE</button>
+    <button class="btn blue" onclick="showPineScript()">SHOW PINE SCRIPT</button>
     <button class="btn red" onclick="resetSignals()">RESET</button>
   </div>
   <div class="conn live" id="conn"><div class="dot live" id="dot"></div><span id="connText">VERCEL STATIC</span></div>
@@ -62,11 +62,11 @@ button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px
       <button class="btn green" onclick="quickDemo('CALL')">TEST CALL</button>
       <button class="btn red" onclick="quickDemo('PUT')">TEST PUT</button>
       <div class="sep"></div>
-      <span class="note">Single file: index.html | No Deriv/MT5 feed | No Python bridge</span>
+      <span class="note">Single file: index.html | กด SHOW PINE SCRIPT เพื่อคัดลอกไปวาง TradingView</span>
     </div>
     <div class="chart-shell">
       <div id="tvContainer" class="tradingview-widget-container"></div>
-      <div class="tv-cover" id="chartNote">TradingView chart loaded. หน้าเว็บไม่ดึงราคาใหม่เอง</div>
+      <div class="tv-cover" id="chartNote">TradingView chart loaded. กด SHOW PINE SCRIPT เพื่อเปิดโค้ดบนหน้าจอ</div>
       <div class="overlay">
         <div class="ov-title">Latest Filter Result</div>
         <div class="ov-sig WAIT" id="ovSignal">WAIT</div>
@@ -110,50 +110,75 @@ button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px
         <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn green" onclick="manualCalculate()">CALCULATE</button></div>
       </div>
       <div class="panel" id="pinePanel">
-        <h3>Pine Script สำหรับสร้าง JSON Filter</h3>
-        <p>โค้ดนี้ให้ TradingView คำนวณบนกราฟจริง แล้วสร้าง JSON สำหรับนำมาวางในหน้าเว็บไฟล์เดียวนี้ หรือใช้ต่อกับ webhook ภายหลังถ้าคุณเพิ่ม backend แยก</p>
+        <h3>TradingView Pine Script</h3>
+        <p>กด COPY CODE เพื่อคัดลอกโค้ดทั้งหมด แล้วนำไปวางใน TradingView Pine Editor จากนั้น Add to chart / Create Alert</p>
         <textarea id="pineCode" class="pine" readonly>//@version=5
-indicator("Deriv PRO V24 Single File Filter", overlay=true, max_labels_count=100)
+indicator("Deriv PRO GET VALUE PUT/CALL", overlay=true, max_labels_count=50, max_lines_count=50)
 
-rsiLen = input.int(14, "RSI Length")
-atrLen = input.int(14, "ATR Length")
-emaFastLen = input.int(9, "EMA Fast")
-emaSlowLen = input.int(21, "EMA Slow")
-srLen = input.int(40, "Support/Resistance Lookback")
+// ===== INPUTS =====
+rsiLen      = input.int(14, "RSI Length", minval=2)
+atrLen      = input.int(14, "ATR Length", minval=2)
+emaFastLen  = input.int(9, "EMA Fast", minval=1)
+emaSlowLen  = input.int(21, "EMA Slow", minval=2)
+srLen       = input.int(40, "Support / Resistance Lookback", minval=5)
+scoreNeed   = input.float(2.0, "Signal score threshold", minval=0.5, step=0.5)
+showTable   = input.bool(true, "Show JSON table on chart")
 
-rsi = ta.rsi(close, rsiLen)
-atr = ta.atr(atrLen)
-emaFast = ta.ema(close, emaFastLen)
-emaSlow = ta.ema(close, emaSlowLen)
-support = ta.lowest(low, srLen)
-resistance = ta.highest(high, srLen)
-trendUp = close > emaFast and emaFast > emaSlow
-trendDn = close < emaFast and emaFast < emaSlow
-nearSupport = close - support <= atr * 0.65
-nearResistance = resistance - close <= atr * 0.65
+// ===== CALCULATION FROM TRADINGVIEW CHART =====
+rsiVal      = ta.rsi(close, rsiLen)
+atrVal      = ta.atr(atrLen)
+emaFast     = ta.ema(close, emaFastLen)
+emaSlow     = ta.ema(close, emaSlowLen)
+support     = ta.lowest(low, srLen)
+resistance  = ta.highest(high, srLen)
 
+trendUp     = emaFast &gt; emaSlow and close &gt;= emaFast
+trendDn     = emaFast &lt; emaSlow and close &lt;= emaFast
+nearSupport = atrVal &gt; 0 and (close - support) &lt;= atrVal * 0.65
+nearResist  = atrVal &gt; 0 and (resistance - close) &lt;= atrVal * 0.65
+momUp       = close &gt; close[1]
+momDn       = close &lt; close[1]
+
+// ===== SCORE =====
 float score = 0.0
-score += trendUp ? 3.0 : trendDn ? -3.0 : 0.0
-score += rsi > 58 ? 1.5 : rsi < 42 ? -1.5 : 0.0
+score += trendUp ? 2.0 : 0.0
+score -= trendDn ? 2.0 : 0.0
+score += rsiVal &gt;= 55 and rsiVal &lt;= 72 ? 1.0 : 0.0
+score -= rsiVal &lt;= 45 and rsiVal &gt;= 28 ? 1.0 : 0.0
 score += nearSupport ? 1.0 : 0.0
-score -= nearResistance ? 1.0 : 0.0
-score += close > close[1] ? 0.5 : close < close[1] ? -0.5 : 0.0
-signal = score >= 3 ? "CALL" : score <= -3 ? "PUT" : "WAIT"
-confidence = math.min(95, 50 + math.abs(score) * 9)
-filter = trendUp ? "PRICE_ABOVE_EMA" : trendDn ? "PRICE_BELOW_EMA" : "RANGE_FILTER"
+score -= nearResist ? 1.0 : 0.0
+score += momUp ? 0.5 : 0.0
+score -= momDn ? 0.5 : 0.0
 
-payload = '{"type":"signal","symbol":"' + syminfo.tickerid + '","ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","signal":"' + signal + '","price":' + str.tostring(close) + ',"rsi":' + str.tostring(rsi) + ',"atr":' + str.tostring(atr) + ',"ema_fast":' + str.tostring(emaFast) + ',"ema_slow":' + str.tostring(emaSlow) + ',"support":' + str.tostring(support) + ',"resistance":' + str.tostring(resistance) + ',"score":' + str.tostring(score) + ',"confidence":' + str.tostring(confidence) + ',"filter":"' + filter + '","bar_time":' + str.tostring(time) + '}'
+signal = score &gt;= scoreNeed ? "CALL" : score &lt;= -scoreNeed ? "PUT" : "WAIT"
+confidence = math.min(95.0, 50.0 + math.abs(score) * 12.0)
+filterTxt = trendUp ? "EMA_UP" : trendDn ? "EMA_DOWN" : "RANGE"
+reason = signal == "CALL" ? "EMA up / support or momentum" : signal == "PUT" ? "EMA down / resistance or momentum" : "Not enough confirmation"
 
+// ===== JSON FOR WEBSITE PASTE SIGNAL =====
+payload = '{"type":"signal","symbol":"' + syminfo.tickerid + '","ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","signal":"' + signal + '","price":' + str.tostring(close, format.mintick) + ',"rsi":' + str.tostring(rsiVal, "#.##") + ',"atr":' + str.tostring(atrVal, format.mintick) + ',"ema_fast":' + str.tostring(emaFast, format.mintick) + ',"ema_slow":' + str.tostring(emaSlow, format.mintick) + ',"support":' + str.tostring(support, format.mintick) + ',"resistance":' + str.tostring(resistance, format.mintick) + ',"score":' + str.tostring(score, "#.##") + ',"confidence":' + str.tostring(confidence, "#.##") + ',"filter":"' + filterTxt + '","reason":"' + reason + '","bar_time":' + str.tostring(time) + '}'
+
+// Alert: Create Alert -&gt; Condition = this indicator -&gt; Any alert() function call
 if barstate.isconfirmed
     alert(payload, alert.freq_once_per_bar_close)
 
-plot(emaFast, "EMA 9", color=color.new(color.lime, 0))
-plot(emaSlow, "EMA 21", color=color.new(color.orange, 0))
-plot(support, "Support", color=color.new(color.green, 55), style=plot.style_linebr)
-plot(resistance, "Resistance", color=color.new(color.red, 55), style=plot.style_linebr)
-plotshape(signal == "CALL", title="CALL", style=shape.labelup, color=color.new(color.lime, 0), text="CALL", textcolor=color.black, location=location.belowbar, size=size.tiny)
-plotshape(signal == "PUT", title="PUT", style=shape.labeldown, color=color.new(color.red, 0), text="PUT", textcolor=color.white, location=location.abovebar, size=size.tiny)</textarea>
-        <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn blue" onclick="copyPine()">COPY PINE</button></div>
+// ===== VISUAL =====
+plot(emaFast, "EMA Fast", color=color.new(color.lime, 0))
+plot(emaSlow, "EMA Slow", color=color.new(color.orange, 0))
+plot(support, "Support", color=color.new(color.green, 60), style=plot.style_linebr)
+plot(resistance, "Resistance", color=color.new(color.red, 60), style=plot.style_linebr)
+plotshape(signal == "CALL", title="CALL", style=shape.labelup, location=location.belowbar, color=color.new(color.lime, 0), text="CALL", textcolor=color.black, size=size.tiny)
+plotshape(signal == "PUT", title="PUT", style=shape.labeldown, location=location.abovebar, color=color.new(color.red, 0), text="PUT", textcolor=color.white, size=size.tiny)
+
+var table t = table.new(position.top_right, 1, 4, border_width=1)
+if showTable and barstate.islast
+    bg = signal == "CALL" ? color.new(color.lime, 82) : signal == "PUT" ? color.new(color.red, 82) : color.new(color.orange, 84)
+    table.cell(t, 0, 0, signal + " | Score " + str.tostring(score, "#.##") + " | Conf " + str.tostring(confidence, "#.##") + "%", bgcolor=bg, text_color=color.white)
+    table.cell(t, 0, 1, "Price " + str.tostring(close, format.mintick) + " | RSI " + str.tostring(rsiVal, "#.##"), bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(t, 0, 2, "EMA " + str.tostring(emaFast, format.mintick) + " / " + str.tostring(emaSlow, format.mintick), bgcolor=color.new(color.black, 10), text_color=color.white)
+    table.cell(t, 0, 3, payload, bgcolor=color.new(color.black, 10), text_color=color.white)
+</textarea>
+        <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn green" onclick="copyPine()">COPY CODE</button></div>
       </div>
     </div>
     <div class="bottom"><div class="log-title">Signal Log</div><div class="log" id="logBox"></div></div>
@@ -374,11 +399,17 @@ if(signalPasteBox){
     },60);
   });
 }
+function showPineScript(){
+  showPanel('pinePanel');
+  const el=qs('pineCode');
+  if(el){ setTimeout(()=>{ el.focus(); el.scrollTop=0; },80); }
+  addLog('<span class="SYS">SYS</span> เปิด Pine Script แล้ว กด COPY CODE หรือเลือกคัดลอกไปวาง TradingView');
+}
 function copyPine(){const el=qs('pineCode'); el.select(); el.setSelectionRange(0, el.value.length); navigator.clipboard.writeText(el.value).then(()=>addLog('<span class="SYS">SYS</span> copied Pine script')).catch(()=>{document.execCommand('copy'); addLog('<span class="SYS">SYS</span> copied Pine script')})}
 function loadHashSignal(){const h=location.hash || ''; if(!h.startsWith('#signal='))return; try{const raw=decodeURIComponent(h.slice(8)); let txt=raw; try{txt=atob(raw.replace(/-/g,'+').replace(/_/g,'/'))}catch(e){} parseSignals(txt).forEach(r=>ingestSignal(r,'HASH'))}catch(e){addLog('<span class="ERR">ERR</span> hash signal error '+escapeHtml(e.message))}}
 window.addEventListener('message', ev=>{if(ev && ev.data && typeof ev.data==='object' && (ev.data.signal || ev.data.price || ev.data.type==='signal'))ingestSignal(ev.data,'POSTMESSAGE')});
 window.addEventListener('keydown', ev=>{if(ev.key==='Escape')hidePanels()});
-buildTabs(); qs('symbolInput').value=active.tv; loadTradingView(active.tv,'1'); render(); loadHashSignal(); addLog('<span class="SYS">SYS</span> V28 ready: เอากล่องซ้ายออกแล้ว แต่ยังเก็บสัญลักษณ์และ Signal Log ด้านล่างไว้');
+buildTabs(); qs('symbolInput').value=active.tv; loadTradingView(active.tv,'1'); render(); loadHashSignal(); addLog('<span class="SYS">SYS</span> V30 ready: กด SHOW PINE SCRIPT เพื่อเปิดโค้ด แล้วกด COPY CODE ไปวาง TradingView');
 </script>
 </body>
 </html>
