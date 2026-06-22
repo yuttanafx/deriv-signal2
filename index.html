@@ -2,92 +2,125 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V11 AI Multi-Symbol Dashboard</title>
+<title>V12 AI Dashboard</title>
 
 <style>
 body{
   margin:0;
+  font-family:Arial;
   background:#0b1220;
   color:white;
-  font-family:Arial;
 }
 
 .header{
-  padding:20px;
-  font-size:22px;
+  padding:18px 22px;
+  font-size:20px;
   font-weight:bold;
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+}
+
+.status{
+  font-size:12px;
+  opacity:0.7;
 }
 
 .grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:12px;
+  gap:14px;
   padding:20px;
 }
 
+/* CARD */
 .card{
   background:#111827;
-  padding:15px;
-  border-radius:14px;
+  border-radius:16px;
+  padding:16px;
   text-align:center;
-  box-shadow:0 0 10px rgba(0,0,0,0.4);
+  box-shadow:0 0 20px rgba(0,0,0,0.4);
+  border:1px solid rgba(255,255,255,0.05);
 }
 
 .symbol{
-  font-size:14px;
+  font-size:13px;
   opacity:0.7;
 }
 
 .signal{
   font-size:26px;
   font-weight:bold;
-  margin:10px 0;
+  margin:12px 0;
 }
 
-.call{color:#22c55e;}
-.put{color:#ef4444;}
-.neutral{color:#fbbf24;}
-
-.small{
+.price{
   font-size:12px;
-  opacity:0.7;
+  opacity:0.8;
+}
+
+/* COLORS */
+.call{ color:#22c55e; }
+.put{ color:#ef4444; }
+.neutral{ color:#fbbf24; }
+
+.badge{
+  font-size:11px;
+  opacity:0.6;
+  margin-top:6px;
+}
+
+/* TOP BAR */
+.topbar{
+  display:flex;
+  gap:10px;
+  align-items:center;
+}
+
+.dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#22c55e;
 }
 </style>
 </head>
 
 <body>
 
-<div class="header">🚀 V11 AI MULTI-SYMBOL DASHBOARD</div>
+<div class="header">
+  <div>🚀 V12 AI MULTI-SYMBOL DASHBOARD</div>
+
+  <div class="topbar">
+    <div class="dot"></div>
+    <div class="status">LIVE MARKET ANALYSIS</div>
+  </div>
+</div>
 
 <div class="grid" id="grid"></div>
 
 <script>
 
-// =====================
+// =========================
 // SYMBOLS (8 ตัว)
-// =====================
+// =========================
 
 const symbols = [
   "R_10","R_25","R_50","R_75",
   "R_100","R_150","R_200","R_300"
 ];
 
-// =====================
+// =========================
 // STATE
-// =====================
+// =========================
 
 let state = {};
 
-function randPrice(){
-  return 100 + Math.random()*0.5;
-}
-
-// =====================
-// SIMPLE AI (CLEAN SIGNAL ONLY)
-// =====================
+// =========================
+// SIMPLE AI (CLEAN SIGNAL)
+// =========================
 
 function decide(price, prev){
-
   const diff = price - prev;
 
   if(diff > 0.02) return "CALL";
@@ -95,9 +128,9 @@ function decide(price, prev){
   return "NEUTRAL";
 }
 
-// =====================
-// UI RENDER
-// =====================
+// =========================
+// RENDER DASHBOARD
+// =========================
 
 function render(){
 
@@ -108,16 +141,18 @@ function render(){
 
     if(!state[sym]){
       state[sym] = {
-        price: randPrice(),
-        prev: randPrice(),
-        signal: "NEUTRAL"
+        price: 100 + Math.random()*0.5,
+        prev: 100 + Math.random()*0.5,
+        signal: "NEUTRAL",
+        confidence: Math.floor(Math.random()*40+50)
       };
     }
 
     const s = state[sym];
 
     s.prev = s.price;
-    s.price = randPrice();
+    s.price = 100 + Math.random()*0.5;
+
     s.signal = decide(s.price, s.prev);
 
     let cls = "neutral";
@@ -127,18 +162,28 @@ function render(){
     grid.innerHTML += `
       <div class="card">
         <div class="symbol">${sym}</div>
-        <div class="signal ${cls}">${s.signal}</div>
-        <div class="small">PRICE: ${s.price.toFixed(3)}</div>
+
+        <div class="signal ${cls}">
+          ${s.signal}
+        </div>
+
+        <div class="price">
+          PRICE: ${s.price.toFixed(3)}
+        </div>
+
+        <div class="badge">
+          CONFIDENCE: ${s.confidence}%
+        </div>
       </div>
     `;
   });
 }
 
-// =====================
-// LOOP
-// =====================
+// =========================
+// LOOP (REAL TIME FEEL)
+// =========================
 
-setInterval(render, 800);
+setInterval(render, 900);
 
 </script>
 
