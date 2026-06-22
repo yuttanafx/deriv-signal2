@@ -1,191 +1,189 @@
 <!DOCTYPE html>
-<html lang="th">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>TVT Tech System — FIXED V9 ENGINE</title>
+<title>V10 AI Trading Engine</title>
+
+<style>
+body {
+  font-family: Arial;
+  background: #0f172a;
+  color: white;
+  margin: 0;
+  padding: 20px;
+}
+
+#log {
+  height: 300px;
+  overflow: auto;
+  background: #111827;
+  padding: 10px;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.card {
+  margin-top: 10px;
+  padding: 10px;
+  background: #1f2937;
+  border-radius: 8px;
+}
+</style>
 </head>
 
 <body>
 
+<h2>🚀 V10 AI Trading Engine (LIVE)</h2>
+
+<div class="card">
+  <div id="status">STATUS: RUNNING</div>
+  <div id="signal">SIGNAL: -</div>
+</div>
+
+<h3>📊 LOG</h3>
+<div id="log"></div>
+
 <script>
 
-// ==========================
-// 🧠 STATE FIXED
-// ==========================
+// =============================
+// 🧠 STATE
+// =============================
 
 let state = {};
-let watchedSymbols = ['R_75'];
 
-function ensureState(sym){
-  if(!state[sym]){
-    state[sym] = {
-      ticks: [],
-      lastPrice: null,
-      prevPrice: null,
-      tickCounter: 0,
-      sigType: 'NEUTRAL',
-      sigText: '',
-      sigSub: '',
-      support: 0,
-      resistance: 0,
-      pendingContracts: []
-    };
+// =============================
+// 🧾 UI LOG
+// =============================
+
+function log(msg){
+  const el = document.getElementById("log");
+  el.innerHTML += msg + "<br>";
+  el.scrollTop = el.scrollHeight;
+}
+
+// =============================
+// 🧯 TRADE GUARD
+// =============================
+
+class Guard {
+  constructor(){
+    this.last = 0;
+    this.cooldown = 2000;
+  }
+
+  allow(){
+    const now = Date.now();
+    if(now - this.last < this.cooldown) return false;
+    this.last = now;
+    return true;
   }
 }
 
-// ==========================
-// 📊 SAFE EMA
-// ==========================
+const guard = new Guard();
 
-function EMA(arr, period){
-  if(!arr || arr.length < period) return arr[arr.length-1] || 0;
+// =============================
+// 📊 FEATURES
+// =============================
 
-  const k = 2/(period+1);
-  let ema = arr[0];
-
+function EMA(arr, p){
+  const k = 2/(p+1);
+  let e = arr[0];
   for(let i=1;i<arr.length;i++){
-    ema = arr[i]*k + ema*(1-k);
+    e = arr[i]*k + e*(1-k);
   }
-
-  return ema;
+  return e;
 }
 
-// ==========================
-// 📊 SUPPORT / RESISTANCE SAFE
-// ==========================
-
-function calcSR(ticks){
-  const t = ticks.slice(-30);
-  if(t.length < 2) return {support:0,resistance:0};
-
+function SR(t){
+  const r = t.slice(-20);
   return {
-    support: Math.min(...t),
-    resistance: Math.max(...t)
+    support: Math.min(...r),
+    resistance: Math.max(...r)
   };
 }
 
-// ==========================
-// 🧠 V9 FILTER (SAFE LAYER)
-// ==========================
+// =============================
+// 🧠 V10 BRAIN
+// =============================
 
-function v9Filter(s){
+class V10Brain {
 
-  const t = s.ticks;
-  if(t.length < 10) return true;
+  decide(f){
 
-  const range = Math.max(...t.slice(-20)) - Math.min(...t.slice(-20));
+    let score = 0;
 
-  // ❌ noise market
-  if(range > 0.02){
-    s.sigType = "BLOCK";
-    s.sigText = "V9 FILTER";
-    s.sigSub = "NOISE MARKET DETECTED";
-    return false;
+    // trend
+    if(f.ema20 > f.ema50) score++;
+    else score--;
+
+    // momentum
+    if(f.momentum > 0) score++;
+    else score--;
+
+    // breakout quality
+    const range = f.resistance - f.support;
+
+    if(range < 0.01) score++; // tight market = breakout ready
+    if(range > 0.05) score--; // too volatile
+
+    if(score >= 2) return {signal:"BUY",conf:0.8};
+    if(score <= -2) return {signal:"SELL",conf:0.8};
+
+    return {signal:"NEUTRAL",conf:0.5};
   }
-
-  return true;
 }
 
-// ==========================
-// 🧠 MAIN SIGNAL ENGINE (FIXED)
-// ==========================
+const brain = new V10Brain();
 
-function onTickReceived(tick){
+// =============================
+// 📥 ENGINE
+// =============================
 
-  const sym = tick.symbol;
-  if(!sym) return;
+function onTick(price){
 
-  ensureState(sym);
+  const sym = "R_100";
+
+  if(!state[sym]){
+    state[sym] = {ticks:[]};
+  }
 
   const s = state[sym];
-  const price = parseFloat(tick.quote);
-
-  if(isNaN(price)) return;
-
-  s.tickCounter++;
-  s.prevPrice = s.lastPrice;
-  s.lastPrice = price;
 
   s.ticks.push(price);
   if(s.ticks.length > 200) s.ticks.shift();
 
-  // ==========================
-  // 🧠 V9 FILTER (BEFORE LOGIC)
-  // ==========================
+  if(s.ticks.length < 30) return;
 
-  if(!v9Filter(s)) return;
+  if(!guard.allow()) return;
 
-  // ==========================
-  // 📊 STRUCTURE
-  // ==========================
+  // FEATURES
+  const f = {
+    ema20: EMA(s.ticks.slice(-20),20),
+    ema50: EMA(s.ticks.slice(-50),50),
+    momentum: price - s.ticks[s.ticks.length-5],
+    ...SR(s.ticks)
+  };
 
-  const sr = calcSR(s.ticks);
-  s.support = sr.support;
-  s.resistance = sr.resistance;
+  const d = brain.decide(f);
 
-  const midMin = sr.support + (sr.resistance - sr.support)*0.35;
-  const midMax = sr.support + (sr.resistance - sr.support)*0.65;
+  document.getElementById("signal").innerText =
+    "SIGNAL: " + d.signal;
 
-  // ==========================
-  // 🧠 MOMENTUM
-  // ==========================
+  log("price=" + price + " | signal=" + d.signal);
 
-  const momentum =
-    s.ticks.length > 5
-    ? price - s.ticks[s.ticks.length-5]
-    : 0;
-
-  let signal = "NEUTRAL";
-
-  // ==========================
-  // 🚀 LOGIC (เดิม + FIXED)
-  // ==========================
-
-  if(price > midMin && price < midMax){
-    s.sigType = "BLOCK";
-    s.sigText = "COMPRESSION";
-    s.sigSub = "MID ZONE";
-  }
-  else if(price >= sr.resistance && momentum > 0){
-    s.sigType = "BUY";
-    s.sigText = "BREAKOUT UP";
-    s.sigSub = "CALL SIGNAL";
-    signal = "BUY";
-  }
-  else if(price <= sr.support && momentum < 0){
-    s.sigType = "SELL";
-    s.sigText = "BREAKOUT DOWN";
-    s.sigSub = "PUT SIGNAL";
-    signal = "SELL";
-  }
-  else {
-    s.sigType = "NEUTRAL";
-    s.sigText = "WAIT";
-    s.sigSub = "NO EDGE";
-  }
-
-  // ==========================
-  // 💥 EXEC (TEST MODE)
-  // ==========================
-
-  if(signal !== "NEUTRAL"){
-    console.log("EXEC:", sym, signal, price);
+  if(d.signal !== "NEUTRAL"){
+    log("🚀 EXEC " + d.signal);
   }
 }
 
-// ==========================
-// 🧪 TEST FEED (FIX NO DATA ISSUE)
-// ==========================
+// =============================
+// 🧪 FAKE DATA FEED
+// =============================
 
 setInterval(()=>{
-
-  onTickReceived({
-    symbol: "R_75",
-    quote: (100 + Math.random()*0.5).toFixed(5)
-  });
-
-}, 1000);
+  const price = 100 + Math.random()*0.5;
+  onTick(price);
+}, 800);
 
 </script>
 
