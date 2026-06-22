@@ -2,20 +2,20 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V16 DERIV REAL CONNECT</title>
+<title>V17 AUTO TRADING ENGINE</title>
 
 <style>
 body{
   margin:0;
+  font-family:Arial;
   background:#0b1220;
   color:white;
-  font-family:Arial;
 }
 
 .top{
-  padding:14px;
   display:flex;
   justify-content:space-between;
+  padding:14px;
   border-bottom:1px solid rgba(255,255,255,0.05);
 }
 
@@ -41,21 +41,11 @@ body{
 .put{color:#ef4444}
 .neutral{color:#fbbf24}
 
-.chart{
-  height:400px;
+.panel{
+  padding:10px;
   background:#111827;
   margin:10px;
   border-radius:12px;
-  padding:10px;
-}
-
-.log{
-  height:120px;
-  overflow:auto;
-  font-size:11px;
-  background:#0f172a;
-  margin:10px;
-  padding:10px;
 }
 </style>
 </head>
@@ -63,20 +53,30 @@ body{
 <body>
 
 <div class="top">
-  <div>🚀 V16 DERIV REAL CONNECT</div>
-  <div id="status">DISCONNECTED</div>
+  <div>🚀 V17 AUTO TRADING SYSTEM</div>
+  <div id="status">IDLE</div>
+</div>
+
+<div class="panel">
+  AUTO MODE:
+  <button onclick="toggleAuto()">TOGGLE</button>
+  <span id="autoState">OFF</span>
 </div>
 
 <div class="grid" id="grid"></div>
 
-<div class="chart">
-  📊 LIVE PRICE: <span id="price">-</span><br>
-  SIGNAL: <span id="signal">-</span>
-</div>
-
-<div class="log" id="log"></div>
+<div class="panel" id="log"></div>
 
 <script>
+
+// =========================
+// CONFIG (RISK CONTROL)
+// =========================
+
+let AUTO = false;
+let lastTradeTime = 0;
+const COOLDOWN = 5000; // 5 sec
+const MIN_CONFIDENCE = 0.65;
 
 // =========================
 // SYMBOLS
@@ -91,91 +91,82 @@ let state = {};
 // =========================
 
 function log(msg){
-  const el = document.getElementById("log");
-  el.innerHTML += msg + "<br>";
-  el.scrollTop = el.scrollHeight;
+  document.getElementById("log").innerHTML += msg + "<br>";
 }
 
 // =========================
-// DERIV SOCKET
+// AI DECISION
 // =========================
 
-let ws;
+function decide(price, prev){
 
-function connect(){
+  const diff = price - prev;
 
-  ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
+  if(diff > 0.02) return {signal:"CALL", confidence:0.7};
+  if(diff < -0.02) return {signal:"PUT", confidence:0.7};
 
-  ws.onopen = () => {
-    document.getElementById("status").innerText = "CONNECTED";
-    log("CONNECTED TO DERIV");
-
-    // subscribe all symbols
-    symbols.forEach(sym=>{
-      ws.send(JSON.stringify({
-        ticks: sym,
-        subscribe: 1
-      }));
-    });
-  };
-
-  ws.onmessage = (msg) => {
-
-    const data = JSON.parse(msg.data);
-
-    if(data.tick){
-
-      const sym = data.tick.symbol;
-      const price = parseFloat(data.tick.quote);
-
-      handleTick(sym, price);
-    }
-  };
-
-  ws.onclose = () => {
-    document.getElementById("status").innerText = "DISCONNECTED";
-    log("DISCONNECTED");
-  };
+  return {signal:"SKIP", confidence:0.4};
 }
 
 // =========================
-// AI ENGINE (LIGHT V16)
+// RISK ENGINE
 // =========================
 
-function decide(s){
+function canTrade(conf){
 
-  const diff = s.price - s.prev;
+  const now = Date.now();
 
-  if(diff > 0.02) return "CALL";
-  if(diff < -0.02) return "PUT";
-  return "NEUTRAL";
+  if(!AUTO) return false;
+  if(conf < MIN_CONFIDENCE) return false;
+  if(now - lastTradeTime < COOLDOWN) return false;
+
+  lastTradeTime = now;
+  return true;
 }
 
 // =========================
-// HANDLE REAL TICK
+// EXECUTION ENGINE (DERIV READY HOOK)
 // =========================
 
-function handleTick(sym, price){
+function executeTrade(sym, signal){
+
+  log("💰 EXEC: " + sym + " => " + signal);
+
+  // 🔥 REAL API HOOK PLACEHOLDER
+  // fetch("https://api.deriv.com/...") <- production use
+
+}
+
+// =========================
+// ENGINE
+// =========================
+
+function tick(sym){
 
   if(!state[sym]){
-    state[sym] = {price, prev:price, signal:"-"}; 
+    state[sym] = {
+      price:100+Math.random(),
+      prev:100+Math.random(),
+      signal:"SKIP"
+    };
   }
 
   const s = state[sym];
 
   s.prev = s.price;
-  s.price = price;
+  s.price = 100 + Math.random()*0.5;
 
-  const signal = decide(s);
+  const d = decide(s.price, s.prev);
 
-  s.signal = signal;
+  s.signal = d.signal;
 
-  document.getElementById("price").innerText = sym + " : " + price;
-  document.getElementById("signal").innerText = signal;
+  // AUTO TRADE
+  if(d.signal !== "SKIP"){
 
-  log(sym + " " + price + " => " + signal);
-
-  render();
+    if(canTrade(d.confidence)){
+      executeTrade(sym, d.signal);
+    }
+  }
 }
 
 // =========================
@@ -189,7 +180,9 @@ function render(){
 
   symbols.forEach(sym=>{
 
-    const s = state[sym] || {signal:"-"};
+    tick(sym);
+
+    const s = state[sym];
 
     let cls = "neutral";
     if(s.signal==="CALL") cls="call";
@@ -205,10 +198,20 @@ function render(){
 }
 
 // =========================
-// START
+// AUTO LOOP
 // =========================
 
-connect();
+setInterval(render, 1000);
+
+// =========================
+// TOGGLE
+// =========================
+
+function toggleAuto(){
+  AUTO = !AUTO;
+  document.getElementById("autoState").innerText = AUTO ? "ON" : "OFF";
+  log("AUTO MODE: " + AUTO);
+}
 
 </script>
 
