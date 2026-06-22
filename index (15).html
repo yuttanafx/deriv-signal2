@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Deriv V24 PRO - TradingView Vercel Single File</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#080a0f;--bg2:#0f1219;--bg3:#171b25;--panel:#10141d;--panel2:#151a24;
+  --red:#ff4655;--green:#00d991;--amber:#f7b731;--blue:#4a9eff;--purple:#a78bfa;
+  --border:rgba(255,255,255,.08);--border2:rgba(255,255,255,.16);--text:#e8edf7;--muted:rgba(232,237,247,.54);
+  --mono:'IBM Plex Mono',Consolas,monospace;--sans:'Inter',system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+}
+html,body{height:100%}
+body{background:var(--bg);color:var(--text);font-family:var(--sans);height:100vh;display:flex;flex-direction:column;overflow:hidden}
+button,input,textarea,select{font:inherit}
+button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:12px;padding:0 14px;flex-shrink:0}.brand{display:flex;align-items:center;gap:9px;flex-shrink:0}.brand svg{filter:drop-shadow(0 0 9px rgba(74,158,255,.3))}.brand-name{font-weight:800;font-size:14px;letter-spacing:-.35px}.brand-name em{font-style:normal;color:var(--blue)}.v-badge{font-family:var(--mono);font-size:10px;color:var(--blue);background:rgba(74,158,255,.12);border:1px solid rgba(74,158,255,.3);padding:2px 6px;border-radius:4px;white-space:nowrap}.tabs{display:flex;gap:3px;overflow-x:auto;scrollbar-width:none;flex:1}.tabs::-webkit-scrollbar{display:none}.tab{font-family:var(--mono);font-size:10px;color:var(--muted);border:1px solid transparent;border-radius:5px;padding:5px 9px;cursor:pointer;white-space:nowrap;transition:.15s}.tab:hover{background:var(--bg3);color:var(--text)}.tab.active{background:rgba(74,158,255,.11);border-color:rgba(74,158,255,.32);color:var(--blue)}.conn{display:flex;align-items:center;gap:6px;flex-shrink:0}.dot{width:7px;height:7px;border-radius:50%;background:#444}.dot.live{background:var(--green);box-shadow:0 0 8px var(--green)}.dot.warn{background:var(--amber);box-shadow:0 0 8px var(--amber)}.dot.err{background:var(--red);box-shadow:0 0 8px var(--red)}.conn span{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}.conn.live span{color:var(--green)}.conn.warn span{color:var(--amber)}.conn.err span{color:var(--red)}.actions{display:flex;align-items:center;gap:6px;flex-shrink:0}.btn{font-family:var(--mono);font-size:10px;border:1px solid var(--border);background:transparent;color:var(--muted);padding:6px 8px;border-radius:5px;cursor:pointer;transition:.15s;white-space:nowrap}.btn:hover{background:var(--bg3);color:var(--text);border-color:var(--border2)}.btn.blue{color:var(--blue);border-color:rgba(74,158,255,.28)}.btn.red{color:var(--red);border-color:rgba(255,70,85,.28)}.btn.green{color:var(--green);border-color:rgba(0,217,145,.28)}.btn.amber{color:var(--amber);border-color:rgba(247,183,49,.28)}
+.pricebar{display:flex;align-items:center;gap:14px;padding:7px 14px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;flex-shrink:0}.pricebar::-webkit-scrollbar{display:none}.pb{display:flex;flex-direction:column;gap:1px;min-width:max-content}.pb label{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.55px}.pb span{font-family:var(--mono);font-size:13px;font-weight:700}.up{color:var(--green)!important}.dn{color:var(--red)!important}.neu{color:var(--amber)!important}.blueText{color:var(--blue)!important}.dim{color:var(--muted)!important}.sep{width:1px;height:30px;background:var(--border);flex-shrink:0}.main{display:flex;flex:1;overflow:hidden;min-height:0}.sidebar{width:270px;background:var(--bg2);border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;flex-shrink:0}.side-title{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:700;padding:10px 12px 7px}.signal-list{overflow:auto;scrollbar-width:thin;scrollbar-color:var(--border) transparent}.sig-card{border-bottom:1px solid var(--border);padding:10px 12px;cursor:pointer;position:relative;transition:.15s}.sig-card:hover{background:var(--bg3)}.sig-card.active{background:rgba(74,158,255,.07)}.sig-card.active::before{content:'';position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--blue)}.sig-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.sig-id{font-family:var(--mono);font-size:11px;color:var(--text);font-weight:700}.sig-tv{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:2px;line-height:1.25;word-break:break-all}.sig-val{font-family:var(--mono);font-size:15px;font-weight:800}.sig-val.CALL{color:var(--green)}.sig-val.PUT{color:var(--red)}.sig-val.WAIT,.sig-val.NEUTRAL{color:var(--amber)}.sig-row{display:flex;justify-content:space-between;gap:8px;margin-top:7px;font-family:var(--mono);font-size:10px;color:var(--muted)}.sig-mini{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:4px;line-height:1.35}.side-footer{border-top:1px solid var(--border);padding:10px 12px;background:#0c0f15}.ta-box{height:245px;border:1px solid var(--border);border-radius:10px;overflow:hidden;background:#06080c}.hint{font-size:10px;color:var(--muted);line-height:1.45;margin-top:8px}.work{flex:1;display:flex;flex-direction:column;min-width:0;min-height:0}.toolbar{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;padding:8px 12px;flex-shrink:0;overflow-x:auto;scrollbar-width:none}.toolbar::-webkit-scrollbar{display:none}.field{display:flex;align-items:center;gap:6px;flex-shrink:0}.field label{font-size:9px;font-family:var(--mono);color:var(--muted);letter-spacing:.45px}.field input,.field select{height:29px;background:#090c11;border:1px solid var(--border);border-radius:5px;color:var(--text);font-family:var(--mono);font-size:11px;padding:0 8px;outline:none}.field input{width:245px}.field select{width:82px}.field input:focus,.field select:focus{border-color:rgba(74,158,255,.38)}.note{font-family:var(--mono);font-size:10px;color:var(--muted);white-space:nowrap}.chart-shell{position:relative;flex:1;min-height:0;background:#06080c}.tradingview-widget-container{height:100%;width:100%}.tradingview-widget-container__widget{height:100%;width:100%}.tv-cover{position:absolute;left:12px;bottom:12px;z-index:4;background:rgba(8,10,15,.82);border:1px solid var(--border);border-radius:8px;padding:8px 10px;backdrop-filter:blur(10px);font-family:var(--mono);font-size:10px;color:var(--muted);max-width:calc(100% - 24px)}.overlay{position:absolute;right:14px;top:14px;z-index:5;background:rgba(8,10,15,.91);border:1px solid var(--border);border-radius:12px;padding:12px 14px;width:294px;box-shadow:0 12px 36px rgba(0,0,0,.28);backdrop-filter:blur(12px)}.ov-title{font-family:var(--mono);font-size:9px;color:var(--muted);letter-spacing:.8px;text-transform:uppercase}.ov-sig{font-family:var(--mono);font-size:36px;font-weight:800;margin-top:2px}.ov-sig.CALL{color:var(--green)}.ov-sig.PUT{color:var(--red)}.ov-sig.WAIT,.ov-sig.NEUTRAL{color:var(--amber)}.ov-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin-top:8px}.metric{border:1px solid var(--border);border-radius:7px;background:rgba(255,255,255,.025);padding:7px}.metric label{display:block;font-family:var(--mono);font-size:8px;color:var(--muted);letter-spacing:.5px}.metric span{display:block;font-family:var(--mono);font-size:12px;font-weight:700;margin-top:2px}.score-track{height:6px;border-radius:999px;background:rgba(255,255,255,.08);overflow:hidden;margin-top:10px}.score-fill{height:100%;width:0;background:linear-gradient(90deg,var(--red),var(--amber),var(--green));transition:width .25s}.filter-lines{font-family:var(--mono);font-size:10px;color:var(--muted);line-height:1.55;margin-top:9px}.filter-lines b{color:var(--text)}.panel{display:none;position:absolute;left:12px;top:12px;z-index:8;width:min(680px,calc(100% - 24px));max-height:calc(100% - 24px);overflow:auto;background:rgba(8,10,15,.97);border:1px solid var(--border2);border-radius:12px;padding:12px;box-shadow:0 18px 50px rgba(0,0,0,.36)}.panel.show{display:block}.panel h3{font-size:14px;margin-bottom:6px}.panel p{font-size:11px;color:var(--muted);line-height:1.5;margin-bottom:8px}.panel textarea{width:100%;height:132px;background:#07090d;border:1px solid var(--border);color:var(--text);border-radius:8px;padding:9px;font-family:var(--mono);font-size:10px;resize:vertical;outline:none}.panel textarea:focus{border-color:rgba(74,158,255,.38)}.panel-actions{display:flex;gap:8px;margin-top:9px;justify-content:flex-end;flex-wrap:wrap}.manual-grid{display:grid;grid-template-columns:repeat(4,minmax(120px,1fr));gap:8px;margin-top:8px}.manual-grid label{display:block;font-family:var(--mono);font-size:9px;color:var(--muted);margin-bottom:4px}.manual-grid input{width:100%;height:31px;background:#07090d;border:1px solid var(--border);color:var(--text);border-radius:7px;padding:0 8px;font-family:var(--mono);font-size:11px;outline:none}.manual-grid input:focus{border-color:rgba(74,158,255,.38)}.pine{height:310px!important;white-space:pre}.bottom{height:132px;background:var(--bg2);border-top:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0}.log-title{font-size:9px;letter-spacing:1px;text-transform:uppercase;color:var(--muted);font-weight:700;padding:8px 12px 3px}.log{flex:1;overflow:auto;padding:0 12px 8px;font-family:var(--mono);font-size:10px;line-height:1.75;color:var(--muted);white-space:nowrap}.log .CALL{color:var(--green);font-weight:800}.log .PUT{color:var(--red);font-weight:800}.log .WAIT,.log .NEUTRAL{color:var(--amber);font-weight:800}.log .SYS{color:var(--blue);font-weight:800}.log .ERR{color:var(--red);font-weight:800}
+@media (max-width:980px){body{overflow:auto;height:auto;min-height:100vh}.topbar{height:auto;min-height:54px;flex-wrap:wrap;padding:8px 10px}.tabs{order:5;flex-basis:100%}.main{min-height:860px}.sidebar{width:198px}.field input{width:190px}.overlay{left:12px;right:auto;width:min(294px,calc(100% - 24px))}.bottom{height:160px}.manual-grid{grid-template-columns:repeat(2,minmax(120px,1fr))}}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <div class="brand">
+    <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M13 2L24 13L13 24L2 13Z" fill="rgba(74,158,255,.14)" stroke="#4a9eff" stroke-width="1.5"/><circle cx="13" cy="13" r="3.7" fill="#4a9eff"/><path d="M8 15.5L12 11.5L15 14.5L19 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".82"/></svg>
+    <span class="brand-name">deriv<em>.</em>pro</span>
+    <span class="v-badge">V24 SINGLE</span>
+  </div>
+  <div class="tabs" id="tabs"></div>
+  <div class="actions">
+    <button class="btn blue" onclick="showPanel('chartPanel')">PASTE GRAPH</button>
+    <button class="btn green" onclick="showPanel('signalPanel')">PASTE SIGNAL</button>
+    <button class="btn amber" onclick="showPanel('manualPanel')">MANUAL FILTER</button>
+    <button class="btn" onclick="showPanel('pinePanel')">PINE</button>
+    <button class="btn red" onclick="resetSignals()">RESET</button>
+  </div>
+  <div class="conn live" id="conn"><div class="dot live" id="dot"></div><span id="connText">VERCEL STATIC</span></div>
+</div>
+<div class="pricebar">
+  <div class="pb"><label>SYMBOL</label><span id="pbSymbol" class="blueText">—</span></div><div class="sep"></div>
+  <div class="pb"><label>TV CHART</label><span id="pbTv" class="dim">—</span></div><div class="sep"></div>
+  <div class="pb"><label>PRICE</label><span id="pbPrice" class="dim">—</span></div><div class="sep"></div>
+  <div class="pb"><label>SIGNAL</label><span id="pbSignal" class="neu">WAIT</span></div><div class="sep"></div>
+  <div class="pb"><label>CONF</label><span id="pbConf" class="neu">—</span></div><div class="sep"></div>
+  <div class="pb"><label>RSI</label><span id="pbRsi" class="neu">—</span></div><div class="sep"></div>
+  <div class="pb"><label>EMA 9/21</label><span id="pbEma" class="dim">—</span></div><div class="sep"></div>
+  <div class="pb"><label>FILTER</label><span id="pbFilter" class="dim">—</span></div><div class="sep"></div>
+  <div class="pb"><label>UPDATED</label><span id="pbUpdated" class="dim">—</span></div>
+</div>
+<div class="main">
+  <aside class="sidebar">
+    <div class="side-title">PUT / CALL จากค่ากรอง TradingView</div>
+    <div class="signal-list" id="signalList"></div>
+    <div class="side-footer">
+      <div class="ta-box"><div id="taWidget" class="tradingview-widget-container"></div></div>
+      <div class="hint">โหมดไฟล์เดียวบน Vercel ไม่มี backend จึงไม่รับ webhook โดยตรง กราฟ TradingView ใช้แสดงราคา ส่วน PUT/CALL รับจากการวาง JSON หรือคำนวณจากค่าที่กรอก</div>
+    </div>
+  </aside>
+  <section class="work">
+    <div class="toolbar">
+      <div class="field"><label>TV SYMBOL</label><input id="symbolInput" value="DERIV:VOLATILITY_10_INDEX" spellcheck="false"></div>
+      <div class="field"><label>TF</label><select id="intervalInput"><option value="1">1m</option><option value="3">3m</option><option value="5">5m</option><option value="15">15m</option><option value="30">30m</option><option value="60">1H</option><option value="240">4H</option><option value="D">1D</option></select></div>
+      <button class="btn blue" onclick="applyChartFromInputs()">LOAD CHART</button>
+      <button class="btn green" onclick="quickDemo('CALL')">TEST CALL</button>
+      <button class="btn red" onclick="quickDemo('PUT')">TEST PUT</button>
+      <div class="sep"></div>
+      <span class="note">Single file: index.html | No Deriv/MT5 feed | No Python bridge</span>
+    </div>
+    <div class="chart-shell">
+      <div id="tvContainer" class="tradingview-widget-container"></div>
+      <div class="tv-cover" id="chartNote">TradingView chart loaded. หน้าเว็บไม่ดึงราคาใหม่เอง</div>
+      <div class="overlay">
+        <div class="ov-title">Latest Filter Result</div>
+        <div class="ov-sig WAIT" id="ovSignal">WAIT</div>
+        <div class="ov-grid">
+          <div class="metric"><label>PRICE</label><span id="ovPrice">—</span></div>
+          <div class="metric"><label>CONF</label><span id="ovConf">—</span></div>
+          <div class="metric"><label>SCORE</label><span id="ovScore">—</span></div>
+          <div class="metric"><label>RSI</label><span id="ovRsi">—</span></div>
+          <div class="metric"><label>SUPPORT</label><span id="ovSupport">—</span></div>
+          <div class="metric"><label>RESIST</label><span id="ovResist">—</span></div>
+        </div>
+        <div class="score-track"><div class="score-fill" id="scoreFill"></div></div>
+        <div class="filter-lines" id="filterLines">รอวางสัญญาณจาก Pine หรือกรอกค่า Manual Filter...</div>
+      </div>
+      <div class="panel" id="chartPanel">
+        <h3>วางกราฟ TradingView / Symbol</h3>
+        <p>วาง embed code จาก TradingView หรือวางแค่ symbol เช่น <b>DERIV:VOLATILITY_100_INDEX</b> แล้วกด LOAD FROM PASTE</p>
+        <textarea id="chartPaste" placeholder='ตัวอย่าง: { "symbol": "DERIV:VOLATILITY_100_INDEX", "interval": "1" }'></textarea>
+        <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn blue" onclick="applyPastedChart()">LOAD FROM PASTE</button></div>
+      </div>
+      <div class="panel" id="signalPanel">
+        <h3>วาง JSON Signal จาก TradingView Pine</h3>
+        <p>ใช้กับโหมดไฟล์เดียว: วาง JSON ที่ Pine สร้างไว้ เช่น signal, price, rsi, ema_fast, ema_slow, support, resistance, atr แล้ว dashboard จะออก PUT/CALL ให้ทันที</p>
+        <textarea id="signalPaste" placeholder='{"symbol":"DERIV:VOLATILITY_10_INDEX","timeframe":"1","price":1234.56,"rsi":58.2,"ema_fast":1235.1,"ema_slow":1233.8,"atr":2.4,"support":1228,"resistance":1242}'></textarea>
+        <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn" onclick="readSignalFromClipboard()">READ CLIPBOARD</button><button class="btn green" onclick="applySignalPaste()">APPLY SIGNAL</button></div>
+      </div>
+      <div class="panel" id="manualPanel">
+        <h3>Manual Filter PUT/CALL</h3>
+        <p>กรอกค่าที่เห็นจาก TradingView หรือค่าจาก Pine แล้วกด CALCULATE ระบบจะกรอง EMA / RSI / S-R / ATR โดยไม่ดึงราคา feed อื่น</p>
+        <div class="manual-grid">
+          <div><label>PRICE</label><input id="mPrice" placeholder="1234.56" inputmode="decimal"></div>
+          <div><label>RSI</label><input id="mRsi" placeholder="58.2" inputmode="decimal"></div>
+          <div><label>EMA 9</label><input id="mEmaFast" placeholder="1235.1" inputmode="decimal"></div>
+          <div><label>EMA 21</label><input id="mEmaSlow" placeholder="1233.8" inputmode="decimal"></div>
+          <div><label>ATR</label><input id="mAtr" placeholder="2.4" inputmode="decimal"></div>
+          <div><label>SUPPORT</label><input id="mSupport" placeholder="1228" inputmode="decimal"></div>
+          <div><label>RESISTANCE</label><input id="mResistance" placeholder="1242" inputmode="decimal"></div>
+          <div><label>SYMBOL</label><input id="mSymbol" placeholder="auto" spellcheck="false"></div>
+        </div>
+        <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn green" onclick="manualCalculate()">CALCULATE</button></div>
+      </div>
+      <div class="panel" id="pinePanel">
+        <h3>Pine Script สำหรับสร้าง JSON Filter</h3>
+        <p>โค้ดนี้ให้ TradingView คำนวณบนกราฟจริง แล้วสร้าง JSON สำหรับนำมาวางในหน้าเว็บไฟล์เดียวนี้ หรือใช้ต่อกับ webhook ภายหลังถ้าคุณเพิ่ม backend แยก</p>
+        <textarea id="pineCode" class="pine" readonly>//@version=5
+indicator("Deriv PRO V24 Single File Filter", overlay=true, max_labels_count=100)
+
+rsiLen = input.int(14, "RSI Length")
+atrLen = input.int(14, "ATR Length")
+emaFastLen = input.int(9, "EMA Fast")
+emaSlowLen = input.int(21, "EMA Slow")
+srLen = input.int(40, "Support/Resistance Lookback")
+
+rsi = ta.rsi(close, rsiLen)
+atr = ta.atr(atrLen)
+emaFast = ta.ema(close, emaFastLen)
+emaSlow = ta.ema(close, emaSlowLen)
+support = ta.lowest(low, srLen)
+resistance = ta.highest(high, srLen)
+trendUp = close > emaFast and emaFast > emaSlow
+trendDn = close < emaFast and emaFast < emaSlow
+nearSupport = close - support <= atr * 0.65
+nearResistance = resistance - close <= atr * 0.65
+
+float score = 0.0
+score += trendUp ? 3.0 : trendDn ? -3.0 : 0.0
+score += rsi > 58 ? 1.5 : rsi < 42 ? -1.5 : 0.0
+score += nearSupport ? 1.0 : 0.0
+score -= nearResistance ? 1.0 : 0.0
+score += close > close[1] ? 0.5 : close < close[1] ? -0.5 : 0.0
+signal = score >= 3 ? "CALL" : score <= -3 ? "PUT" : "WAIT"
+confidence = math.min(95, 50 + math.abs(score) * 9)
+filter = trendUp ? "PRICE_ABOVE_EMA" : trendDn ? "PRICE_BELOW_EMA" : "RANGE_FILTER"
+
+payload = '{"type":"signal","symbol":"' + syminfo.tickerid + '","ticker":"' + syminfo.ticker + '","timeframe":"' + timeframe.period + '","signal":"' + signal + '","price":' + str.tostring(close) + ',"rsi":' + str.tostring(rsi) + ',"atr":' + str.tostring(atr) + ',"ema_fast":' + str.tostring(emaFast) + ',"ema_slow":' + str.tostring(emaSlow) + ',"support":' + str.tostring(support) + ',"resistance":' + str.tostring(resistance) + ',"score":' + str.tostring(score) + ',"confidence":' + str.tostring(confidence) + ',"filter":"' + filter + '","bar_time":' + str.tostring(time) + '}'
+
+if barstate.isconfirmed
+    alert(payload, alert.freq_once_per_bar_close)
+
+plot(emaFast, "EMA 9", color=color.new(color.lime, 0))
+plot(emaSlow, "EMA 21", color=color.new(color.orange, 0))
+plot(support, "Support", color=color.new(color.green, 55), style=plot.style_linebr)
+plot(resistance, "Resistance", color=color.new(color.red, 55), style=plot.style_linebr)
+plotshape(signal == "CALL", title="CALL", style=shape.labelup, color=color.new(color.lime, 0), text="CALL", textcolor=color.black, location=location.belowbar, size=size.tiny)
+plotshape(signal == "PUT", title="PUT", style=shape.labeldown, color=color.new(color.red, 0), text="PUT", textcolor=color.white, location=location.abovebar, size=size.tiny)</textarea>
+        <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn blue" onclick="copyPine()">COPY PINE</button></div>
+      </div>
+    </div>
+    <div class="bottom"><div class="log-title">Signal Log</div><div class="log" id="logBox"></div></div>
+  </section>
+</div>
+<script>
+const SYMBOLS = [
+  {id:'R_10',tv:'DERIV:VOLATILITY_10_INDEX',name:'Volatility 10'},
+  {id:'R_25',tv:'DERIV:VOLATILITY_25_INDEX',name:'Volatility 25'},
+  {id:'R_50',tv:'DERIV:VOLATILITY_50_INDEX',name:'Volatility 50'},
+  {id:'R_75',tv:'DERIV:VOLATILITY_75_INDEX',name:'Volatility 75'},
+  {id:'R_100',tv:'DERIV:VOLATILITY_100_INDEX',name:'Volatility 100'},
+  {id:'V10_1S',tv:'DERIV:VOLATILITY_10_1S_INDEX',name:'Volatility 10 1s'},
+  {id:'V25_1S',tv:'DERIV:VOLATILITY_25_1S_INDEX',name:'Volatility 25 1s'},
+  {id:'V50_1S',tv:'DERIV:VOLATILITY_50_1S_INDEX',name:'Volatility 50 1s'},
+  {id:'V75_1S',tv:'DERIV:VOLATILITY_75_1S_INDEX',name:'Volatility 75 1s'},
+  {id:'V100_1S',tv:'DERIV:VOLATILITY_100_1S_INDEX',name:'Volatility 100 1s'}
+];
+let active = SYMBOLS[0];
+let signalStore = loadStore();
+let receivedCount = Object.keys(signalStore).length;
+function qs(id){return document.getElementById(id)}
+function normalizeSymbol(v){return String(v || '').trim().toUpperCase().replace(/^DERIV:/,'').replace(/[^A-Z0-9_:.\-]/g,'')}
+function compactKey(v){return normalizeSymbol(v).replace(/^DERIV:/,'')}
+function sigClass(sig){sig = String(sig || 'WAIT').toUpperCase(); return sig === 'CALL' ? 'CALL' : sig === 'PUT' ? 'PUT' : sig === 'NEUTRAL' ? 'NEUTRAL' : 'WAIT'}
+function classFor(sig){sig=sigClass(sig); return sig==='CALL'?'up':sig==='PUT'?'dn':'neu'}
+function fmt(v,d=4){const n=Number(v); return Number.isFinite(n)?n.toFixed(d):'—'}
+function pct(v){const n=Number(v); return Number.isFinite(n)?Math.round(n)+'%':'—'}
+function timeLabel(v){if(!v)return '—'; if(typeof v==='string' && !/^\d+$/.test(v))return v; const n=Number(v); if(!Number.isFinite(n))return String(v); const ms=n>1000000000000?n:n*1000; return new Date(ms).toLocaleString('th-TH',{hour12:false})}
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+function num(v){const n=Number(String(v ?? '').replace(/,/g,'')); return Number.isFinite(n)?n:NaN}
+function addLog(html){const box=qs('logBox'); const ts=new Date().toLocaleTimeString('th-TH',{hour12:false}); box.insertAdjacentHTML('afterbegin','<div>['+ts+'] '+html+'</div>'); while(box.children.length>90)box.removeChild(box.lastElementChild)}
+function setConn(kind,text){qs('conn').className='conn '+kind; qs('dot').className='dot '+kind; qs('connText').textContent=text}
+function loadStore(){try{return JSON.parse(localStorage.getItem('v24Signals') || '{}') || {}}catch(e){return {}}}
+function saveStore(){try{localStorage.setItem('v24Signals', JSON.stringify(signalStore))}catch(e){}}
+function symbolForPayload(payload){const raw = payload.symbol || payload.ticker || payload.tv_symbol || payload.id || qs('symbolInput').value || active.tv; const key = compactKey(raw); const found = SYMBOLS.find(s => compactKey(s.tv) === key || compactKey(s.id) === key || compactKey(s.tv.split(':').pop()) === key); return found || {id:key || 'CUSTOM', tv:raw || 'CUSTOM', name:'Custom'}}
+function valueFor(sym){return signalStore[sym.id] || signalStore[compactKey(sym.tv)] || signalStore[compactKey(sym.tv.split(':').pop())] || null}
+function buildTabs(){qs('tabs').innerHTML = SYMBOLS.map(s => '<div class="tab '+(s.id===active.id?'active':'')+'" onclick="setActive(\''+s.id+'\')">'+s.id+'</div>').join('')}
+function setActive(id){active = SYMBOLS.find(s=>s.id===id) || SYMBOLS[0]; qs('symbolInput').value = active.tv; buildTabs(); loadTradingView(active.tv, qs('intervalInput').value); render()}
+function tvIntervalLabel(v){const map={'1':'1m','3':'3m','5':'5m','15':'15m','30':'30m','60':'1h','240':'4h','D':'1D'}; return map[String(v)] || String(v || '1m')}
+function loadTradingView(tvSymbol, interval){
+  const sym = tvSymbol || active.tv; const tf = String(interval || '1');
+  const root = qs('tvContainer'); root.innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+  const script = document.createElement('script'); script.type='text/javascript'; script.async=true; script.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
+  script.text = JSON.stringify({autosize:true,symbol:sym,interval:tf,timezone:'Asia/Bangkok',theme:'dark',style:'1',locale:'en',allow_symbol_change:true,calendar:false,details:false,hide_side_toolbar:false,hide_top_toolbar:false,hide_legend:false,hide_volume:false,hotlist:false,save_image:false,support_host:'https://www.tradingview.com',studies:['STD;EMA','STD;RSI']});
+  root.appendChild(script);
+  loadTechnicalWidget(sym, tf);
+  qs('chartNote').textContent = 'TradingView chart: '+sym+' / TF '+tf+'. หน้าเว็บนี้ไม่เปิด Deriv/MT5 feed เพิ่ม';
+  setConn('live','VERCEL STATIC');
+}
+function loadTechnicalWidget(tvSymbol, interval){
+  const root = qs('taWidget'); root.innerHTML = '<div class="tradingview-widget-container__widget"></div>';
+  const s = document.createElement('script'); s.type='text/javascript'; s.async=true; s.src='https://s3.tradingview.com/external-embedding/embed-widget-technical-analysis.js';
+  s.text = JSON.stringify({interval:tvIntervalLabel(interval),width:'100%',isTransparent:true,height:'100%',symbol:tvSymbol,showIntervalTabs:true,displayMode:'single',locale:'en',colorTheme:'dark'});
+  root.appendChild(s);
+}
+function applyChartFromInputs(){const tv = qs('symbolInput').value.trim() || active.tv; const interval = qs('intervalInput').value; const found = SYMBOLS.find(s => compactKey(s.tv) === compactKey(tv)); if(found){active=found; buildTabs()} loadTradingView(tv,interval); render(); addLog('<span class="SYS">SYS</span> loaded chart '+escapeHtml(tv)+' TF '+escapeHtml(interval))}
+function showPanel(id){hidePanels(); qs(id).classList.add('show')}
+function hidePanels(){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'))}
+function applyPastedChart(){const txt = qs('chartPaste').value.trim(); if(!txt)return; let sym='', interval=''; try{const parsed=JSON.parse(txt); sym=parsed.symbol || parsed.tv_symbol || ''; interval=parsed.interval || parsed.timeframe || ''}catch(e){const symbolMatch = txt.match(/["']symbol["']\s*:\s*["']([^"']+)["']/i) || txt.match(/(?:DERIV|NASDAQ|NYSE|BINANCE|OANDA|FX|FOREXCOM|TVC|CAPITALCOM|COINBASE):[A-Z0-9_:.\-]+/i); const intervalMatch = txt.match(/["']interval["']\s*:\s*["']?([A-Za-z0-9]+)["']?/i); if(symbolMatch) sym=symbolMatch[1] || symbolMatch[0]; if(intervalMatch) interval=intervalMatch[1]; if(!sym && /^[A-Z0-9_:.\-]+$/i.test(txt)) sym=txt} if(!sym){addLog('<span class="ERR">ERR</span> หา symbol จากข้อความที่วางไม่เจอ'); return} qs('symbolInput').value=sym; if(interval) qs('intervalInput').value=interval; applyChartFromInputs(); hidePanels()}
+function normalizePayload(payload){const out=Object.assign({}, payload || {}); out.signal=sigClass(out.signal || out.action || out.side || ''); out.price=num(out.price ?? out.close ?? out.last); out.rsi=num(out.rsi); out.atr=num(out.atr); out.ema_fast=num(out.ema_fast ?? out.emaFast ?? out.ema9); out.ema_slow=num(out.ema_slow ?? out.emaSlow ?? out.ema21); out.support=num(out.support ?? out.s); out.resistance=num(out.resistance ?? out.resist ?? out.r); out.score=num(out.score); out.confidence=num(out.confidence ?? out.conf); out.timeframe=out.timeframe || out.interval || qs('intervalInput').value; out.filter=out.filter || out.price_filter || out.trend || '—'; out.received_at=out.received_at || Date.now(); return computeIfNeeded(out)}
+function computeIfNeeded(out){
+  const price=out.price, rsi=out.rsi, atr=out.atr, ef=out.ema_fast, es=out.ema_slow, sup=out.support, res=out.resistance;
+  let score = Number.isFinite(out.score) ? out.score : 0;
+  let detail=[];
+  if(!Number.isFinite(out.score)){
+    if(Number.isFinite(price) && Number.isFinite(ef) && Number.isFinite(es)){
+      if(price > ef && ef > es){score += 3; detail.push('price above EMA9/21')}
+      else if(price < ef && ef < es){score -= 3; detail.push('price below EMA9/21')}
+      else detail.push('EMA mixed')
+    }
+    if(Number.isFinite(rsi)){
+      if(rsi >= 58){score += 1.5; detail.push('RSI bullish')}
+      else if(rsi <= 42){score -= 1.5; detail.push('RSI bearish')}
+      else detail.push('RSI neutral')
+    }
+    if(Number.isFinite(price) && Number.isFinite(atr) && Number.isFinite(sup) && atr > 0 && (price - sup) <= atr*0.65){score += 1; detail.push('near support')}
+    if(Number.isFinite(price) && Number.isFinite(atr) && Number.isFinite(res) && atr > 0 && (res - price) <= atr*0.65){score -= 1; detail.push('near resistance')}
+  }
+  out.score = Number.isFinite(score) ? score : 0;
+  if(out.signal === 'WAIT' || !out.signal){out.signal = out.score >= 3 ? 'CALL' : out.score <= -3 ? 'PUT' : 'WAIT'}
+  if(!Number.isFinite(out.confidence)) out.confidence = Math.min(95, Math.max(50, 50 + Math.abs(out.score) * 9));
+  if(!out.filter || out.filter === '—') out.filter = detail.join(' + ') || 'MANUAL_FILTER';
+  return out;
+}
+function ingestSignal(payload, sourceLabel){if(!payload || typeof payload !== 'object')return; const sym=symbolForPayload(payload); const normalized=normalizePayload(payload); normalized.symbol_id=sym.id; normalized.tv_symbol=sym.tv || payload.symbol || qs('symbolInput').value; signalStore[sym.id]=normalized; signalStore[compactKey(sym.tv)]=normalized; receivedCount++; saveStore(); const sig=sigClass(normalized.signal); addLog('<span class="'+sig+'">'+sig+'</span> '+escapeHtml(sym.id)+' price '+fmt(normalized.price,4)+' conf '+pct(normalized.confidence)+' score '+fmt(normalized.score,2)+' '+escapeHtml(sourceLabel || '')); render()}
+function parseSignals(text){const t=String(text || '').trim(); if(!t)return []; try{const parsed=JSON.parse(t); return Array.isArray(parsed)?parsed:[parsed]}catch(e){} const rows=[]; for(const line of t.split(/\n+/)){const v=line.trim(); if(!v)continue; try{rows.push(JSON.parse(v))}catch(e){}}
+  if(rows.length)return rows;
+  const obj={}; const pairs=t.match(/[A-Za-z_]+\s*[=:]\s*[^,\n]+/g) || [];
+  pairs.forEach(p=>{const m=p.match(/([A-Za-z_]+)\s*[=:]\s*([^,\n]+)/); if(m)obj[m[1].trim()]=m[2].trim().replace(/^['"]|['"]$/g,'')});
+  return Object.keys(obj).length?[obj]:[];
+}
+function applySignalPaste(){const rows=parseSignals(qs('signalPaste').value); if(!rows.length){addLog('<span class="ERR">ERR</span> อ่าน JSON signal ไม่ได้'); return} rows.forEach(r=>ingestSignal(r,'PASTE')); hidePanels()}
+async function readSignalFromClipboard(){try{const txt=await navigator.clipboard.readText(); qs('signalPaste').value=txt; addLog('<span class="SYS">SYS</span> read clipboard OK')}catch(e){addLog('<span class="ERR">ERR</span> browser ไม่อนุญาตให้อ่าน clipboard: '+escapeHtml(e.message))}}
+function manualCalculate(){const payload={symbol:qs('mSymbol').value.trim() || qs('symbolInput').value || active.tv,timeframe:qs('intervalInput').value,price:qs('mPrice').value,rsi:qs('mRsi').value,ema_fast:qs('mEmaFast').value,ema_slow:qs('mEmaSlow').value,atr:qs('mAtr').value,support:qs('mSupport').value,resistance:qs('mResistance').value,filter:'MANUAL_FILTER'}; ingestSignal(payload,'MANUAL'); hidePanels()}
+function quickDemo(side){const tv=qs('symbolInput').value || active.tv; const base=1000+Math.random()*80; const payload={symbol:tv,timeframe:qs('intervalInput').value,signal:side,price:base,rsi:side==='CALL'?61.4:38.6,atr:2.4,ema_fast:side==='CALL'?base-0.2:base+0.2,ema_slow:side==='CALL'?base-1.2:base+1.2,support:base-5.4,resistance:base+5.6,score:side==='CALL'?5.0:-5.0,confidence:88,filter:side==='CALL'?'PRICE_ABOVE_EMA':'PRICE_BELOW_EMA'}; ingestSignal(payload,'TEST')}
+function resetSignals(){signalStore={}; receivedCount=0; saveStore(); addLog('<span class="SYS">SYS</span> reset signals'); render()}
+function render(){
+  qs('signalList').innerHTML = SYMBOLS.map(s=>{const v=valueFor(s); const sig=sigClass(v && v.signal); return '<div class="sig-card '+(s.id===active.id?'active':'')+'" onclick="setActive(\''+s.id+'\')"><div class="sig-head"><div><div class="sig-id">'+s.id+'</div><div class="sig-tv">'+s.tv+'</div></div><div class="sig-val '+sig+'">'+sig+'</div></div><div class="sig-row"><span>PRICE '+(v?fmt(v.price,4):'—')+'</span><span>RSI '+(v?fmt(v.rsi,1):'—')+'</span></div><div class="sig-mini">CONF '+(v?pct(v.confidence):'—')+' | SCORE '+(v?fmt(v.score,2):'—')+' | TF '+(v&&v.timeframe?v.timeframe:'—')+'</div></div>'}).join('');
+  const currentTv=qs('symbolInput').value.trim() || active.tv; const currentSym=SYMBOLS.find(s=>compactKey(s.tv)===compactKey(currentTv)) || active; const v=valueFor(currentSym) || valueFor(active); const sig=sigClass(v && v.signal);
+  qs('pbSymbol').textContent=currentSym.id || active.id; qs('pbTv').textContent=currentTv; setTextClass('pbPrice',v?fmt(v.price,4):'—',classFor(sig)); setTextClass('pbSignal',sig,classFor(sig)); setTextClass('pbConf',v?pct(v.confidence):'—',classFor(sig)); qs('pbRsi').textContent=v?fmt(v.rsi,1):'—'; qs('pbEma').textContent=v?fmt(v.ema_fast,4)+' / '+fmt(v.ema_slow,4):'—'; qs('pbFilter').textContent=v?(v.filter || v.trend || '—'):'—'; qs('pbUpdated').textContent=v?timeLabel(v.received_at || v.bar_time || v.time):'—';
+  const ov=qs('ovSignal'); ov.textContent=sig; ov.className='ov-sig '+sig; qs('ovPrice').textContent=v?fmt(v.price,4):'—'; qs('ovConf').textContent=v?pct(v.confidence):'—'; qs('ovScore').textContent=v?fmt(v.score,2):'—'; qs('ovRsi').textContent=v?fmt(v.rsi,1):'—'; qs('ovSupport').textContent=v?fmt(v.support,4):'—'; qs('ovResist').textContent=v?fmt(v.resistance,4):'—'; const sc=v?Math.max(0,Math.min(100,50+Number(v.score || 0)*8)):50; qs('scoreFill').style.width=sc+'%'; qs('filterLines').innerHTML = v ? '<div><b>Filter:</b> '+escapeHtml(v.filter || '—')+'</div><div><b>EMA:</b> '+fmt(v.ema_fast,4)+' / '+fmt(v.ema_slow,4)+' | <b>ATR:</b> '+fmt(v.atr,4)+'</div><div><b>Time:</b> '+escapeHtml(timeLabel(v.received_at || v.bar_time || v.time))+'</div>' : 'รอวางสัญญาณจาก Pine หรือกรอกค่า Manual Filter...';
+}
+function setTextClass(id,text,cls){const el=qs(id); el.textContent=text; el.className=cls}
+function copyPine(){const el=qs('pineCode'); el.select(); el.setSelectionRange(0, el.value.length); navigator.clipboard.writeText(el.value).then(()=>addLog('<span class="SYS">SYS</span> copied Pine script')).catch(()=>{document.execCommand('copy'); addLog('<span class="SYS">SYS</span> copied Pine script')})}
+function loadHashSignal(){const h=location.hash || ''; if(!h.startsWith('#signal='))return; try{const raw=decodeURIComponent(h.slice(8)); let txt=raw; try{txt=atob(raw.replace(/-/g,'+').replace(/_/g,'/'))}catch(e){} parseSignals(txt).forEach(r=>ingestSignal(r,'HASH'))}catch(e){addLog('<span class="ERR">ERR</span> hash signal error '+escapeHtml(e.message))}}
+window.addEventListener('message', ev=>{if(ev && ev.data && typeof ev.data==='object' && (ev.data.signal || ev.data.price || ev.data.type==='signal'))ingestSignal(ev.data,'POSTMESSAGE')});
+window.addEventListener('keydown', ev=>{if(ev.key==='Escape')hidePanels()});
+buildTabs(); qs('symbolInput').value=active.tv; loadTradingView(active.tv,'1'); render(); loadHashSignal(); addLog('<span class="SYS">SYS</span> V24 single-file ready for Vercel. ใช้ index.html ไฟล์เดียว');
+</script>
+</body>
+</html>
