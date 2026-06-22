@@ -2,42 +2,89 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V10 AI Trading Engine</title>
+<title>V10 AI Dashboard</title>
 
 <style>
 body {
   font-family: Arial;
-  background: #0f172a;
+  background: #0b1220;
   color: white;
   margin: 0;
   padding: 20px;
 }
 
-#log {
-  height: 300px;
-  overflow: auto;
-  background: #111827;
-  padding: 10px;
-  border-radius: 8px;
-  font-size: 12px;
+.grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
 }
 
 .card {
-  margin-top: 10px;
+  background: #111827;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+.big {
+  font-size: 28px;
+  font-weight: bold;
+}
+
+.green { color: #22c55e; }
+.red { color: #ef4444; }
+.gray { color: #9ca3af; }
+
+#log {
+  height: 250px;
+  overflow: auto;
+  background: #0f172a;
   padding: 10px;
-  background: #1f2937;
-  border-radius: 8px;
+  margin-top: 10px;
+  font-size: 12px;
 }
 </style>
 </head>
 
 <body>
 
-<h2>🚀 V10 AI Trading Engine (LIVE)</h2>
+<h2>🚀 V10 AI Trading Dashboard</h2>
 
-<div class="card">
-  <div id="status">STATUS: RUNNING</div>
-  <div id="signal">SIGNAL: -</div>
+<div class="grid">
+
+  <div class="card">
+    <div>PRICE</div>
+    <div id="price" class="big">-</div>
+  </div>
+
+  <div class="card">
+    <div>SIGNAL</div>
+    <div id="signal" class="big gray">WAIT</div>
+  </div>
+
+  <div class="card">
+    <div>FILTER</div>
+    <div id="filter" class="big gray">NORMAL</div>
+  </div>
+
+</div>
+
+<div class="grid" style="margin-top:10px;">
+
+  <div class="card">
+    <div>SUPPORT</div>
+    <div id="support">-</div>
+  </div>
+
+  <div class="card">
+    <div>RESISTANCE</div>
+    <div id="resistance">-</div>
+  </div>
+
+  <div class="card">
+    <div>CONFIDENCE</div>
+    <div id="conf">-</div>
+  </div>
+
 </div>
 
 <h3>📊 LOG</h3>
@@ -45,15 +92,15 @@ body {
 
 <script>
 
-// =============================
-// 🧠 STATE
-// =============================
+// =====================
+// STATE
+// =====================
 
 let state = {};
 
-// =============================
-// 🧾 UI LOG
-// =============================
+// =====================
+// LOG
+// =====================
 
 function log(msg){
   const el = document.getElementById("log");
@@ -61,124 +108,98 @@ function log(msg){
   el.scrollTop = el.scrollHeight;
 }
 
-// =============================
-// 🧯 TRADE GUARD
-// =============================
+// =====================
+// TOOLS
+// =====================
 
-class Guard {
-  constructor(){
-    this.last = 0;
-    this.cooldown = 2000;
-  }
-
-  allow(){
-    const now = Date.now();
-    if(now - this.last < this.cooldown) return false;
-    this.last = now;
-    return true;
-  }
-}
-
-const guard = new Guard();
-
-// =============================
-// 📊 FEATURES
-// =============================
-
-function EMA(arr, p){
-  const k = 2/(p+1);
-  let e = arr[0];
+function EMA(arr){
+  let ema = arr[0];
+  const k = 0.1;
   for(let i=1;i<arr.length;i++){
-    e = arr[i]*k + e*(1-k);
+    ema = arr[i]*k + ema*(1-k);
   }
-  return e;
+  return ema;
 }
 
 function SR(t){
-  const r = t.slice(-20);
   return {
-    support: Math.min(...r),
-    resistance: Math.max(...r)
+    support: Math.min(...t.slice(-20)),
+    resistance: Math.max(...t.slice(-20))
   };
 }
 
-// =============================
-// 🧠 V10 BRAIN
-// =============================
-
-class V10Brain {
-
-  decide(f){
-
-    let score = 0;
-
-    // trend
-    if(f.ema20 > f.ema50) score++;
-    else score--;
-
-    // momentum
-    if(f.momentum > 0) score++;
-    else score--;
-
-    // breakout quality
-    const range = f.resistance - f.support;
-
-    if(range < 0.01) score++; // tight market = breakout ready
-    if(range > 0.05) score--; // too volatile
-
-    if(score >= 2) return {signal:"BUY",conf:0.8};
-    if(score <= -2) return {signal:"SELL",conf:0.8};
-
-    return {signal:"NEUTRAL",conf:0.5};
-  }
-}
-
-const brain = new V10Brain();
-
-// =============================
-// 📥 ENGINE
-// =============================
+// =====================
+// ENGINE
+// =====================
 
 function onTick(price){
 
   const sym = "R_100";
 
-  if(!state[sym]){
-    state[sym] = {ticks:[]};
-  }
+  if(!state[sym]) state[sym] = {ticks:[]};
 
   const s = state[sym];
-
   s.ticks.push(price);
   if(s.ticks.length > 200) s.ticks.shift();
 
-  if(s.ticks.length < 30) return;
+  if(s.ticks.length < 20) return;
 
-  if(!guard.allow()) return;
+  const sr = SR(s.ticks);
 
-  // FEATURES
-  const f = {
-    ema20: EMA(s.ticks.slice(-20),20),
-    ema50: EMA(s.ticks.slice(-50),50),
-    momentum: price - s.ticks[s.ticks.length-5],
-    ...SR(s.ticks)
-  };
+  const ema = EMA(s.ticks.slice(-20));
 
-  const d = brain.decide(f);
+  const momentum = price - s.ticks[s.ticks.length-5];
 
-  document.getElementById("signal").innerText =
-    "SIGNAL: " + d.signal;
+  // FILTER
+  let filter = "NORMAL";
+  const range = sr.resistance - sr.support;
 
-  log("price=" + price + " | signal=" + d.signal);
+  if(range < 0.005) filter = "TIGHT";
+  if(range > 0.02) filter = "NOISE";
 
-  if(d.signal !== "NEUTRAL"){
-    log("🚀 EXEC " + d.signal);
+  // SIGNAL
+  let signal = "NEUTRAL";
+  let conf = 0.5;
+
+  if(filter !== "NOISE"){
+
+    if(price > sr.resistance && momentum > 0){
+      signal = "BUY";
+      conf = 0.8;
+    }
+
+    if(price < sr.support && momentum < 0){
+      signal = "SELL";
+      conf = 0.8;
+    }
   }
+
+  // =====================
+  // UI UPDATE
+  // =====================
+
+  document.getElementById("price").innerText = price.toFixed(5);
+
+  document.getElementById("signal").innerText = signal;
+
+  document.getElementById("support").innerText = sr.support.toFixed(5);
+  document.getElementById("resistance").innerText = sr.resistance.toFixed(5);
+
+  document.getElementById("conf").innerText = conf;
+
+  document.getElementById("filter").innerText = filter;
+
+  // COLORS
+  document.getElementById("signal").className =
+    "big " + (signal==="BUY"?"green":signal==="SELL"?"red":"gray");
+
+  log(`price=${price} | signal=${signal} | filter=${filter}`);
+
 }
 
-// =============================
-// 🧪 FAKE DATA FEED
-// =============================
+// =====================
+// FAKE DATA
+// =====================
 
 setInterval(()=>{
   const price = 100 + Math.random()*0.5;
