@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V17 AUTO TRADING ENGINE</title>
+<title>V18 STABLE TRADING SYSTEM</title>
 
 <style>
 body{
@@ -12,6 +12,7 @@ body{
   color:white;
 }
 
+/* TOP BAR */
 .top{
   display:flex;
   justify-content:space-between;
@@ -19,6 +20,7 @@ body{
   border-bottom:1px solid rgba(255,255,255,0.05);
 }
 
+/* GRID */
 .grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -41,11 +43,28 @@ body{
 .put{color:#ef4444}
 .neutral{color:#fbbf24}
 
-.panel{
+/* MAIN */
+.main{
+  display:grid;
+  grid-template-columns:2fr 1fr;
+  gap:10px;
   padding:10px;
+}
+
+/* CHART */
+.chart{
+  height:520px;
   background:#111827;
-  margin:10px;
   border-radius:12px;
+  overflow:hidden;
+}
+
+/* PANEL */
+.panel{
+  background:#111827;
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:10px;
 }
 </style>
 </head>
@@ -53,165 +72,167 @@ body{
 <body>
 
 <div class="top">
-  <div>🚀 V17 AUTO TRADING SYSTEM</div>
-  <div id="status">IDLE</div>
-</div>
-
-<div class="panel">
-  AUTO MODE:
-  <button onclick="toggleAuto()">TOGGLE</button>
-  <span id="autoState">OFF</span>
+  <div>🚀 V18 STABLE SYSTEM</div>
+  <div id="activeSym">EURUSD</div>
 </div>
 
 <div class="grid" id="grid"></div>
 
-<div class="panel" id="log"></div>
+<div class="main">
+
+  <!-- CHART -->
+  <div class="chart" id="chartBox"></div>
+
+  <!-- SIDE -->
+  <div>
+    <div class="panel">
+      🧠 SIGNAL<br>
+      <div id="liveSignal">WAIT</div>
+    </div>
+
+    <div class="panel">
+      📊 STATUS<br>
+      STABLE ENGINE ACTIVE
+    </div>
+  </div>
+
+</div>
 
 <script>
 
 // =========================
-// CONFIG (RISK CONTROL)
+// SYMBOLS (REAL TRADE STYLE)
 // =========================
 
-let AUTO = false;
-let lastTradeTime = 0;
-const COOLDOWN = 5000; // 5 sec
-const MIN_CONFIDENCE = 0.65;
+const symbols = [
+"EURUSD","GBPUSD","USDJPY","AUDUSD",
+"USDCAD","BTCUSD","ETHUSD","XAUUSD"
+];
 
 // =========================
-// SYMBOLS
+// STATE (NO RESET)
 // =========================
-
-const symbols = ["R_10","R_25","R_50","R_75","R_100","R_150","R_200","R_300"];
 
 let state = {};
+let currentSymbol = "EURUSD";
 
 // =========================
-// LOG
+// CHART CONTROL (FIXED)
 // =========================
 
-function log(msg){
-  document.getElementById("log").innerHTML += msg + "<br>";
+function loadChart(symbol){
+
+  currentSymbol = symbol;
+  document.getElementById("activeSym").innerText = symbol;
+
+  const box = document.getElementById("chartBox");
+
+  // ❗ CLEAN OLD CHART ONLY
+  box.innerHTML = "";
+
+  const iframe = document.createElement("iframe");
+
+  iframe.src =
+    "https://www.tradingview.com/widgetembed/?" +
+    "symbol=" + encodeURIComponent(symbol) +
+    "&interval=1&theme=dark";
+
+  iframe.width = "100%";
+  iframe.height = "520";
+  iframe.style.border = "0";
+
+  box.appendChild(iframe);
 }
 
 // =========================
-// AI DECISION
+// ENGINE (DATA ONLY)
 // =========================
 
-function decide(price, prev){
+function tick(symbol){
 
-  const diff = price - prev;
-
-  if(diff > 0.02) return {signal:"CALL", confidence:0.7};
-  if(diff < -0.02) return {signal:"PUT", confidence:0.7};
-
-  return {signal:"SKIP", confidence:0.4};
-}
-
-// =========================
-// RISK ENGINE
-// =========================
-
-function canTrade(conf){
-
-  const now = Date.now();
-
-  if(!AUTO) return false;
-  if(conf < MIN_CONFIDENCE) return false;
-  if(now - lastTradeTime < COOLDOWN) return false;
-
-  lastTradeTime = now;
-  return true;
-}
-
-// =========================
-// EXECUTION ENGINE (DERIV READY HOOK)
-// =========================
-
-function executeTrade(sym, signal){
-
-  log("💰 EXEC: " + sym + " => " + signal);
-
-  // 🔥 REAL API HOOK PLACEHOLDER
-  // fetch("https://api.deriv.com/...") <- production use
-
-}
-
-// =========================
-// ENGINE
-// =========================
-
-function tick(sym){
-
-  if(!state[sym]){
-    state[sym] = {
+  if(!state[symbol]){
+    state[symbol] = {
       price:100+Math.random(),
       prev:100+Math.random(),
-      signal:"SKIP"
+      signal:"NEUTRAL",
+      score:0
     };
   }
 
-  const s = state[sym];
+  const s = state[symbol];
 
   s.prev = s.price;
   s.price = 100 + Math.random()*0.5;
 
-  const d = decide(s.price, s.prev);
+  const diff = s.price - s.prev;
 
-  s.signal = d.signal;
+  let score = 0;
+  let signal = "NEUTRAL";
 
-  // AUTO TRADE
-  if(d.signal !== "SKIP"){
+  if(diff > 0.02) score += 2;
+  if(diff < -0.02) score -= 2;
 
-    if(canTrade(d.confidence)){
-      executeTrade(sym, d.signal);
-    }
-  }
+  if(score >= 2) signal = "CALL";
+  if(score <= -2) signal = "PUT";
+
+  s.score = score;
+  s.signal = signal;
+
+  return s;
 }
 
 // =========================
-// UI
+// RENDER UI ONLY (NO CHART TOUCH)
 // =========================
 
-function render(){
+function renderUI(){
 
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
 
   symbols.forEach(sym=>{
 
-    tick(sym);
-
-    const s = state[sym];
+    const s = tick(sym);
 
     let cls = "neutral";
     if(s.signal==="CALL") cls="call";
     if(s.signal==="PUT") cls="put";
 
     grid.innerHTML += `
-      <div class="card">
+      <div class="card" onclick="loadChart('${sym}')">
         <div>${sym}</div>
         <div class="signal ${cls}">${s.signal}</div>
+        <div style="font-size:12px;opacity:0.7">
+          SCORE: ${s.score}
+        </div>
       </div>
     `;
   });
+
+  document.getElementById("liveSignal").innerText =
+    state[currentSymbol]?.signal || "WAIT";
 }
 
 // =========================
-// AUTO LOOP
+// SAFE LOOP (NO DOM CONFLICT)
 // =========================
 
-setInterval(render, 1000);
+function loop(){
 
-// =========================
-// TOGGLE
-// =========================
+  renderUI(); // UI only
 
-function toggleAuto(){
-  AUTO = !AUTO;
-  document.getElementById("autoState").innerText = AUTO ? "ON" : "OFF";
-  log("AUTO MODE: " + AUTO);
+  // auto update chart ONLY if first load
+  if(!window.chartLoaded){
+    loadChart(currentSymbol);
+    window.chartLoaded = true;
+  }
 }
+
+// =========================
+// START
+// =========================
+
+setInterval(loop, 1200);
 
 </script>
 
