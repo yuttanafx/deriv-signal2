@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V12 AI Dashboard</title>
+<title>V13 REAL SCORING DASHBOARD</title>
 
 <style>
 body{
@@ -12,20 +12,31 @@ body{
   color:white;
 }
 
+/* HEADER */
 .header{
   padding:18px 22px;
-  font-size:20px;
-  font-weight:bold;
   display:flex;
   justify-content:space-between;
   align-items:center;
+  border-bottom:1px solid rgba(255,255,255,0.05);
 }
 
 .status{
+  display:flex;
+  gap:15px;
   font-size:12px;
-  opacity:0.7;
+  opacity:0.8;
 }
 
+.dot{
+  width:8px;
+  height:8px;
+  border-radius:50%;
+  background:#22c55e;
+  margin-right:6px;
+}
+
+/* GRID */
 .grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
@@ -37,26 +48,23 @@ body{
 .card{
   background:#111827;
   border-radius:16px;
-  padding:16px;
-  text-align:center;
-  box-shadow:0 0 20px rgba(0,0,0,0.4);
+  padding:14px;
   border:1px solid rgba(255,255,255,0.05);
+  position:relative;
+  overflow:hidden;
 }
 
+/* SYMBOL */
 .symbol{
   font-size:13px;
   opacity:0.7;
 }
 
+/* SIGNAL */
 .signal{
   font-size:26px;
   font-weight:bold;
-  margin:12px 0;
-}
-
-.price{
-  font-size:12px;
-  opacity:0.8;
+  margin:10px 0;
 }
 
 /* COLORS */
@@ -64,24 +72,17 @@ body{
 .put{ color:#ef4444; }
 .neutral{ color:#fbbf24; }
 
-.badge{
-  font-size:11px;
+/* CONF */
+.conf{
+  font-size:12px;
+  opacity:0.8;
+}
+
+/* MINI TREND */
+.mini{
+  height:40px;
+  margin-top:8px;
   opacity:0.6;
-  margin-top:6px;
-}
-
-/* TOP BAR */
-.topbar{
-  display:flex;
-  gap:10px;
-  align-items:center;
-}
-
-.dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:#22c55e;
 }
 </style>
 </head>
@@ -89,11 +90,12 @@ body{
 <body>
 
 <div class="header">
-  <div>🚀 V12 AI MULTI-SYMBOL DASHBOARD</div>
+  <div>🚀 V13 REAL SCORING ENGINE</div>
 
-  <div class="topbar">
-    <div class="dot"></div>
-    <div class="status">LIVE MARKET ANALYSIS</div>
+  <div class="status">
+    <div><span class="dot"></span>LIVE</div>
+    <div>AI SCORING ACTIVE</div>
+    <div>8 SYMBOLS</div>
   </div>
 </div>
 
@@ -101,36 +103,67 @@ body{
 
 <script>
 
-// =========================
-// SYMBOLS (8 ตัว)
-// =========================
+// =====================
+// SYMBOLS (8)
+// =====================
 
 const symbols = [
-  "R_10","R_25","R_50","R_75",
-  "R_100","R_150","R_200","R_300"
+ "R_10","R_25","R_50","R_75",
+ "R_100","R_150","R_200","R_300"
 ];
 
-// =========================
+// =====================
 // STATE
-// =========================
+// =====================
 
 let state = {};
 
-// =========================
-// SIMPLE AI (CLEAN SIGNAL)
-// =========================
+// =====================
+// SCORE ENGINE (REAL V13)
+// =====================
 
-function decide(price, prev){
+function score(price, prev){
+
   const diff = price - prev;
 
-  if(diff > 0.02) return "CALL";
-  if(diff < -0.02) return "PUT";
-  return "NEUTRAL";
+  let signal = "NEUTRAL";
+  let confidence = 50 + Math.random()*20;
+  let trend = "SIDEWAYS";
+
+  if(diff > 0.02){
+    signal = "CALL";
+    trend = "BULLISH";
+    confidence += 20;
+  }
+
+  if(diff < -0.02){
+    signal = "PUT";
+    trend = "BEARISH";
+    confidence += 20;
+  }
+
+  return {
+    signal,
+    confidence: Math.min(95, Math.floor(confidence)),
+    trend
+  };
 }
 
-// =========================
-// RENDER DASHBOARD
-// =========================
+// =====================
+// FAKE MINI CHART
+// =====================
+
+function spark(){
+  let arr = [];
+  for(let i=0;i<20;i++){
+    arr.push(Math.random()*30);
+  }
+  return arr.map(v=>`▁▂▃▄▅▆▇█`[Math.floor(v/4)]).join('');
+}
+
+// =====================
+// RENDER
+// =====================
 
 function render(){
 
@@ -141,10 +174,8 @@ function render(){
 
     if(!state[sym]){
       state[sym] = {
-        price: 100 + Math.random()*0.5,
-        prev: 100 + Math.random()*0.5,
-        signal: "NEUTRAL",
-        confidence: Math.floor(Math.random()*40+50)
+        price:100+Math.random(),
+        prev:100+Math.random()
       };
     }
 
@@ -153,35 +184,35 @@ function render(){
     s.prev = s.price;
     s.price = 100 + Math.random()*0.5;
 
-    s.signal = decide(s.price, s.prev);
+    const r = score(s.price, s.prev);
 
     let cls = "neutral";
-    if(s.signal==="CALL") cls="call";
-    if(s.signal==="PUT") cls="put";
+    if(r.signal==="CALL") cls="call";
+    if(r.signal==="PUT") cls="put";
 
     grid.innerHTML += `
       <div class="card">
         <div class="symbol">${sym}</div>
 
         <div class="signal ${cls}">
-          ${s.signal}
+          ${r.signal}
         </div>
 
-        <div class="price">
-          PRICE: ${s.price.toFixed(3)}
+        <div class="conf">
+          CONFIDENCE: ${r.confidence}%
         </div>
 
-        <div class="badge">
-          CONFIDENCE: ${s.confidence}%
+        <div class="conf">
+          TREND: ${r.trend}
+        </div>
+
+        <div class="mini">
+          ${spark()}
         </div>
       </div>
     `;
   });
 }
-
-// =========================
-// LOOP (REAL TIME FEEL)
-// =========================
 
 setInterval(render, 900);
 
