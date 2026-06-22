@@ -1,217 +1,191 @@
 <!DOCTYPE html>
-<html>
+<html lang="th">
 <head>
-  <meta charset="UTF-8">
-  <title>V8 + V9 Hybrid Trading Engine</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TVT Tech System — FIXED V9 ENGINE</title>
 </head>
 
 <body>
 
 <script>
 
-// ===============================
-// 🧠 STATE
-// ===============================
+// ==========================
+// 🧠 STATE FIXED
+// ==========================
 
 let state = {};
+let watchedSymbols = ['R_75'];
 
-// ===============================
-// 🧯 TRADE GUARD
-// ===============================
-
-class TradeGuard {
-  constructor() {
-    this.lastTradeTime = 0;
-    this.cooldown = 4000;
-  }
-
-  allow() {
-    const now = Date.now();
-    if (now - this.lastTradeTime < this.cooldown) return false;
-    this.lastTradeTime = now;
-    return true;
+function ensureState(sym){
+  if(!state[sym]){
+    state[sym] = {
+      ticks: [],
+      lastPrice: null,
+      prevPrice: null,
+      tickCounter: 0,
+      sigType: 'NEUTRAL',
+      sigText: '',
+      sigSub: '',
+      support: 0,
+      resistance: 0,
+      pendingContracts: []
+    };
   }
 }
 
-const tradeGuard = new TradeGuard();
+// ==========================
+// 📊 SAFE EMA
+// ==========================
 
-// ===============================
-// 📊 V8 INDICATORS (ORIGINAL SAFE)
-// ===============================
+function EMA(arr, period){
+  if(!arr || arr.length < period) return arr[arr.length-1] || 0;
 
-function EMA(arr, period) {
-  const k = 2 / (period + 1);
+  const k = 2/(period+1);
   let ema = arr[0];
-  for (let i = 1; i < arr.length; i++) {
-    ema = arr[i] * k + ema * (1 - k);
+
+  for(let i=1;i<arr.length;i++){
+    ema = arr[i]*k + ema*(1-k);
   }
+
   return ema;
 }
 
-function calcSR(ticks) {
-  const recent = ticks.slice(-30);
+// ==========================
+// 📊 SUPPORT / RESISTANCE SAFE
+// ==========================
+
+function calcSR(ticks){
+  const t = ticks.slice(-30);
+  if(t.length < 2) return {support:0,resistance:0};
+
   return {
-    support: Math.min(...recent),
-    resistance: Math.max(...recent),
-    mid: (Math.min(...recent) + Math.max(...recent)) / 2
+    support: Math.min(...t),
+    resistance: Math.max(...t)
   };
 }
 
-// ===============================
-// 🧠 V9 INTELLIGENCE LAYER (ADD-ON ONLY)
-// ===============================
+// ==========================
+// 🧠 V9 FILTER (SAFE LAYER)
+// ==========================
 
-// Liquidity memory (ZONE MEMORY)
-function updateLiquidityMemory(s, price) {
-  if (!s.zones) s.zones = [];
+function v9Filter(s){
 
-  let z = s.zones.find(x => Math.abs(x.level - price) < 0.0005);
+  const t = s.ticks;
+  if(t.length < 10) return true;
 
-  if (z) {
-    z.touches++;
-  } else {
-    s.zones.push({ level: price, touches: 1 });
+  const range = Math.max(...t.slice(-20)) - Math.min(...t.slice(-20));
+
+  // ❌ noise market
+  if(range > 0.02){
+    s.sigType = "BLOCK";
+    s.sigText = "V9 FILTER";
+    s.sigSub = "NOISE MARKET DETECTED";
+    return false;
   }
 
-  s.zones.sort((a,b)=>b.touches - a.touches);
-  s.zones = s.zones.slice(0, 5);
+  return true;
 }
 
-// Fake breakout filter
-function isFakeBreakout(ticks, price, r, spt) {
-  const prev = ticks[ticks.length - 2];
+// ==========================
+// 🧠 MAIN SIGNAL ENGINE (FIXED)
+// ==========================
 
-  const up = price > r && price < prev;
-  const down = price < spt && price > prev;
-
-  return up || down;
-}
-
-// Adaptive volatility multiplier
-function adaptive(ticks) {
-  const recent = ticks.slice(-30);
-  const range = Math.max(...recent) - Math.min(...recent);
-
-  if (range > 0.01) return 1.4;
-  if (range < 0.003) return 0.7;
-  return 1;
-}
-
-// Market quality filter
-function marketQuality(ticks) {
-  const r = Math.max(...ticks.slice(-20)) - Math.min(...ticks.slice(-20));
-  const avg = ticks.slice(-20).reduce((a,b)=>a+b,0)/20;
-
-  const ratio = r / (avg || 1);
-
-  if (ratio > 0.015) return "NOISE";
-  if (ratio < 0.002) return "FLAT";
-  return "NORMAL";
-}
-
-// ===============================
-// 🧠 V8 CORE BRAIN (UNCHANGED)
-// ===============================
-
-class V8 {
-
-  decide(f) {
-
-    let score = 0;
-
-    if (f.ema20 > f.ema50) score++;
-    else score--;
-
-    if (f.momentum > 0) score++;
-    else score--;
-
-    if (score >= 2) return { signal: "BUY", confidence: 0.7, agent: "V8" };
-    if (score <= -2) return { signal: "SELL", confidence: 0.7, agent: "V8" };
-
-    return { signal: "NEUTRAL", confidence: 0.5, agent: "V8" };
-  }
-}
-
-const v8 = new V8();
-
-// ===============================
-// 💰 EXECUTION
-// ===============================
-
-function execute(sym, dir) {
-  console.log("EXEC:", sym, dir);
-}
-
-// ===============================
-// 📥 MAIN ENGINE
-// ===============================
-
-function onTickReceived(tick) {
+function onTickReceived(tick){
 
   const sym = tick.symbol;
+  if(!sym) return;
 
-  if (!state[sym]) {
-    state[sym] = { ticks: [], tickCounter: 0 };
-  }
+  ensureState(sym);
 
   const s = state[sym];
-
   const price = parseFloat(tick.quote);
 
+  if(isNaN(price)) return;
+
   s.tickCounter++;
+  s.prevPrice = s.lastPrice;
+  s.lastPrice = price;
+
   s.ticks.push(price);
+  if(s.ticks.length > 200) s.ticks.shift();
 
-  if (s.ticks.length > 200) s.ticks.shift();
+  // ==========================
+  // 🧠 V9 FILTER (BEFORE LOGIC)
+  // ==========================
 
-  // 🧯 GUARD
-  if (!tradeGuard.allow()) return;
+  if(!v9Filter(s)) return;
 
-  if (s.ticks.length < 50) return;
-
-  // ===============================
-  // 🧠 V9 INTELLIGENCE FILTER (SAFE LAYER ONLY)
-  // ===============================
-
-  updateLiquidityMemory(s, price);
-
-  const quality = marketQuality(s.ticks);
-  const fake = isFakeBreakout(s.ticks, price, 0, 0); // optional safe mode
-
-  if (quality === "NOISE") {
-    s.sig = "BLOCK";
-    return;
-  }
-
-  if (fake) {
-    s.sig = "BLOCK";
-    return;
-  }
+  // ==========================
+  // 📊 STRUCTURE
+  // ==========================
 
   const sr = calcSR(s.ticks);
+  s.support = sr.support;
+  s.resistance = sr.resistance;
 
-  const features = {
-    ema20: EMA(s.ticks.slice(-20), 20),
-    ema50: EMA(s.ticks.slice(-50), 50),
-    momentum: s.ticks[s.ticks.length - 1] - s.ticks[s.ticks.length - 5],
-    support: sr.support,
-    resistance: sr.resistance,
-    mid: sr.mid
-  };
+  const midMin = sr.support + (sr.resistance - sr.support)*0.35;
+  const midMax = sr.support + (sr.resistance - sr.support)*0.65;
 
-  // ===============================
-  // 🧠 V8 DECISION (UNCHANGED CORE)
-  // ===============================
+  // ==========================
+  // 🧠 MOMENTUM
+  // ==========================
 
-  const decision = v8.decide(features);
+  const momentum =
+    s.ticks.length > 5
+    ? price - s.ticks[s.ticks.length-5]
+    : 0;
 
-  if (decision.signal === "BUY") {
-    execute(sym, "HIGHER");
+  let signal = "NEUTRAL";
+
+  // ==========================
+  // 🚀 LOGIC (เดิม + FIXED)
+  // ==========================
+
+  if(price > midMin && price < midMax){
+    s.sigType = "BLOCK";
+    s.sigText = "COMPRESSION";
+    s.sigSub = "MID ZONE";
+  }
+  else if(price >= sr.resistance && momentum > 0){
+    s.sigType = "BUY";
+    s.sigText = "BREAKOUT UP";
+    s.sigSub = "CALL SIGNAL";
+    signal = "BUY";
+  }
+  else if(price <= sr.support && momentum < 0){
+    s.sigType = "SELL";
+    s.sigText = "BREAKOUT DOWN";
+    s.sigSub = "PUT SIGNAL";
+    signal = "SELL";
+  }
+  else {
+    s.sigType = "NEUTRAL";
+    s.sigText = "WAIT";
+    s.sigSub = "NO EDGE";
   }
 
-  if (decision.signal === "SELL") {
-    execute(sym, "LOWER");
+  // ==========================
+  // 💥 EXEC (TEST MODE)
+  // ==========================
+
+  if(signal !== "NEUTRAL"){
+    console.log("EXEC:", sym, signal, price);
   }
 }
+
+// ==========================
+// 🧪 TEST FEED (FIX NO DATA ISSUE)
+// ==========================
+
+setInterval(()=>{
+
+  onTickReceived({
+    symbol: "R_75",
+    quote: (100 + Math.random()*0.5).toFixed(5)
+  });
+
+}, 1000);
 
 </script>
 
