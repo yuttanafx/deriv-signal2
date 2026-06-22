@@ -2,199 +2,518 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V19 STABLE REAL SYSTEM</title>
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V19 Signal System — Deriv</title>
 <style>
-body{
-  margin:0;
-  font-family:Arial;
-  background:#0b1220;
-  color:white;
-}
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=Inter:wght@400;500;600;700&display=swap');
 
-/* TOP */
-.top{
-  display:flex;
-  justify-content:space-between;
-  padding:14px;
-  border-bottom:1px solid rgba(255,255,255,0.05);
-}
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
-/* GRID */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  padding:10px;
-}
+  :root {
+    --deriv-red:    #ff444f;
+    --deriv-red-d:  #c0202b;
+    --deriv-bg:     #0e0e10;
+    --deriv-card:   #16181d;
+    --deriv-border: rgba(255,255,255,0.07);
+    --call:         #00d991;
+    --put:          #ff444f;
+    --neutral:      #f7941d;
+    --text:         #e8eaf0;
+    --muted:        rgba(232,234,240,0.45);
+    --mono:         'IBM Plex Mono', monospace;
+    --sans:         'Inter', sans-serif;
+  }
 
-.card{
-  background:#111827;
-  padding:12px;
-  border-radius:12px;
-}
+  body {
+    background: var(--deriv-bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+  }
 
-.signal{
-  font-size:18px;
-  font-weight:bold;
-}
+  /* ── TOPBAR ── */
+  .topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    height: 52px;
+    background: #0a0a0c;
+    border-bottom: 1px solid var(--deriv-border);
+  }
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .brand-logo {
+    width: 32px;
+    height: 32px;
+  }
+  .brand-name {
+    font-size: 15px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+  }
+  .brand-name span { color: var(--deriv-red); }
+  .badge {
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 600;
+    padding: 2px 7px;
+    border-radius: 4px;
+    letter-spacing: .5px;
+  }
+  .badge-version {
+    background: rgba(255,68,79,.15);
+    color: var(--deriv-red);
+    border: 1px solid rgba(255,68,79,.3);
+  }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .status-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #555;
+    transition: background .3s;
+  }
+  .status-dot.live { background: var(--call); box-shadow: 0 0 8px var(--call); }
+  .status-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .5px;
+  }
+  #statusText {
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: .8px;
+  }
+  #statusText.live { color: var(--call); }
 
-.call{color:#22c55e}
-.put{color:#ef4444}
-.neutral{color:#fbbf24}
+  /* ── SECTION LABEL ── */
+  .section-label {
+    padding: 14px 20px 6px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--deriv-border);
+  }
 
-/* CHART */
-.chart{
-  height:500px;
-  background:#111827;
-  margin:10px;
-  border-radius:12px;
-  overflow:hidden;
-}
+  /* ── GRID ── */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    padding: 0 20px 14px;
+  }
+  @media(max-width:900px){ .grid{ grid-template-columns: repeat(2,1fr); } }
+  @media(max-width:480px){ .grid{ grid-template-columns: 1fr 1fr; } }
+
+  .card {
+    background: var(--deriv-card);
+    border: 1px solid var(--deriv-border);
+    border-radius: 10px;
+    padding: 14px 14px 12px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color .25s;
+  }
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: var(--accent, #333);
+    border-radius: 10px 10px 0 0;
+  }
+  .card.call-card { --accent: var(--call); border-color: rgba(0,217,145,.18); }
+  .card.put-card  { --accent: var(--put);  border-color: rgba(255,68,79,.18); }
+  .card.neutral-card { --accent: var(--neutral); }
+
+  .card-sym {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: .5px;
+    margin-bottom: 6px;
+  }
+  .card-signal {
+    font-size: 17px;
+    font-weight: 700;
+    letter-spacing: -.3px;
+    line-height: 1;
+  }
+  .call-txt { color: var(--call); }
+  .put-txt  { color: var(--put); }
+  .neutral-txt { color: var(--neutral); }
+
+  .card-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    margin-top: 8px;
+  }
+  .card-price {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text);
+  }
+  .card-score {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--muted);
+  }
+  .card-icon {
+    font-size: 16px;
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    opacity: .5;
+  }
+
+  /* ── CHART AREA ── */
+  .chart-wrap {
+    margin: 0 20px 20px;
+    background: var(--deriv-card);
+    border: 1px solid var(--deriv-border);
+    border-radius: 12px;
+    overflow: hidden;
+  }
+  .chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--deriv-border);
+  }
+  .chart-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .chart-sym-pill {
+    font-family: var(--mono);
+    font-size: 10px;
+    background: rgba(255,68,79,.12);
+    color: var(--deriv-red);
+    border: 1px solid rgba(255,68,79,.25);
+    border-radius: 20px;
+    padding: 2px 9px;
+  }
+  #chartCanvas {
+    width: 100%;
+    height: 320px;
+    display: block;
+  }
+  .chart-empty {
+    height: 320px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 8px;
+    color: var(--muted);
+    font-size: 13px;
+  }
+  .chart-empty svg { opacity: .3; }
+
+  /* ── FOOTER ── */
+  .footer {
+    padding: 12px 20px;
+    border-top: 1px solid var(--deriv-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-size: 10px;
+    color: var(--muted);
+    font-family: var(--mono);
+  }
 </style>
 </head>
-
 <body>
 
-<div class="top">
-  <div>🚀 V19 STABLE SYSTEM</div>
-  <div id="status">DISCONNECTED</div>
+<!-- TOPBAR -->
+<div class="topbar">
+  <div class="brand">
+    <!-- Deriv-style SVG logo mark -->
+    <svg class="brand-logo" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 16 L16 4 L28 16 L16 28 Z" fill="#ff444f" opacity=".15"/>
+      <path d="M4 16 L16 4 L28 16" stroke="#ff444f" stroke-width="2.5" stroke-linejoin="round" fill="none"/>
+      <path d="M4 16 L16 28 L28 16" stroke="#ff444f" stroke-width="2.5" stroke-linejoin="round" fill="none" opacity=".45"/>
+      <circle cx="16" cy="16" r="3" fill="#ff444f"/>
+    </svg>
+    <span class="brand-name">deriv<span>.</span>signals</span>
+    <span class="badge badge-version">V19</span>
+  </div>
+  <div class="topbar-right">
+    <div class="status-dot" id="statusDot"></div>
+    <span id="statusText">DISCONNECTED</span>
+  </div>
 </div>
 
+<!-- SIGNALS GRID -->
+<div class="section-label">Live Signals — Volatility Indices</div>
 <div class="grid" id="grid"></div>
 
-<div class="chart" id="chartBox">
-  📊 CHART READY
+<!-- CHART -->
+<div class="section-label">Price Feed — Active Symbol</div>
+<div class="chart-wrap">
+  <div class="chart-header">
+    <span class="chart-title">Tick Chart</span>
+    <span class="chart-sym-pill" id="chartSym">—</span>
+  </div>
+  <canvas id="chartCanvas"></canvas>
+</div>
+
+<div class="footer">
+  <span>Deriv Signals System · V19 STABLE</span>
+  <span id="tickCount">Ticks: 0</span>
 </div>
 
 <script>
-
 ////////////////////////////////////////////////////
-// 🧱 1. STATE (SAFE)
+// STATE
 ////////////////////////////////////////////////////
-
-let state = {};
-
 const symbols = [
-"R_10","R_25","R_50","R_75",
-"R_100","R_150","R_200","R_300"
+  "R_10","R_25","R_50","R_75",
+  "R_100","R_150","R_200","R_300"
 ];
+let state = {};
+let chartData = {};   // { symbol: [price, ...] } last 80 ticks
+let activeChart = symbols[0];
+let totalTicks = 0;
 
 ////////////////////////////////////////////////////
-// 🧠 2. ENGINE (NO BROKER MIX)
+// ENGINE
 ////////////////////////////////////////////////////
-
-function processTick(symbol, price){
-
-  if(!state[symbol]){
-    state[symbol] = {
-      price,
-      prev: price,
-      signal:"NEUTRAL",
-      score:0
-    };
+function processTick(symbol, price) {
+  if (!state[symbol]) {
+    state[symbol] = { price, prev: price, signal: "NEUTRAL", score: 0 };
   }
-
   const s = state[symbol];
-
   s.prev = s.price;
   s.price = price;
-
   const diff = s.price - s.prev;
-
   let score = 0;
-
-  if(diff > 0.02) score += 2;
-  if(diff < -0.02) score -= 2;
-
-  let signal = "NEUTRAL";
-
-  if(score >= 2) signal = "CALL";
-  if(score <= -2) signal = "PUT";
-
+  if (diff > 0.02)  score += 2;
+  if (diff < -0.02) score -= 2;
   s.score = score;
-  s.signal = signal;
+  s.signal = score >= 2 ? "CALL" : score <= -2 ? "PUT" : "NEUTRAL";
+
+  if (!chartData[symbol]) chartData[symbol] = [];
+  chartData[symbol].push(price);
+  if (chartData[symbol].length > 80) chartData[symbol].shift();
 }
 
 ////////////////////////////////////////////////////
-// 🔌 3. DERIV CONNECT (SAFE ONLY DATA LAYER)
+// WS
 ////////////////////////////////////////////////////
-
 let ws = null;
-
-function connectBroker(){
-
+function connectBroker() {
   ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
-
   ws.onopen = () => {
-    document.getElementById("status").innerText = "CONNECTED";
-
-    symbols.forEach(sym=>{
-      ws.send(JSON.stringify({
-        ticks: sym,
-        subscribe: 1
-      }));
+    setStatus(true);
+    symbols.forEach(sym => {
+      ws.send(JSON.stringify({ ticks: sym, subscribe: 1 }));
     });
   };
-
   ws.onmessage = (msg) => {
-
     const data = JSON.parse(msg.data);
-
-    if(data.tick){
-
+    if (data.tick) {
       const symbol = data.tick.symbol;
-      const price = parseFloat(data.tick.quote);
-
-      if(symbol && price){
+      const price  = parseFloat(data.tick.quote);
+      if (symbol && price) {
         processTick(symbol, price);
+        totalTicks++;
         render();
+        drawChart();
+        document.getElementById("tickCount").textContent = `Ticks: ${totalTicks}`;
       }
     }
   };
+  ws.onclose = () => setStatus(false);
+  ws.onerror = () => setStatus(false);
+}
 
-  ws.onclose = () => {
-    document.getElementById("status").innerText = "DISCONNECTED";
-  };
+function setStatus(live) {
+  const dot  = document.getElementById("statusDot");
+  const txt  = document.getElementById("statusText");
+  dot.className = live ? "status-dot live" : "status-dot";
+  txt.className  = live ? "live" : "";
+  txt.textContent = live ? "LIVE" : "DISCONNECTED";
 }
 
 ////////////////////////////////////////////////////
-// 🖥️ 4. UI (SAFE RENDER ONLY)
+// RENDER CARDS
 ////////////////////////////////////////////////////
-
-function render(){
-
+function render() {
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
-
-  symbols.forEach(sym=>{
-
-    const s = state[sym] || {signal:"NEUTRAL",score:0};
-
-    let cls = "neutral";
-    if(s.signal==="CALL") cls="call";
-    if(s.signal==="PUT") cls="put";
-
-    grid.innerHTML += `
-      <div class="card">
-        <div>${sym}</div>
-        <div class="signal ${cls}">${s.signal}</div>
-        <div style="font-size:12px;opacity:0.7">
-          SCORE: ${s.score}
-        </div>
+  symbols.forEach(sym => {
+    const s   = state[sym] || { signal: "NEUTRAL", score: 0, price: 0 };
+    const cls = s.signal === "CALL" ? "call-card"
+              : s.signal === "PUT"  ? "put-card"
+              : "neutral-card";
+    const txtCls = s.signal === "CALL" ? "call-txt"
+                 : s.signal === "PUT"  ? "put-txt"
+                 : "neutral-txt";
+    const icon = s.signal === "CALL" ? "↑" : s.signal === "PUT" ? "↓" : "—";
+    const card = document.createElement("div");
+    card.className = `card ${cls}`;
+    card.innerHTML = `
+      <div class="card-icon">${icon}</div>
+      <div class="card-sym">${sym}</div>
+      <div class="card-signal ${txtCls}">${s.signal}</div>
+      <div class="card-row">
+        <span class="card-price">${s.price ? s.price.toFixed(3) : "—"}</span>
+        <span class="card-score">SCR ${s.score >= 0 ? "+" : ""}${s.score}</span>
       </div>
     `;
+    card.addEventListener("click", () => {
+      activeChart = sym;
+      document.getElementById("chartSym").textContent = sym;
+      drawChart();
+    });
+    grid.appendChild(card);
   });
 }
 
 ////////////////////////////////////////////////////
-// 🚀 START (SAFE)
+// MINI CHART
 ////////////////////////////////////////////////////
+function drawChart() {
+  const canvas = document.getElementById("chartCanvas");
+  const ctx    = canvas.getContext("2d");
+  const dpr    = window.devicePixelRatio || 1;
+  const W      = canvas.offsetWidth;
+  const H      = canvas.offsetHeight;
+  canvas.width  = W * dpr;
+  canvas.height = H * dpr;
+  ctx.scale(dpr, dpr);
 
+  const prices = chartData[activeChart] || [];
+  document.getElementById("chartSym").textContent = activeChart;
+
+  // background
+  ctx.fillStyle = "#16181d";
+  ctx.fillRect(0, 0, W, H);
+
+  if (prices.length < 2) {
+    ctx.fillStyle = "rgba(232,234,240,0.3)";
+    ctx.font = "13px Inter, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Waiting for ticks…", W / 2, H / 2);
+    return;
+  }
+
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const range = max - min || 0.001;
+  const pad = { top: 20, bottom: 28, left: 8, right: 60 };
+  const cW   = W - pad.left - pad.right;
+  const cH   = H - pad.top  - pad.bottom;
+
+  const xOf = i => pad.left + (i / (prices.length - 1)) * cW;
+  const yOf = v => pad.top  + (1 - (v - min) / range) * cH;
+
+  // grid lines
+  ctx.strokeStyle = "rgba(255,255,255,0.05)";
+  ctx.lineWidth = 1;
+  [0, 0.25, 0.5, 0.75, 1].forEach(t => {
+    const y = pad.top + t * cH;
+    ctx.beginPath(); ctx.moveTo(pad.left, y); ctx.lineTo(W - pad.right, y); ctx.stroke();
+  });
+
+  // gradient fill
+  const grad = ctx.createLinearGradient(0, pad.top, 0, H - pad.bottom);
+  const last  = prices[prices.length - 1];
+  const first = prices[0];
+  const up    = last >= first;
+  grad.addColorStop(0, up ? "rgba(0,217,145,.18)" : "rgba(255,68,79,.18)");
+  grad.addColorStop(1, "rgba(0,0,0,0)");
+
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(prices[0]));
+  prices.forEach((p, i) => ctx.lineTo(xOf(i), yOf(p)));
+  ctx.lineTo(xOf(prices.length - 1), H - pad.bottom);
+  ctx.lineTo(xOf(0), H - pad.bottom);
+  ctx.closePath();
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  // line
+  ctx.beginPath();
+  ctx.moveTo(xOf(0), yOf(prices[0]));
+  prices.forEach((p, i) => ctx.lineTo(xOf(i), yOf(p)));
+  ctx.strokeStyle = up ? "#00d991" : "#ff444f";
+  ctx.lineWidth = 1.8;
+  ctx.lineJoin = "round";
+  ctx.stroke();
+
+  // last price dot + label
+  const lx = xOf(prices.length - 1);
+  const ly = yOf(last);
+  ctx.beginPath();
+  ctx.arc(lx, ly, 4, 0, Math.PI * 2);
+  ctx.fillStyle = up ? "#00d991" : "#ff444f";
+  ctx.fill();
+
+  // price tag
+  const tag = last.toFixed(3);
+  const tagW = 50, tagH = 18;
+  const tx = W - pad.right + 6;
+  const ty = ly - tagH / 2;
+  ctx.fillStyle = up ? "rgba(0,217,145,.2)" : "rgba(255,68,79,.2)";
+  ctx.strokeStyle = up ? "#00d991" : "#ff444f";
+  ctx.lineWidth = 1;
+  roundRect(ctx, tx, ty, tagW, tagH, 4);
+  ctx.fillText("", 0, 0); // flush
+  ctx.fill(); ctx.stroke();
+
+  ctx.fillStyle = up ? "#00d991" : "#ff444f";
+  ctx.font = "bold 11px IBM Plex Mono, monospace";
+  ctx.textAlign = "left";
+  ctx.fillText(tag, tx + 5, ty + 13);
+
+  // x-axis labels
+  ctx.fillStyle = "rgba(232,234,240,0.3)";
+  ctx.font = "10px IBM Plex Mono, monospace";
+  ctx.textAlign = "center";
+  [0, Math.floor(prices.length / 2), prices.length - 1].forEach(i => {
+    ctx.fillText(i, xOf(i), H - 8);
+  });
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.lineTo(x + w - r, y); ctx.arcTo(x + w, y, x + w, y + r, r);
+  ctx.lineTo(x + w, y + h - r); ctx.arcTo(x + w, y + h, x + w - r, y + h, r);
+  ctx.lineTo(x + r, y + h); ctx.arcTo(x, y + h, x, y + h - r, r);
+  ctx.lineTo(x, y + r); ctx.arcTo(x, y, x + r, y, r);
+  ctx.closePath();
+}
+
+window.addEventListener("resize", drawChart);
+
+////////////////////////////////////////////////////
+// START
+////////////////////////////////////////////////////
 render();
+drawChart();
 connectBroker();
-
 </script>
-
 </body>
 </html>
