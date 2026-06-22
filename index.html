@@ -2,95 +2,75 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V10 AI Dashboard</title>
+<title>V11 AI Multi-Symbol Dashboard</title>
 
 <style>
-body {
-  font-family: Arial;
-  background: #0b1220;
-  color: white;
-  margin: 0;
-  padding: 20px;
+body{
+  margin:0;
+  background:#0b1220;
+  color:white;
+  font-family:Arial;
 }
 
-.grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 12px;
+.header{
+  padding:20px;
+  font-size:22px;
+  font-weight:bold;
 }
 
-.card {
-  background: #111827;
-  padding: 15px;
-  border-radius: 12px;
+.grid{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  padding:20px;
 }
 
-.big {
-  font-size: 28px;
-  font-weight: bold;
+.card{
+  background:#111827;
+  padding:15px;
+  border-radius:14px;
+  text-align:center;
+  box-shadow:0 0 10px rgba(0,0,0,0.4);
 }
 
-.green { color: #22c55e; }
-.red { color: #ef4444; }
-.gray { color: #9ca3af; }
+.symbol{
+  font-size:14px;
+  opacity:0.7;
+}
 
-#log {
-  height: 250px;
-  overflow: auto;
-  background: #0f172a;
-  padding: 10px;
-  margin-top: 10px;
-  font-size: 12px;
+.signal{
+  font-size:26px;
+  font-weight:bold;
+  margin:10px 0;
+}
+
+.call{color:#22c55e;}
+.put{color:#ef4444;}
+.neutral{color:#fbbf24;}
+
+.small{
+  font-size:12px;
+  opacity:0.7;
 }
 </style>
 </head>
 
 <body>
 
-<h2>🚀 V10 AI Trading Dashboard</h2>
+<div class="header">🚀 V11 AI MULTI-SYMBOL DASHBOARD</div>
 
-<div class="grid">
-
-  <div class="card">
-    <div>PRICE</div>
-    <div id="price" class="big">-</div>
-  </div>
-
-  <div class="card">
-    <div>SIGNAL</div>
-    <div id="signal" class="big gray">WAIT</div>
-  </div>
-
-  <div class="card">
-    <div>FILTER</div>
-    <div id="filter" class="big gray">NORMAL</div>
-  </div>
-
-</div>
-
-<div class="grid" style="margin-top:10px;">
-
-  <div class="card">
-    <div>SUPPORT</div>
-    <div id="support">-</div>
-  </div>
-
-  <div class="card">
-    <div>RESISTANCE</div>
-    <div id="resistance">-</div>
-  </div>
-
-  <div class="card">
-    <div>CONFIDENCE</div>
-    <div id="conf">-</div>
-  </div>
-
-</div>
-
-<h3>📊 LOG</h3>
-<div id="log"></div>
+<div class="grid" id="grid"></div>
 
 <script>
+
+// =====================
+// SYMBOLS (8 ตัว)
+// =====================
+
+const symbols = [
+  "R_10","R_25","R_50","R_75",
+  "R_100","R_150","R_200","R_300"
+];
 
 // =====================
 // STATE
@@ -98,113 +78,67 @@ body {
 
 let state = {};
 
-// =====================
-// LOG
-// =====================
-
-function log(msg){
-  const el = document.getElementById("log");
-  el.innerHTML += msg + "<br>";
-  el.scrollTop = el.scrollHeight;
+function randPrice(){
+  return 100 + Math.random()*0.5;
 }
 
 // =====================
-// TOOLS
+// SIMPLE AI (CLEAN SIGNAL ONLY)
 // =====================
 
-function EMA(arr){
-  let ema = arr[0];
-  const k = 0.1;
-  for(let i=1;i<arr.length;i++){
-    ema = arr[i]*k + ema*(1-k);
-  }
-  return ema;
-}
+function decide(price, prev){
 
-function SR(t){
-  return {
-    support: Math.min(...t.slice(-20)),
-    resistance: Math.max(...t.slice(-20))
-  };
+  const diff = price - prev;
+
+  if(diff > 0.02) return "CALL";
+  if(diff < -0.02) return "PUT";
+  return "NEUTRAL";
 }
 
 // =====================
-// ENGINE
+// UI RENDER
 // =====================
 
-function onTick(price){
+function render(){
 
-  const sym = "R_100";
+  const grid = document.getElementById("grid");
+  grid.innerHTML = "";
 
-  if(!state[sym]) state[sym] = {ticks:[]};
+  symbols.forEach(sym=>{
 
-  const s = state[sym];
-  s.ticks.push(price);
-  if(s.ticks.length > 200) s.ticks.shift();
-
-  if(s.ticks.length < 20) return;
-
-  const sr = SR(s.ticks);
-
-  const ema = EMA(s.ticks.slice(-20));
-
-  const momentum = price - s.ticks[s.ticks.length-5];
-
-  // FILTER
-  let filter = "NORMAL";
-  const range = sr.resistance - sr.support;
-
-  if(range < 0.005) filter = "TIGHT";
-  if(range > 0.02) filter = "NOISE";
-
-  // SIGNAL
-  let signal = "NEUTRAL";
-  let conf = 0.5;
-
-  if(filter !== "NOISE"){
-
-    if(price > sr.resistance && momentum > 0){
-      signal = "BUY";
-      conf = 0.8;
+    if(!state[sym]){
+      state[sym] = {
+        price: randPrice(),
+        prev: randPrice(),
+        signal: "NEUTRAL"
+      };
     }
 
-    if(price < sr.support && momentum < 0){
-      signal = "SELL";
-      conf = 0.8;
-    }
-  }
+    const s = state[sym];
 
-  // =====================
-  // UI UPDATE
-  // =====================
+    s.prev = s.price;
+    s.price = randPrice();
+    s.signal = decide(s.price, s.prev);
 
-  document.getElementById("price").innerText = price.toFixed(5);
+    let cls = "neutral";
+    if(s.signal==="CALL") cls="call";
+    if(s.signal==="PUT") cls="put";
 
-  document.getElementById("signal").innerText = signal;
-
-  document.getElementById("support").innerText = sr.support.toFixed(5);
-  document.getElementById("resistance").innerText = sr.resistance.toFixed(5);
-
-  document.getElementById("conf").innerText = conf;
-
-  document.getElementById("filter").innerText = filter;
-
-  // COLORS
-  document.getElementById("signal").className =
-    "big " + (signal==="BUY"?"green":signal==="SELL"?"red":"gray");
-
-  log(`price=${price} | signal=${signal} | filter=${filter}`);
-
+    grid.innerHTML += `
+      <div class="card">
+        <div class="symbol">${sym}</div>
+        <div class="signal ${cls}">${s.signal}</div>
+        <div class="small">PRICE: ${s.price.toFixed(3)}</div>
+      </div>
+    `;
+  });
 }
 
 // =====================
-// FAKE DATA
+// LOOP
 // =====================
 
-setInterval(()=>{
-  const price = 100 + Math.random()*0.5;
-  onTick(price);
-}, 800);
+setInterval(render, 800);
 
 </script>
 
