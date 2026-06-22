@@ -2,51 +2,44 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V13 AI Trading Dashboard</title>
+<title>V14 TradingView AI Dashboard</title>
 
 <style>
 
-/* =========================
-   BASE THEME
-========================= */
-
 body{
   margin:0;
-  font-family:Arial;
   background:#0b1220;
-  color:#fff;
+  color:white;
+  font-family:Arial;
 }
 
-/* TOP BAR */
-.topbar{
+/* TOP */
+.top{
   display:flex;
   justify-content:space-between;
-  padding:16px 20px;
+  padding:16px;
   border-bottom:1px solid rgba(255,255,255,0.05);
 }
 
-.status{
-  display:flex;
-  gap:20px;
-  font-size:12px;
-  opacity:0.8;
-}
-
-/* GRID MAIN */
-.grid-top{
+/* GRID */
+.grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
   gap:12px;
-  padding:16px;
+  padding:12px;
 }
 
-/* SYMBOL CARD */
+/* CARD */
 .card{
   background:#111827;
-  border-radius:14px;
-  padding:14px;
-  border:1px solid rgba(255,255,255,0.05);
-  position:relative;
+  padding:12px;
+  border-radius:12px;
+  cursor:pointer;
+  transition:0.2s;
+}
+
+.card:hover{
+  transform:scale(1.02);
 }
 
 .symbol{
@@ -55,38 +48,32 @@ body{
 }
 
 .signal{
-  font-size:22px;
+  font-size:20px;
   font-weight:bold;
   margin:10px 0;
 }
 
-.price{
-  font-size:11px;
-  opacity:0.8;
-}
-
-/* COLORS */
 .call{color:#22c55e;}
 .put{color:#ef4444;}
 .neutral{color:#fbbf24;}
 
-/* MAIN LAYOUT */
+/* MAIN */
 .main{
   display:grid;
-  grid-template-columns:2.2fr 1fr;
+  grid-template-columns:2fr 1fr;
   gap:12px;
-  padding:0 16px;
-}
-
-/* CHART AREA */
-.chart{
-  background:#111827;
-  border-radius:14px;
-  height:420px;
   padding:12px;
 }
 
-/* SIDE PANEL */
+/* CHART */
+.chart{
+  height:500px;
+  background:#111827;
+  border-radius:12px;
+  overflow:hidden;
+}
+
+/* SIDE */
 .side{
   display:flex;
   flex-direction:column;
@@ -95,21 +82,8 @@ body{
 
 .panel{
   background:#111827;
-  border-radius:14px;
   padding:12px;
-}
-
-/* BOTTOM */
-.bottom{
-  display:grid;
-  grid-template-columns:1fr 1fr 1fr;
-  gap:12px;
-  padding:16px;
-}
-
-.small{
-  font-size:12px;
-  opacity:0.8;
+  border-radius:12px;
 }
 
 </style>
@@ -117,50 +91,32 @@ body{
 
 <body>
 
-<!-- ================= TOP BAR ================= -->
-<div class="topbar">
-  <div>🚀 V13 REAL SCORING ENGINE</div>
-
-  <div class="status">
-    <div>● LIVE</div>
-    <div>AI SCORING ACTIVE</div>
-    <div>8 SYMBOLS</div>
-  </div>
+<div class="top">
+  <div>🚀 V14 AI + TRADINGVIEW CONNECT</div>
+  <div id="activeSym">R_100</div>
 </div>
 
-<!-- ================= SYMBOL GRID ================= -->
-<div class="grid-top" id="grid"></div>
+<!-- SYMBOL GRID -->
+<div class="grid" id="grid"></div>
 
-<!-- ================= MAIN ================= -->
+<!-- MAIN -->
 <div class="main">
 
-  <div class="chart">
-    📈 TRADINGVIEW CHART AREA (HOOK HERE)
+  <div class="chart" id="chartBox">
+    <!-- TradingView loads here -->
   </div>
 
   <div class="side">
-
     <div class="panel">
-      🧠 SIGNAL SUMMARY<br>
-      <div class="small" id="summary"></div>
+      🧠 AI STATUS<br>
+      ACTIVE SCORING ENGINE
     </div>
 
     <div class="panel">
-      📊 MARKET FILTER<br>
-      <div class="small">VOLATILITY: NORMAL</div>
-      <div class="small">TREND: ACTIVE</div>
+      📊 SIGNAL SUMMARY<br>
+      CLICK SYMBOL TO SWITCH CHART
     </div>
-
   </div>
-
-</div>
-
-<!-- ================= BOTTOM ================= -->
-<div class="bottom">
-
-  <div class="panel">TOP OPPORTUNITIES</div>
-  <div class="panel">AI NOTES</div>
-  <div class="panel">SYSTEM INFO</div>
 
 </div>
 
@@ -171,17 +127,17 @@ body{
 // =========================
 
 const symbols = [
-"R_10","R_25","R_50","R_75",
-"R_100","R_150","R_200","R_300"
+ "R_10","R_25","R_50","R_75",
+ "R_100","R_150","R_200","R_300"
 ];
 
 let state = {};
 
 // =========================
-// SIMPLE SCORING ENGINE
+// SIGNAL ENGINE (SIMPLE)
 // =========================
 
-function decide(price, prev){
+function signal(price, prev){
 
   const diff = price - prev;
 
@@ -191,15 +147,33 @@ function decide(price, prev){
 }
 
 // =========================
-// RENDER UI
+// TRADINGVIEW LOAD
+// =========================
+
+function loadChart(sym){
+
+  document.getElementById("activeSym").innerText = sym;
+
+  const box = document.getElementById("chartBox");
+
+  box.innerHTML = `
+  <iframe
+    src="https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=1&theme=dark"
+    width="100%"
+    height="500"
+    frameborder="0">
+  </iframe>
+  `;
+}
+
+// =========================
+// RENDER GRID
 // =========================
 
 function render(){
 
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
-
-  let call=0, put=0, neutral=0;
 
   symbols.forEach(sym=>{
 
@@ -215,34 +189,27 @@ function render(){
     s.prev = s.price;
     s.price = 100 + Math.random()*0.5;
 
-    const sig = decide(s.price, s.prev);
-
-    if(sig==="CALL") call++;
-    if(sig==="PUT") put++;
-    if(sig==="NEUTRAL") neutral++;
+    const sig = signal(s.price, s.prev);
 
     let cls = "neutral";
     if(sig==="CALL") cls="call";
     if(sig==="PUT") cls="put";
 
     grid.innerHTML += `
-      <div class="card">
+      <div class="card" onclick="loadChart('${sym}')">
         <div class="symbol">${sym}</div>
         <div class="signal ${cls}">${sig}</div>
-        <div class="price">PRICE: ${s.price.toFixed(3)}</div>
       </div>
     `;
   });
-
-  document.getElementById("summary").innerHTML =
-    `CALL: ${call} | PUT: ${put} | NEUTRAL: ${neutral}`;
 }
 
 // =========================
-// LOOP
+// INIT
 // =========================
 
-setInterval(render, 900);
+loadChart("R_100");
+setInterval(render, 1000);
 
 </script>
 
