@@ -2,173 +2,204 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V13 REAL SCORING DASHBOARD</title>
+<title>V13 AI Trading Dashboard</title>
 
 <style>
+
+/* =========================
+   BASE THEME
+========================= */
+
 body{
   margin:0;
   font-family:Arial;
   background:#0b1220;
-  color:white;
+  color:#fff;
 }
 
-/* HEADER */
-.header{
-  padding:18px 22px;
+/* TOP BAR */
+.topbar{
   display:flex;
   justify-content:space-between;
-  align-items:center;
+  padding:16px 20px;
   border-bottom:1px solid rgba(255,255,255,0.05);
 }
 
 .status{
   display:flex;
-  gap:15px;
+  gap:20px;
   font-size:12px;
   opacity:0.8;
 }
 
-.dot{
-  width:8px;
-  height:8px;
-  border-radius:50%;
-  background:#22c55e;
-  margin-right:6px;
-}
-
-/* GRID */
-.grid{
+/* GRID MAIN */
+.grid-top{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:14px;
-  padding:20px;
+  gap:12px;
+  padding:16px;
 }
 
-/* CARD */
+/* SYMBOL CARD */
 .card{
   background:#111827;
-  border-radius:16px;
+  border-radius:14px;
   padding:14px;
   border:1px solid rgba(255,255,255,0.05);
   position:relative;
-  overflow:hidden;
 }
 
-/* SYMBOL */
 .symbol{
-  font-size:13px;
+  font-size:12px;
   opacity:0.7;
 }
 
-/* SIGNAL */
 .signal{
-  font-size:26px;
+  font-size:22px;
   font-weight:bold;
   margin:10px 0;
 }
 
-/* COLORS */
-.call{ color:#22c55e; }
-.put{ color:#ef4444; }
-.neutral{ color:#fbbf24; }
+.price{
+  font-size:11px;
+  opacity:0.8;
+}
 
-/* CONF */
-.conf{
+/* COLORS */
+.call{color:#22c55e;}
+.put{color:#ef4444;}
+.neutral{color:#fbbf24;}
+
+/* MAIN LAYOUT */
+.main{
+  display:grid;
+  grid-template-columns:2.2fr 1fr;
+  gap:12px;
+  padding:0 16px;
+}
+
+/* CHART AREA */
+.chart{
+  background:#111827;
+  border-radius:14px;
+  height:420px;
+  padding:12px;
+}
+
+/* SIDE PANEL */
+.side{
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+}
+
+.panel{
+  background:#111827;
+  border-radius:14px;
+  padding:12px;
+}
+
+/* BOTTOM */
+.bottom{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:12px;
+  padding:16px;
+}
+
+.small{
   font-size:12px;
   opacity:0.8;
 }
 
-/* MINI TREND */
-.mini{
-  height:40px;
-  margin-top:8px;
-  opacity:0.6;
-}
 </style>
 </head>
 
 <body>
 
-<div class="header">
+<!-- ================= TOP BAR ================= -->
+<div class="topbar">
   <div>🚀 V13 REAL SCORING ENGINE</div>
 
   <div class="status">
-    <div><span class="dot"></span>LIVE</div>
+    <div>● LIVE</div>
     <div>AI SCORING ACTIVE</div>
     <div>8 SYMBOLS</div>
   </div>
 </div>
 
-<div class="grid" id="grid"></div>
+<!-- ================= SYMBOL GRID ================= -->
+<div class="grid-top" id="grid"></div>
+
+<!-- ================= MAIN ================= -->
+<div class="main">
+
+  <div class="chart">
+    📈 TRADINGVIEW CHART AREA (HOOK HERE)
+  </div>
+
+  <div class="side">
+
+    <div class="panel">
+      🧠 SIGNAL SUMMARY<br>
+      <div class="small" id="summary"></div>
+    </div>
+
+    <div class="panel">
+      📊 MARKET FILTER<br>
+      <div class="small">VOLATILITY: NORMAL</div>
+      <div class="small">TREND: ACTIVE</div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- ================= BOTTOM ================= -->
+<div class="bottom">
+
+  <div class="panel">TOP OPPORTUNITIES</div>
+  <div class="panel">AI NOTES</div>
+  <div class="panel">SYSTEM INFO</div>
+
+</div>
 
 <script>
 
-// =====================
-// SYMBOLS (8)
-// =====================
+// =========================
+// SYMBOLS
+// =========================
 
 const symbols = [
- "R_10","R_25","R_50","R_75",
- "R_100","R_150","R_200","R_300"
+"R_10","R_25","R_50","R_75",
+"R_100","R_150","R_200","R_300"
 ];
-
-// =====================
-// STATE
-// =====================
 
 let state = {};
 
-// =====================
-// SCORE ENGINE (REAL V13)
-// =====================
+// =========================
+// SIMPLE SCORING ENGINE
+// =========================
 
-function score(price, prev){
+function decide(price, prev){
 
   const diff = price - prev;
 
-  let signal = "NEUTRAL";
-  let confidence = 50 + Math.random()*20;
-  let trend = "SIDEWAYS";
-
-  if(diff > 0.02){
-    signal = "CALL";
-    trend = "BULLISH";
-    confidence += 20;
-  }
-
-  if(diff < -0.02){
-    signal = "PUT";
-    trend = "BEARISH";
-    confidence += 20;
-  }
-
-  return {
-    signal,
-    confidence: Math.min(95, Math.floor(confidence)),
-    trend
-  };
+  if(diff > 0.02) return "CALL";
+  if(diff < -0.02) return "PUT";
+  return "NEUTRAL";
 }
 
-// =====================
-// FAKE MINI CHART
-// =====================
-
-function spark(){
-  let arr = [];
-  for(let i=0;i<20;i++){
-    arr.push(Math.random()*30);
-  }
-  return arr.map(v=>`▁▂▃▄▅▆▇█`[Math.floor(v/4)]).join('');
-}
-
-// =====================
-// RENDER
-// =====================
+// =========================
+// RENDER UI
+// =========================
 
 function render(){
 
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
+
+  let call=0, put=0, neutral=0;
 
   symbols.forEach(sym=>{
 
@@ -184,35 +215,32 @@ function render(){
     s.prev = s.price;
     s.price = 100 + Math.random()*0.5;
 
-    const r = score(s.price, s.prev);
+    const sig = decide(s.price, s.prev);
+
+    if(sig==="CALL") call++;
+    if(sig==="PUT") put++;
+    if(sig==="NEUTRAL") neutral++;
 
     let cls = "neutral";
-    if(r.signal==="CALL") cls="call";
-    if(r.signal==="PUT") cls="put";
+    if(sig==="CALL") cls="call";
+    if(sig==="PUT") cls="put";
 
     grid.innerHTML += `
       <div class="card">
         <div class="symbol">${sym}</div>
-
-        <div class="signal ${cls}">
-          ${r.signal}
-        </div>
-
-        <div class="conf">
-          CONFIDENCE: ${r.confidence}%
-        </div>
-
-        <div class="conf">
-          TREND: ${r.trend}
-        </div>
-
-        <div class="mini">
-          ${spark()}
-        </div>
+        <div class="signal ${cls}">${sig}</div>
+        <div class="price">PRICE: ${s.price.toFixed(3)}</div>
       </div>
     `;
   });
+
+  document.getElementById("summary").innerHTML =
+    `CALL: ${call} | PUT: ${put} | NEUTRAL: ${neutral}`;
 }
+
+// =========================
+// LOOP
+// =========================
 
 setInterval(render, 900);
 
