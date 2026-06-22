@@ -2,10 +2,9 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V14 TradingView AI Dashboard</title>
+<title>V14 AUTO TradingView AI</title>
 
 <style>
-
 body{
   margin:0;
   background:#0b1220;
@@ -14,11 +13,17 @@ body{
 }
 
 /* TOP */
-.top{
+.topbar{
   display:flex;
   justify-content:space-between;
   padding:16px;
   border-bottom:1px solid rgba(255,255,255,0.05);
+  font-size:14px;
+}
+
+.dot{
+  width:8px;height:8px;border-radius:50%;
+  background:#22c55e;display:inline-block;margin-right:6px;
 }
 
 /* GRID */
@@ -29,29 +34,15 @@ body{
   padding:12px;
 }
 
-/* CARD */
 .card{
   background:#111827;
   padding:12px;
-  border-radius:12px;
-  cursor:pointer;
-  transition:0.2s;
+  border-radius:14px;
+  border:1px solid rgba(255,255,255,0.05);
 }
 
-.card:hover{
-  transform:scale(1.02);
-}
-
-.symbol{
-  font-size:12px;
-  opacity:0.7;
-}
-
-.signal{
-  font-size:20px;
-  font-weight:bold;
-  margin:10px 0;
-}
+.symbol{font-size:12px;opacity:0.7;}
+.signal{font-size:20px;font-weight:bold;margin:8px 0;}
 
 .call{color:#22c55e;}
 .put{color:#ef4444;}
@@ -67,55 +58,49 @@ body{
 
 /* CHART */
 .chart{
-  height:500px;
-  background:#111827;
-  border-radius:12px;
+  height:520px;
+  border-radius:14px;
   overflow:hidden;
+  background:#111827;
 }
 
 /* SIDE */
-.side{
-  display:flex;
-  flex-direction:column;
-  gap:12px;
-}
-
 .panel{
   background:#111827;
   padding:12px;
-  border-radius:12px;
+  border-radius:14px;
+  margin-bottom:12px;
 }
-
 </style>
 </head>
 
 <body>
 
-<div class="top">
-  <div>🚀 V14 AI + TRADINGVIEW CONNECT</div>
-  <div id="activeSym">R_100</div>
+<div class="topbar">
+  <div>🚀 V14 AUTO TRADINGVIEW ENGINE</div>
+  <div><span class="dot"></span>ACTIVE</div>
 </div>
 
-<!-- SYMBOL GRID -->
 <div class="grid" id="grid"></div>
 
-<!-- MAIN -->
 <div class="main">
 
-  <div class="chart" id="chartBox">
-    <!-- TradingView loads here -->
-  </div>
+  <!-- CHART -->
+  <div class="chart" id="chartBox"></div>
 
-  <div class="side">
+  <!-- SIDE -->
+  <div>
+
     <div class="panel">
-      🧠 AI STATUS<br>
-      ACTIVE SCORING ENGINE
+      🧠 ACTIVE SYMBOL<br>
+      <div id="activeSym">-</div>
     </div>
 
     <div class="panel">
-      📊 SIGNAL SUMMARY<br>
-      CLICK SYMBOL TO SWITCH CHART
+      📊 AUTO SCAN MODE<br>
+      PICKS STRONGEST SIGNAL
     </div>
+
   </div>
 
 </div>
@@ -127,23 +112,37 @@ body{
 // =========================
 
 const symbols = [
- "R_10","R_25","R_50","R_75",
- "R_100","R_150","R_200","R_300"
+"R_10","R_25","R_50","R_75",
+"R_100","R_150","R_200","R_300"
 ];
+
+// =========================
+// STATE
+// =========================
 
 let state = {};
 
 // =========================
-// SIGNAL ENGINE (SIMPLE)
+// SIMPLE SCORING ENGINE
 // =========================
 
-function signal(price, prev){
-
+function score(price, prev){
   const diff = price - prev;
 
-  if(diff > 0.02) return "CALL";
-  if(diff < -0.02) return "PUT";
-  return "NEUTRAL";
+  let signal = "NEUTRAL";
+  let power = 0;
+
+  if(diff > 0.02){
+    signal = "CALL";
+    power = diff * 100;
+  }
+
+  if(diff < -0.02){
+    signal = "PUT";
+    power = Math.abs(diff) * 100;
+  }
+
+  return {signal, power};
 }
 
 // =========================
@@ -154,16 +153,51 @@ function loadChart(sym){
 
   document.getElementById("activeSym").innerText = sym;
 
-  const box = document.getElementById("chartBox");
-
-  box.innerHTML = `
-  <iframe
-    src="https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=1&theme=dark"
-    width="100%"
-    height="500"
-    frameborder="0">
-  </iframe>
+  document.getElementById("chartBox").innerHTML = `
+    <iframe
+      src="https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=1&theme=dark"
+      width="100%"
+      height="520"
+      frameborder="0">
+    </iframe>
   `;
+}
+
+// =========================
+// FIND STRONGEST SYMBOL
+// =========================
+
+function getBestSymbol(){
+
+  let best = null;
+
+  symbols.forEach(sym=>{
+
+    if(!state[sym]){
+      state[sym] = {
+        price:100+Math.random(),
+        prev:100+Math.random(),
+        power:0,
+        signal:"NEUTRAL"
+      };
+    }
+
+    const s = state[sym];
+
+    s.prev = s.price;
+    s.price = 100 + Math.random()*0.5;
+
+    const r = score(s.price, s.prev);
+
+    s.signal = r.signal;
+    s.power = r.power;
+
+    if(!best || r.power > best.power){
+      best = {sym, power:r.power};
+    }
+  });
+
+  return best ? best.sym : "R_100";
 }
 
 // =========================
@@ -177,39 +211,43 @@ function render(){
 
   symbols.forEach(sym=>{
 
-    if(!state[sym]){
-      state[sym] = {
-        price:100+Math.random(),
-        prev:100+Math.random()
-      };
-    }
-
     const s = state[sym];
 
-    s.prev = s.price;
-    s.price = 100 + Math.random()*0.5;
-
-    const sig = signal(s.price, s.prev);
-
     let cls = "neutral";
-    if(sig==="CALL") cls="call";
-    if(sig==="PUT") cls="put";
+    if(s.signal==="CALL") cls="call";
+    if(s.signal==="PUT") cls="put";
 
     grid.innerHTML += `
-      <div class="card" onclick="loadChart('${sym}')">
+      <div class="card">
         <div class="symbol">${sym}</div>
-        <div class="signal ${cls}">${sig}</div>
+        <div class="signal ${cls}">${s.signal}</div>
+        <div style="font-size:12px;opacity:0.7">
+          POWER: ${s.power.toFixed(3)}
+        </div>
       </div>
     `;
   });
 }
 
 // =========================
-// INIT
+// AUTO ENGINE LOOP
 // =========================
 
-loadChart("R_100");
-setInterval(render, 1000);
+function loop(){
+
+  const best = getBestSymbol();
+
+  render();
+
+  // 🔥 AUTO SWITCH CHART (NO CLICK NEEDED)
+  loadChart(best);
+}
+
+// =========================
+// START
+// =========================
+
+setInterval(loop, 1200);
 
 </script>
 
