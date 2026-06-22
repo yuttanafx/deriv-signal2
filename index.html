@@ -402,64 +402,7 @@ function computeIfNeeded(out){
   if(out.signal === 'WAIT' || !out.signal){out.signal = out.score >= 3 ? 'CALL' : out.score <= -3 ? 'PUT' : 'WAIT'}
   if(!Number.isFinite(out.confidence)) out.confidence = Math.min(95, Math.max(50, 50 + Math.abs(out.score) * 9));
   if(!out.filter || out.filter === '—') out.filter = detail.join(' + ') || 'MANUAL_FILTER';
-  
-  // ================= V38 AUTO TRADE CORE =================
-
-let V38_AUTO_TRADE = true;
-let V38_COOLDOWN = 5000;
-let V38_LAST_TRADE = 0;
-let V38_LOSS_STREAK = 0;
-let V38_MAX_STREAK = 3;
-
-// ---- AI SHIELD ----
-function V38_SHIELD(){
-  const now = Date.now();
-  if(now - V38_LAST_TRADE < V38_COOLDOWN) return false;
-  if(V38_LOSS_STREAK >= V38_MAX_STREAK) return false;
-  return true;
-}
-
-// ---- DERIV EXECUTION (REAL TRADE) ----
-function V38_EXECUTE(signal, lot=1, duration=1){
-
-  if(!derivLinkWs || derivLinkWs.readyState !== 1){
-    addLog('<span class="ERR">ERR</span> Deriv not connected (no trade)');
-    return;
-  }
-
-  const type = (signal === 'CALL') ? 'CALL' : 'PUT';
-
-  derivLinkWs.send(JSON.stringify({
-    buy: 1,
-    price: 10,
-    parameters: {
-      amount: lot,
-      basis: "stake",
-      contract_type: type,
-      currency: "USD",
-      duration: duration,
-      duration_unit: "m",
-      symbol: qs('symbolInput').value || "R_100"
-    }
-  }));
-
-  V38_LAST_TRADE = Date.now();
-  addLog('<span class="SYS">TRADE</span> '+type+' lot '+lot);
-}
-
-// ---- MAIN ENGINE ----
-function V38_ENGINE(payload){
-
-  if(!V38_AUTO_TRADE) return;
-  if(!V38_SHIELD()) return;
-
-  const sig = payload.signal;
-  if(sig !== 'CALL' && sig !== 'PUT') return;
-
-  let lot = parseFloat(qs('lot')?.value || 1);
-
-  V38_EXECUTE(sig, lot, 1);
-
+  return out;
 }
 
 function explainSignal(v){
@@ -499,41 +442,12 @@ function renderSignalHistory(){
   }).join('')
 }
 
-function ingestSignal(payload, sourceLabel){
-
-  if(!payload || typeof payload !== 'object') return;
-
-  const sym = symbolForPayload(payload);
-  const normalized = normalizePayload(payload);
-
-  normalized.symbol_id = sym.id;
-  normalized.tv_symbol = sym.tv || payload.symbol || qs('symbolInput').value;
-
-  signalStore[sym.id] = normalized;
-  signalStore[compactKey(sym.tv)] = normalized;
-
-  receivedCount++;
-
-  pushSignalHistory(sym, normalized, sourceLabel);
-  saveStore();
-
-  const sig = sigClass(normalized.signal);
-
-  addLog(
-    '<span class="'+sig+'">'+sig+'</span> '
-    + escapeHtml(sym.id)
-    + ' price ' + fmt(normalized.price,4)
-    + ' conf ' + pct(normalized.confidence)
-    + ' score ' + fmt(normalized.score,2)
-    + ' ' + escapeHtml(sourceLabel || '')
-  );
-
-  render();
-
-  maybeNotifyTelegram(sym, normalized, sourceLabel);
-
-  // ✅ V38 AUTO TRADE HOOK (ถูกตำแหน่ง)
-  V38_ENGINE(normalized);
+function ingestSignal(payload, sourceLabel){if(!payload || typeof payload !== 'object')return; const sym=symbolForPayload(payload); const normalized=normalizePayload(payload); normalized.symbol_id=sym.id; normalized.tv_symbol=sym.tv || payload.symbol || qs('symbolInput').value; signalStore[sym.id]=normalized; signalStore[compactKey(sym.tv)]=normalized; receivedCount++; pushSignalHistory(sym, normalized, sourceLabel); saveStore(); const sig=sigClass(normalized.signal); addLog('<span class="'+sig+'">'+sig+'</span> '+escapeHtml(sym.id)+' price '+fmt(normalized.price,4)+' conf '+pct(normalized.confidence)+' score '+fmt(normalized.score,2)+' '+escapeHtml(sourceLabel || '')); render(); maybeNotifyTelegram(sym, normalized, sourceLabel)}
+function parseSignals(text){const t=String(text || '').trim(); if(!t)return []; try{const parsed=JSON.parse(t); return Array.isArray(parsed)?parsed:[parsed]}catch(e){} const rows=[]; for(const line of t.split(/\n+/)){const v=line.trim(); if(!v)continue; try{rows.push(JSON.parse(v))}catch(e){}}
+  if(rows.length)return rows;
+  const obj={}; const pairs=t.match(/[A-Za-z_]+\s*[=:]\s*[^,\n]+/g) || [];
+  pairs.forEach(p=>{const m=p.match(/([A-Za-z_]+)\s*[=:]\s*([^,\n]+)/); if(m)obj[m[1].trim()]=m[2].trim().replace(/^['"]|['"]$/g,'')});
+  return Object.keys(obj).length?[obj]:[];
 }
 function fillManualFromPayload(payload){
   const n = normalizePayload(payload || {});
@@ -812,14 +726,7 @@ function setDerivStatus(text,on){
   pill.className='status-pill '+(on?'on':'off');
 }
 function toggleDerivConnect(checked){
-  if(checked){
-    connectDerivReadOnly();
-  }else{
-    try{ derivLinkWs && derivLinkWs.close(); }catch(e){}
-    derivLinkWs=null;
-    setDerivStatus('DISCONNECTED',false);
-  }
-}
+  if(checked){ connectDerivReadOnly(); }
   else{
     try{ derivLinkWs && derivLinkWs.close(); }catch(e){}
     derivLinkWs=null;
@@ -841,7 +748,7 @@ function connectDerivReadOnly(){
   try{ derivLinkWs && derivLinkWs.close(); }catch(e){}
   derivLinkWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+encodeURIComponent(appId));
   derivLinkWs.onopen=()=>{
-    (derivLinkWs).send(JSON.stringify({authorize:token}));
+    derivLinkWs.send(JSON.stringify({authorize:token}));
   };
   derivLinkWs.onmessage=(ev)=>{
     let d; try{d=JSON.parse(ev.data)}catch(e){return}
