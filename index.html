@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Deriv V25 PRO - TradingView One Click Value</title>
+<title>Deriv V26 PRO - TradingView One Click Paste Signal</title>
 <style>
 @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Inter:wght@400;500;600;700;800&display=swap');
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
@@ -26,7 +26,7 @@ button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px
   <div class="brand">
     <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true"><path d="M13 2L24 13L13 24L2 13Z" fill="rgba(74,158,255,.14)" stroke="#4a9eff" stroke-width="1.5"/><circle cx="13" cy="13" r="3.7" fill="#4a9eff"/><path d="M8 15.5L12 11.5L15 14.5L19 9.5" stroke="#fff" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" opacity=".82"/></svg>
     <span class="brand-name">deriv<em>.</em>pro</span>
-    <span class="v-badge">V25 ONE CLICK</span>
+    <span class="v-badge">V26 SINGLE</span>
   </div>
   <div class="tabs" id="tabs"></div>
   <div class="actions">
@@ -94,7 +94,7 @@ button{user-select:none}.topbar{height:54px;background:#07090d;border-bottom:1px
       </div>
       <div class="panel" id="signalPanel">
         <h3>วาง JSON Signal จาก TradingView Pine</h3>
-        <p>ใช้กับโหมดไฟล์เดียว: copy JSON ที่ Pine สร้างไว้ แล้วกด GET VALUE หรือกด READ CLIPBOARD + APPLY SIGNAL ระบบจะเติมค่าและออก PUT/CALL ให้ทันที</p>
+        <p>ใช้กับโหมดไฟล์เดียว: กด GET VALUE เพื่ออ่าน clipboard แล้ว JSON จะมาแสดงในช่องนี้ทันที พร้อมเติม Manual Filter และออก PUT/CALL ให้อัตโนมัติ</p>
         <textarea id="signalPaste" placeholder='{"symbol":"DERIV:VOLATILITY_10_INDEX","timeframe":"1","price":1234.56,"rsi":58.2,"ema_fast":1235.1,"ema_slow":1233.8,"atr":2.4,"support":1228,"resistance":1242}'></textarea>
         <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn" onclick="readSignalFromClipboard()">READ CLIPBOARD</button><button class="btn blue" onclick="readAndApplySignalFromClipboard()">READ + APPLY</button><button class="btn green" onclick="applySignalPaste()">APPLY SIGNAL</button></div>
       </div>
@@ -250,12 +250,51 @@ function parseSignals(text){const t=String(text || '').trim(); if(!t)return []; 
   pairs.forEach(p=>{const m=p.match(/([A-Za-z_]+)\s*[=:]\s*([^,\n]+)/); if(m)obj[m[1].trim()]=m[2].trim().replace(/^['"]|['"]$/g,'')});
   return Object.keys(obj).length?[obj]:[];
 }
-function applySignalPaste(){const rows=parseSignals(qs('signalPaste').value); if(!rows.length){addLog('<span class="ERR">ERR</span> อ่าน JSON signal ไม่ได้'); return} rows.forEach(r=>ingestSignal(r,'PASTE')); fillManualFromPayload(rows[rows.length-1]); hidePanels()}
-async function readSignalFromClipboard(){try{const txt=await navigator.clipboard.readText(); qs('signalPaste').value=txt; addLog('<span class="SYS">SYS</span> read clipboard OK')}catch(e){addLog('<span class="ERR">ERR</span> browser ไม่อนุญาตให้อ่าน clipboard: '+escapeHtml(e.message))}}
-async function readAndApplySignalFromClipboard(){try{const txt=await navigator.clipboard.readText(); qs('signalPaste').value=txt; const rows=parseSignals(txt); if(!rows.length){addLog('<span class="ERR">ERR</span> clipboard ไม่มี JSON signal ที่อ่านได้'); return} rows.forEach(r=>ingestSignal(r,'CLIPBOARD')); fillManualFromPayload(rows[rows.length-1]); hidePanels()}catch(e){addLog('<span class="ERR">ERR</span> browser ไม่อนุญาตให้อ่าน clipboard: '+escapeHtml(e.message))}}
+function fillManualFromPayload(payload){
+  const n = normalizePayload(payload || {});
+  qs('mSymbol').value = n.tv_symbol || payload.symbol || payload.tv_symbol || qs('symbolInput').value || active.tv;
+  qs('mPrice').value = Number.isFinite(n.price) ? n.price : '';
+  qs('mRsi').value = Number.isFinite(n.rsi) ? n.rsi : '';
+  qs('mEmaFast').value = Number.isFinite(n.ema_fast) ? n.ema_fast : '';
+  qs('mEmaSlow').value = Number.isFinite(n.ema_slow) ? n.ema_slow : '';
+  qs('mAtr').value = Number.isFinite(n.atr) ? n.atr : '';
+  qs('mSupport').value = Number.isFinite(n.support) ? n.support : '';
+  qs('mResistance').value = Number.isFinite(n.resistance) ? n.resistance : '';
+}
+function prettySignalText(txt){
+  const raw = String(txt || '').trim();
+  if(!raw)return '';
+  try{return JSON.stringify(JSON.parse(raw), null, 2)}catch(e){return raw}
+}
+function applySignalPaste(){
+  const rows=parseSignals(qs('signalPaste').value);
+  if(!rows.length){addLog('<span class="ERR">ERR</span> อ่าน JSON signal ไม่ได้'); return}
+  rows.forEach(r=>ingestSignal(r,'PASTE'));
+  fillManualFromPayload(rows[rows.length-1]);
+  addLog('<span class="SYS">SYS</span> PASTE SIGNAL applied และเติมค่า Manual แล้ว');
+}
+async function readSignalFromClipboard(){
+  try{
+    const txt=await navigator.clipboard.readText();
+    qs('signalPaste').value=prettySignalText(txt);
+    showPanel('signalPanel');
+    addLog('<span class="SYS">SYS</span> read clipboard OK และแสดงใน PASTE SIGNAL แล้ว');
+  }catch(e){addLog('<span class="ERR">ERR</span> browser ไม่อนุญาตให้อ่าน clipboard: '+escapeHtml(e.message))}
+}
+async function readAndApplySignalFromClipboard(){
+  try{
+    const txt=await navigator.clipboard.readText();
+    qs('signalPaste').value=prettySignalText(txt);
+    showPanel('signalPanel');
+    const rows=parseSignals(txt);
+    if(!rows.length){addLog('<span class="ERR">ERR</span> clipboard ไม่มี JSON signal ที่อ่านได้'); return}
+    rows.forEach(r=>ingestSignal(r,'GET_VALUE'));
+    fillManualFromPayload(rows[rows.length-1]);
+    addLog('<span class="SYS">SYS</span> GET VALUE สำเร็จ: ค่าอยู่ใน PASTE SIGNAL + Manual Filter แล้ว');
+  }catch(e){addLog('<span class="ERR">ERR</span> browser ไม่อนุญาตให้อ่าน clipboard: '+escapeHtml(e.message))}
+}
 function applyClipboardSignal(){readAndApplySignalFromClipboard()}
-function fillManualFromPayload(payload){const v=normalizePayload(payload || {}); if(Number.isFinite(v.price)) qs('mPrice').value=v.price; if(Number.isFinite(v.rsi)) qs('mRsi').value=v.rsi; if(Number.isFinite(v.ema_fast)) qs('mEmaFast').value=v.ema_fast; if(Number.isFinite(v.ema_slow)) qs('mEmaSlow').value=v.ema_slow; if(Number.isFinite(v.atr)) qs('mAtr').value=v.atr; if(Number.isFinite(v.support)) qs('mSupport').value=v.support; if(Number.isFinite(v.resistance)) qs('mResistance').value=v.resistance; if(v.symbol || v.tv_symbol) qs('mSymbol').value=v.symbol || v.tv_symbol}
-function manualCalculate(){const payload={symbol:qs('mSymbol').value.trim() || qs('symbolInput').value || active.tv,timeframe:qs('intervalInput').value,price:qs('mPrice').value,rsi:qs('mRsi').value,ema_fast:qs('mEmaFast').value,ema_slow:qs('mEmaSlow').value,atr:qs('mAtr').value,support:qs('mSupport').value,resistance:qs('mResistance').value,filter:'MANUAL_FILTER'}; ingestSignal(payload,'MANUAL'); hidePanels()}
+function manualCalculate(){const payload={symbol:qs('mSymbol').value.trim() || qs('symbolInput').value || active.tv,timeframe:qs('intervalInput').value,price:qs('mPrice').value,rsi:qs('mRsi').value,ema_fast:qs('mEmaFast').value,ema_slow:qs('mEmaSlow').value,atr:qs('mAtr').value,support:qs('mSupport').value,resistance:qs('mResistance').value,filter:'MANUAL_FILTER'}; qs('signalPaste').value=JSON.stringify(payload,null,2); ingestSignal(payload,'MANUAL'); addLog('<span class="SYS">SYS</span> Manual Filter ถูกส่งไปที่ PASTE SIGNAL แล้ว')}
 function quickDemo(side){const tv=qs('symbolInput').value || active.tv; const base=1000+Math.random()*80; const payload={symbol:tv,timeframe:qs('intervalInput').value,signal:side,price:base,rsi:side==='CALL'?61.4:38.6,atr:2.4,ema_fast:side==='CALL'?base-0.2:base+0.2,ema_slow:side==='CALL'?base-1.2:base+1.2,support:base-5.4,resistance:base+5.6,score:side==='CALL'?5.0:-5.0,confidence:88,filter:side==='CALL'?'PRICE_ABOVE_EMA':'PRICE_BELOW_EMA'}; ingestSignal(payload,'TEST')}
 function resetSignals(){signalStore={}; receivedCount=0; saveStore(); addLog('<span class="SYS">SYS</span> reset signals'); render()}
 function render(){
@@ -269,7 +308,7 @@ function copyPine(){const el=qs('pineCode'); el.select(); el.setSelectionRange(0
 function loadHashSignal(){const h=location.hash || ''; if(!h.startsWith('#signal='))return; try{const raw=decodeURIComponent(h.slice(8)); let txt=raw; try{txt=atob(raw.replace(/-/g,'+').replace(/_/g,'/'))}catch(e){} parseSignals(txt).forEach(r=>ingestSignal(r,'HASH'))}catch(e){addLog('<span class="ERR">ERR</span> hash signal error '+escapeHtml(e.message))}}
 window.addEventListener('message', ev=>{if(ev && ev.data && typeof ev.data==='object' && (ev.data.signal || ev.data.price || ev.data.type==='signal'))ingestSignal(ev.data,'POSTMESSAGE')});
 window.addEventListener('keydown', ev=>{if(ev.key==='Escape')hidePanels()});
-buildTabs(); qs('symbolInput').value=active.tv; loadTradingView(active.tv,'1'); render(); loadHashSignal(); addLog('<span class="SYS">SYS</span> V25 one-click value ready for Vercel. กด GET VALUE เพื่ออ่าน JSON จาก clipboard แล้วออก PUT/CALL');
+buildTabs(); qs('symbolInput').value=active.tv; loadTradingView(active.tv,'1'); render(); loadHashSignal(); addLog('<span class="SYS">SYS</span> V26 ready: GET VALUE จะส่งค่าไป PASTE SIGNAL + Manual Filter');
 </script>
 </body>
 </html>
