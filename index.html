@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V14 AUTO TradingView AI</title>
+<title>V16 DERIV REAL CONNECT</title>
 
 <style>
 body{
@@ -12,98 +12,69 @@ body{
   font-family:Arial;
 }
 
-/* TOP */
-.topbar{
+.top{
+  padding:14px;
   display:flex;
   justify-content:space-between;
-  padding:16px;
   border-bottom:1px solid rgba(255,255,255,0.05);
-  font-size:14px;
 }
 
-.dot{
-  width:8px;height:8px;border-radius:50%;
-  background:#22c55e;display:inline-block;margin-right:6px;
-}
-
-/* GRID */
 .grid{
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  gap:12px;
-  padding:12px;
+  gap:10px;
+  padding:10px;
 }
 
 .card{
   background:#111827;
   padding:12px;
-  border-radius:14px;
-  border:1px solid rgba(255,255,255,0.05);
+  border-radius:12px;
 }
 
-.symbol{font-size:12px;opacity:0.7;}
-.signal{font-size:20px;font-weight:bold;margin:8px 0;}
-
-.call{color:#22c55e;}
-.put{color:#ef4444;}
-.neutral{color:#fbbf24;}
-
-/* MAIN */
-.main{
-  display:grid;
-  grid-template-columns:2fr 1fr;
-  gap:12px;
-  padding:12px;
+.signal{
+  font-size:18px;
+  font-weight:bold;
 }
 
-/* CHART */
+.call{color:#22c55e}
+.put{color:#ef4444}
+.neutral{color:#fbbf24}
+
 .chart{
-  height:520px;
-  border-radius:14px;
-  overflow:hidden;
+  height:400px;
   background:#111827;
+  margin:10px;
+  border-radius:12px;
+  padding:10px;
 }
 
-/* SIDE */
-.panel{
-  background:#111827;
-  padding:12px;
-  border-radius:14px;
-  margin-bottom:12px;
+.log{
+  height:120px;
+  overflow:auto;
+  font-size:11px;
+  background:#0f172a;
+  margin:10px;
+  padding:10px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="topbar">
-  <div>🚀 V14 AUTO TRADINGVIEW ENGINE</div>
-  <div><span class="dot"></span>ACTIVE</div>
+<div class="top">
+  <div>🚀 V16 DERIV REAL CONNECT</div>
+  <div id="status">DISCONNECTED</div>
 </div>
 
 <div class="grid" id="grid"></div>
 
-<div class="main">
-
-  <!-- CHART -->
-  <div class="chart" id="chartBox"></div>
-
-  <!-- SIDE -->
-  <div>
-
-    <div class="panel">
-      🧠 ACTIVE SYMBOL<br>
-      <div id="activeSym">-</div>
-    </div>
-
-    <div class="panel">
-      📊 AUTO SCAN MODE<br>
-      PICKS STRONGEST SIGNAL
-    </div>
-
-  </div>
-
+<div class="chart">
+  📊 LIVE PRICE: <span id="price">-</span><br>
+  SIGNAL: <span id="signal">-</span>
 </div>
+
+<div class="log" id="log"></div>
 
 <script>
 
@@ -111,97 +82,104 @@ body{
 // SYMBOLS
 // =========================
 
-const symbols = [
-"R_10","R_25","R_50","R_75",
-"R_100","R_150","R_200","R_300"
-];
-
-// =========================
-// STATE
-// =========================
+const symbols = ["R_10","R_25","R_50","R_75","R_100","R_150","R_200","R_300"];
 
 let state = {};
 
 // =========================
-// SIMPLE SCORING ENGINE
+// LOG
 // =========================
 
-function score(price, prev){
-  const diff = price - prev;
+function log(msg){
+  const el = document.getElementById("log");
+  el.innerHTML += msg + "<br>";
+  el.scrollTop = el.scrollHeight;
+}
 
-  let signal = "NEUTRAL";
-  let power = 0;
+// =========================
+// DERIV SOCKET
+// =========================
 
-  if(diff > 0.02){
-    signal = "CALL";
-    power = diff * 100;
+let ws;
+
+function connect(){
+
+  ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
+
+  ws.onopen = () => {
+    document.getElementById("status").innerText = "CONNECTED";
+    log("CONNECTED TO DERIV");
+
+    // subscribe all symbols
+    symbols.forEach(sym=>{
+      ws.send(JSON.stringify({
+        ticks: sym,
+        subscribe: 1
+      }));
+    });
+  };
+
+  ws.onmessage = (msg) => {
+
+    const data = JSON.parse(msg.data);
+
+    if(data.tick){
+
+      const sym = data.tick.symbol;
+      const price = parseFloat(data.tick.quote);
+
+      handleTick(sym, price);
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById("status").innerText = "DISCONNECTED";
+    log("DISCONNECTED");
+  };
+}
+
+// =========================
+// AI ENGINE (LIGHT V16)
+// =========================
+
+function decide(s){
+
+  const diff = s.price - s.prev;
+
+  if(diff > 0.02) return "CALL";
+  if(diff < -0.02) return "PUT";
+  return "NEUTRAL";
+}
+
+// =========================
+// HANDLE REAL TICK
+// =========================
+
+function handleTick(sym, price){
+
+  if(!state[sym]){
+    state[sym] = {price, prev:price, signal:"-"}; 
   }
 
-  if(diff < -0.02){
-    signal = "PUT";
-    power = Math.abs(diff) * 100;
-  }
+  const s = state[sym];
 
-  return {signal, power};
+  s.prev = s.price;
+  s.price = price;
+
+  const signal = decide(s);
+
+  s.signal = signal;
+
+  document.getElementById("price").innerText = sym + " : " + price;
+  document.getElementById("signal").innerText = signal;
+
+  log(sym + " " + price + " => " + signal);
+
+  render();
 }
 
 // =========================
-// TRADINGVIEW LOAD
-// =========================
-
-function loadChart(sym){
-
-  document.getElementById("activeSym").innerText = sym;
-
-  document.getElementById("chartBox").innerHTML = `
-    <iframe
-      src="https://www.tradingview.com/widgetembed/?symbol=${sym}&interval=1&theme=dark"
-      width="100%"
-      height="520"
-      frameborder="0">
-    </iframe>
-  `;
-}
-
-// =========================
-// FIND STRONGEST SYMBOL
-// =========================
-
-function getBestSymbol(){
-
-  let best = null;
-
-  symbols.forEach(sym=>{
-
-    if(!state[sym]){
-      state[sym] = {
-        price:100+Math.random(),
-        prev:100+Math.random(),
-        power:0,
-        signal:"NEUTRAL"
-      };
-    }
-
-    const s = state[sym];
-
-    s.prev = s.price;
-    s.price = 100 + Math.random()*0.5;
-
-    const r = score(s.price, s.prev);
-
-    s.signal = r.signal;
-    s.power = r.power;
-
-    if(!best || r.power > best.power){
-      best = {sym, power:r.power};
-    }
-  });
-
-  return best ? best.sym : "R_100";
-}
-
-// =========================
-// RENDER GRID
+// UI
 // =========================
 
 function render(){
@@ -211,7 +189,7 @@ function render(){
 
   symbols.forEach(sym=>{
 
-    const s = state[sym];
+    const s = state[sym] || {signal:"-"};
 
     let cls = "neutral";
     if(s.signal==="CALL") cls="call";
@@ -219,35 +197,18 @@ function render(){
 
     grid.innerHTML += `
       <div class="card">
-        <div class="symbol">${sym}</div>
+        <div>${sym}</div>
         <div class="signal ${cls}">${s.signal}</div>
-        <div style="font-size:12px;opacity:0.7">
-          POWER: ${s.power.toFixed(3)}
-        </div>
       </div>
     `;
   });
 }
 
 // =========================
-// AUTO ENGINE LOOP
-// =========================
-
-function loop(){
-
-  const best = getBestSymbol();
-
-  render();
-
-  // 🔥 AUTO SWITCH CHART (NO CLICK NEEDED)
-  loadChart(best);
-}
-
-// =========================
 // START
 // =========================
 
-setInterval(loop, 1200);
+connect();
 
 </script>
 
