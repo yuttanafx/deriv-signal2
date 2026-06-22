@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>V18 STABLE TRADING SYSTEM</title>
+<title>V19 STABLE REAL SYSTEM</title>
 
 <style>
 body{
@@ -12,7 +12,7 @@ body{
   color:white;
 }
 
-/* TOP BAR */
+/* TOP */
 .top{
   display:flex;
   justify-content:space-between;
@@ -43,28 +43,13 @@ body{
 .put{color:#ef4444}
 .neutral{color:#fbbf24}
 
-/* MAIN */
-.main{
-  display:grid;
-  grid-template-columns:2fr 1fr;
-  gap:10px;
-  padding:10px;
-}
-
 /* CHART */
 .chart{
-  height:520px;
+  height:500px;
   background:#111827;
+  margin:10px;
   border-radius:12px;
   overflow:hidden;
-}
-
-/* PANEL */
-.panel{
-  background:#111827;
-  padding:12px;
-  border-radius:12px;
-  margin-bottom:10px;
 }
 </style>
 </head>
@@ -72,88 +57,39 @@ body{
 <body>
 
 <div class="top">
-  <div>🚀 V18 STABLE SYSTEM</div>
-  <div id="activeSym">EURUSD</div>
+  <div>🚀 V19 STABLE SYSTEM</div>
+  <div id="status">DISCONNECTED</div>
 </div>
 
 <div class="grid" id="grid"></div>
 
-<div class="main">
-
-  <!-- CHART -->
-  <div class="chart" id="chartBox"></div>
-
-  <!-- SIDE -->
-  <div>
-    <div class="panel">
-      🧠 SIGNAL<br>
-      <div id="liveSignal">WAIT</div>
-    </div>
-
-    <div class="panel">
-      📊 STATUS<br>
-      STABLE ENGINE ACTIVE
-    </div>
-  </div>
-
+<div class="chart" id="chartBox">
+  📊 CHART READY
 </div>
 
 <script>
 
-// =========================
-// SYMBOLS (REAL TRADE STYLE)
-// =========================
-
-const symbols = [
-"EURUSD","GBPUSD","USDJPY","AUDUSD",
-"USDCAD","BTCUSD","ETHUSD","XAUUSD"
-];
-
-// =========================
-// STATE (NO RESET)
-// =========================
+////////////////////////////////////////////////////
+// 🧱 1. STATE (SAFE)
+////////////////////////////////////////////////////
 
 let state = {};
-let currentSymbol = "EURUSD";
 
-// =========================
-// CHART CONTROL (FIXED)
-// =========================
+const symbols = [
+"R_10","R_25","R_50","R_75",
+"R_100","R_150","R_200","R_300"
+];
 
-function loadChart(symbol){
+////////////////////////////////////////////////////
+// 🧠 2. ENGINE (NO BROKER MIX)
+////////////////////////////////////////////////////
 
-  currentSymbol = symbol;
-  document.getElementById("activeSym").innerText = symbol;
-
-  const box = document.getElementById("chartBox");
-
-  // ❗ CLEAN OLD CHART ONLY
-  box.innerHTML = "";
-
-  const iframe = document.createElement("iframe");
-
-  iframe.src =
-    "https://www.tradingview.com/widgetembed/?" +
-    "symbol=" + encodeURIComponent(symbol) +
-    "&interval=1&theme=dark";
-
-  iframe.width = "100%";
-  iframe.height = "520";
-  iframe.style.border = "0";
-
-  box.appendChild(iframe);
-}
-
-// =========================
-// ENGINE (DATA ONLY)
-// =========================
-
-function tick(symbol){
+function processTick(symbol, price){
 
   if(!state[symbol]){
     state[symbol] = {
-      price:100+Math.random(),
-      prev:100+Math.random(),
+      price,
+      prev: price,
       signal:"NEUTRAL",
       score:0
     };
@@ -162,44 +98,85 @@ function tick(symbol){
   const s = state[symbol];
 
   s.prev = s.price;
-  s.price = 100 + Math.random()*0.5;
+  s.price = price;
 
   const diff = s.price - s.prev;
 
   let score = 0;
-  let signal = "NEUTRAL";
 
   if(diff > 0.02) score += 2;
   if(diff < -0.02) score -= 2;
+
+  let signal = "NEUTRAL";
 
   if(score >= 2) signal = "CALL";
   if(score <= -2) signal = "PUT";
 
   s.score = score;
   s.signal = signal;
-
-  return s;
 }
 
-// =========================
-// RENDER UI ONLY (NO CHART TOUCH)
-// =========================
+////////////////////////////////////////////////////
+// 🔌 3. DERIV CONNECT (SAFE ONLY DATA LAYER)
+////////////////////////////////////////////////////
 
-function renderUI(){
+let ws = null;
+
+function connectBroker(){
+
+  ws = new WebSocket("wss://ws.binaryws.com/websockets/v3?app_id=1089");
+
+  ws.onopen = () => {
+    document.getElementById("status").innerText = "CONNECTED";
+
+    symbols.forEach(sym=>{
+      ws.send(JSON.stringify({
+        ticks: sym,
+        subscribe: 1
+      }));
+    });
+  };
+
+  ws.onmessage = (msg) => {
+
+    const data = JSON.parse(msg.data);
+
+    if(data.tick){
+
+      const symbol = data.tick.symbol;
+      const price = parseFloat(data.tick.quote);
+
+      if(symbol && price){
+        processTick(symbol, price);
+        render();
+      }
+    }
+  };
+
+  ws.onclose = () => {
+    document.getElementById("status").innerText = "DISCONNECTED";
+  };
+}
+
+////////////////////////////////////////////////////
+// 🖥️ 4. UI (SAFE RENDER ONLY)
+////////////////////////////////////////////////////
+
+function render(){
 
   const grid = document.getElementById("grid");
   grid.innerHTML = "";
 
   symbols.forEach(sym=>{
 
-    const s = tick(sym);
+    const s = state[sym] || {signal:"NEUTRAL",score:0};
 
     let cls = "neutral";
     if(s.signal==="CALL") cls="call";
     if(s.signal==="PUT") cls="put";
 
     grid.innerHTML += `
-      <div class="card" onclick="loadChart('${sym}')">
+      <div class="card">
         <div>${sym}</div>
         <div class="signal ${cls}">${s.signal}</div>
         <div style="font-size:12px;opacity:0.7">
@@ -208,31 +185,14 @@ function renderUI(){
       </div>
     `;
   });
-
-  document.getElementById("liveSignal").innerText =
-    state[currentSymbol]?.signal || "WAIT";
 }
 
-// =========================
-// SAFE LOOP (NO DOM CONFLICT)
-// =========================
+////////////////////////////////////////////////////
+// 🚀 START (SAFE)
+////////////////////////////////////////////////////
 
-function loop(){
-
-  renderUI(); // UI only
-
-  // auto update chart ONLY if first load
-  if(!window.chartLoaded){
-    loadChart(currentSymbol);
-    window.chartLoaded = true;
-  }
-}
-
-// =========================
-// START
-// =========================
-
-setInterval(loop, 1200);
+render();
+connectBroker();
 
 </script>
 
