@@ -355,6 +355,11 @@ button{user-select:none;cursor:pointer}
               <label>RESIST</label><span id="spRes" class="dn">—</span>
             </div>
             <div class="sp-filter-col" id="spFilter">รอสัญญาณ...</div>
+            <div class="sp-filter-col" id="spWatchScan" style="border-left:1px solid var(--border);min-width:200px">
+              <b style="color:var(--text)">AUTO SCAN — WATCHLIST</b>
+              <div id="spWatchAgg" style="margin:4px 0;font-weight:700">ภาพรวม: <span id="spWatchAggSig" class="neu">WAIT</span> <span id="spWatchAggScore" style="color:var(--muted);font-weight:400">(score —)</span></div>
+              <div id="spWatchScanList">ยังไม่ได้สแกน — กด AUTO SCAN</div>
+            </div>
           </div>
         </div>
       </div>
@@ -985,13 +990,82 @@ function toggleAutoScan(){
   if(autoScanOn){
     btn.textContent='AUTO ON';btn.classList.add('active-btn');
     runAutoScanOnce();autoScanTimer=setInterval(runAutoScanOnce,15000);
+    runAutoScanAll();autoScanAllTimer=setInterval(runAutoScanAll,20000);
   }else{
     btn.textContent='AUTO SCAN';btn.classList.remove('active-btn');
     clearInterval(autoScanTimer);autoScanTimer=null;
+    clearInterval(autoScanAllTimer);autoScanAllTimer=null;
     try{scanWs&&scanWs.close()}catch(e){}
     setConn('live','STATIC');
     qs('chartNote').textContent='AUTO SCAN ปิดแล้ว';
   }
+}
+
+/* ── WATCHLIST AUTO SCAN (ภาพรวม) ──
+   สแกนทุก symbol ใน Watchlist (apiWatchedSymbols) พร้อมกัน ด้วย logic วิเคราะห์เดียวกับ analyzeCandles()
+   แล้วสรุปเป็นภาพรวม (aggregate) เพื่อใช้เป็นตัวกรองราคาก่อนส่งออเดอร์จริงใน onApiTickReceived
+   ไม่แก้ไข logic เดิมของ AUTO SCAN (chart symbol เดี่ยว) หรือ API Trading เลย — เป็นชั้นเสริมเท่านั้น */
+let scanResults={};
+let aggregateSignal='WAIT',aggregateScore=0;
+let autoScanAllTimer=null;
+
+function tvSymbolForDeriv(derivSym){
+  const found=SYMBOLS.find(s=>DERIV_SYM_MAP[s.id]===derivSym||compactKey(s.tv.split(':').pop())===derivSym);
+  return found?found.tv:('DERIV:'+derivSym);
+}
+async function scanOneWatchSymbol(derivSym){
+  try{
+    const gran=granularityFromInterval();
+    const candles=await requestCandles(derivSym,gran);
+    const payload=analyzeCandles(candles,tvSymbolForDeriv(derivSym),derivSym);
+    scanResults[derivSym]=payload;
+    return payload;
+  }catch(e){
+    return null;
+  }
+}
+async function runAutoScanAll(){
+  if(!apiWatchedSymbols||!apiWatchedSymbols.length)return;
+  const jobs=apiWatchedSymbols.map(sym=>scanOneWatchSymbol(sym));
+  await Promise.all(jobs);
+  computeAggregate();
+  renderWatchScan();
+}
+function computeAggregate(){
+  const entries=Object.values(scanResults).filter(Boolean);
+  if(!entries.length){aggregateSignal='WAIT';aggregateScore=0;return;}
+  const total=entries.reduce((a,e)=>a+(Number(e.score)||0),0);
+  aggregateScore=total/entries.length;
+  aggregateSignal=aggregateScore>=1?'CALL':aggregateScore<=-1?'PUT':'WAIT';
+}
+function renderWatchScan(){
+  const aggSig=qs('spWatchAggSig');const aggScore=qs('spWatchAggScore');const list=qs('spWatchScanList');
+  if(!aggSig||!list)return;
+  aggSig.textContent=aggregateSignal;aggSig.className=classFor(aggregateSignal);
+  aggScore.textContent='(score '+fmt(aggregateScore,2)+')';
+  const rows=apiWatchedSymbols.map(sym=>{
+    const r=scanResults[sym];
+    if(!r)return '<div style="padding:2px 0;color:var(--muted)">'+escapeHtml(sym)+': —</div>';
+    const cls=classFor(sigClass(r.signal));
+    return '<div style="padding:2px 0;display:flex;justify-content:space-between;gap:6px"><span>'+escapeHtml(sym)+'</span><span class="'+cls+'">'+sigClass(r.signal)+' ('+fmt(r.score,1)+')</span></div>';
+  }).join('');
+  list.innerHTML=rows||'ยังไม่ได้สแกน — กด AUTO SCAN';
+}
+/* ใช้เป็นตัวกรองก่อนส่งออเดอร์: ต้องสอดคล้องทั้งภาพรวม (aggregate) และสัญญาณเฉพาะ symbol นั้น
+   ถ้า AUTO SCAN ยังไม่เปิด จะคืนค่า true เสมอ (ไม่กระทบ logic เดิม) */
+function passAutoScanFilter(sym,direction){
+  if(!autoScanOn)return true;
+  if(!aggregateSignal||aggregateSignal==='WAIT')return false;
+  const wantCall=direction==='HIGHER';
+  if(wantCall&&aggregateSignal!=='CALL')return false;
+  if(!wantCall&&aggregateSignal!=='PUT')return false;
+  const r=scanResults[sym];
+  if(r){
+    const rs=sigClass(r.signal);
+    if(wantCall&&rs==='PUT')return false;
+    if(!wantCall&&rs==='CALL')return false;
+  }
+  return true;
 }
 
 /* ══════════════════════════════════════════════════════
@@ -1057,7 +1131,7 @@ function renderWatchPicker(){
 function toggleWatchSym(sym){
   if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];apiUnsubscribe(sym);}}
   else{apiWatchedSymbols.push(sym);apiFocusedSymbol=sym;ensureApiState(sym);apiSubscribe(sym);}
-  renderWatchPicker();renderTrackRecord();renderGlobalKpis();
+  renderWatchPicker();renderTrackRecord();renderGlobalKpis();renderWatchScan();
 }
 function toggleIndicator(key,el){
   indicatorToggles[key]=!indicatorToggles[key];el.classList.toggle('active',indicatorToggles[key]);
@@ -1135,8 +1209,8 @@ function onApiTickReceived(tick){
     const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;
     const prev=s.sigType;
     if(price>midMin&&price<midMax){s.sigType='BLOCK';}
-    else if(price>=s.resistance&&bias==='BULLISH'){s.sigType='BUY';if(prev!=='BUY'){playSignalSound('HIGHER');executeRealContract(sym,'HIGHER');}}
-    else if(price<=s.support&&bias==='BEARISH'){s.sigType='SELL';if(prev!=='SELL'){playSignalSound('LOWER');executeRealContract(sym,'LOWER');}}
+    else if(price>=s.resistance&&bias==='BULLISH'){s.sigType='BUY';if(prev!=='BUY'){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}}
+    else if(price<=s.support&&bias==='BEARISH'){s.sigType='SELL';if(prev!=='SELL'){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}}
     else{s.sigType='BLOCK';}
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
