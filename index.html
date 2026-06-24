@@ -703,23 +703,14 @@ function ingestSignal(payload,sourceLabel){
   saveStore();saveHistory();
   render();maybeNotifyTelegram(sym,normalized,sourceLabel);
 }
-function parseSignals(text) {
-    const t = String(text || '').trim();
-    if (!t) return [];
-    
-    // เพิ่มการเช็คเบื้องต้นก่อน parse
-    if (!t.startsWith('{') && !t.startsWith('[')) {
-        console.warn("Invalid JSON format received:", t);
-        return []; 
-    }
-    
-    try {
-        const p = JSON.parse(t);
-        return Array.isArray(p) ? p : [p];
-    } catch (e) {
-        console.error("JSON Parse Error:", e);
-        return [];
-    }
+function parseSignals(text){
+  const t=String(text||'').trim();if(!t)return [];
+  try{const p=JSON.parse(t);return Array.isArray(p)?p:[p]}catch(e){}
+  const rows=[];for(const line of t.split(/\n+/)){const v=line.trim();if(!v)continue;try{rows.push(JSON.parse(v))}catch(e){}}
+  if(rows.length)return rows;
+  const obj={};const pairs=t.match(/[A-Za-z_]+\s*[=:]\s*[^,\n]+/g)||[];
+  pairs.forEach(p=>{const m=p.match(/([A-Za-z_]+)\s*[=:]\s*([^,\n]+)/);if(m)obj[m[1].trim()]=m[2].trim().replace(/^['"]|['"]$/g,'')});
+  return Object.keys(obj).length?[obj]:[];
 }
 function fillManualFromPayload(payload){
   const n=normalizePayload(payload||{});
@@ -1077,20 +1068,7 @@ function apiDisconnectHandler(){
     renderTrackRecord();renderGlobalKpis();renderVirtualBalance();
   }
 }
-function apiSendAuthorize() {
-    if (apiWs && apiWs.readyState === WebSocket.OPEN && apiToken) {
-        // บังคับส่งแบบตรงไปตรงมาสำหรับ PAT Token
-        const authPayload = {
-            "authorize": apiToken,
-            "req_id": Math.floor(Math.random() * 1000)
-        };
-        
-        console.log("Sending Authorization for PAT...");
-        apiWs.send(JSON.stringify(authPayload));
-    } else {
-        console.error("WebSocket not ready or Token missing");
-    }
-}
+function apiSendAuthorize(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&apiToken)apiWs.send(JSON.stringify({authorize:apiToken}));}
 function apiFetchBalance(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&isAuthorized)apiWs.send(JSON.stringify({balance:1,subscribe:1}));}
 function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
 function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
@@ -1167,39 +1145,22 @@ function onApiTickReceived(tick){
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-function connectApiWS() {
-    if (apiWs) { try { apiWs.close(); } catch(e) {} }
-    
-    // ตรวจสอบว่าใช้ URL นี้ (V3)
-    apiWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089'); // หรือ App ID ของคุณ
-
-    apiWs.onopen = () => {
-        console.log("Connected to Deriv V3");
-        // หลังจากเปิดเชื่อมต่อ ต้องรอให้พร้อมก่อนส่ง Authorize
-        if (apiToken) apiSendAuthorize();
-    };
-
-    // ปรับการรับข้อมูล
-    apiWs.onmessage = (msg) => {
-        let data;
-        try {
-            data = JSON.parse(msg.data);
-        } catch(e) {
-            return; // ข้ามถ้าไม่ใช่ JSON
-        }
-        
-        // แก้ไข: เช็ค Error แยกออกมาให้ชัดเจน
-        if (data.error) {
-            console.error("Deriv API Error:", data.error.message);
-            return;
-        }
-        
-        // จัดการ msg_type ต่อไป...
-        if (data.msg_type === 'authorize') {
-            // ทำงานต่อ...
-        }
-    };
-}
+function connectApiWS(){
+  if(apiWs){try{apiWs.close()}catch(e){}}
+  apiWs=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+API_APP_ID);
+  apiWs.onopen=()=>{apiWs.send(JSON.stringify({forget_all:'ticks'}));if(apiToken)apiSendAuthorize();apiWatchedSymbols.forEach(sym=>apiSubscribe(sym));};
+  apiWs.onmessage=(msg)=>{
+    const data=JSON.parse(msg.data);
+    if(data.msg_type==='authorize'){
+      if(data.error){isAuthorized=false;renderVirtualBalance();}
+      else{
+        isAuthorized=true;qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';renderVirtualBalance();
+        qs('badgeAccountMode').textContent=accountMode==='demo'?'DEMO 🧪':'REAL 💰';qs('badgeAccountMode').className='badge-mode '+accountMode;
+        apiAccountCurrency=data.authorize.currency||'USD';apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+        const bc=qs('badgeCurrency');if(bc)bc.textContent=apiAccountCurrency;
+        qs('accEmail').textContent=data.authorize.email;renderGlobalKpis();apiFetchBalance();
+      }
+    }
     if(data.msg_type==='balance'&&!data.error&&data.balance&&isAuthorized){
       const cur=data.balance.currency||apiAccountCurrency;
       qs('accBalance').textContent=apiCurrencyIsCrypto?parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:8})+' '+cur:parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2})+' '+cur;
