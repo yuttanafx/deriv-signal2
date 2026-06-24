@@ -1145,102 +1145,36 @@ function onApiTickReceived(tick){
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-let apiWs = null;
-let apiToken = null;
-
-// 1) CONNECT
-function apiConnect() {
-  if (apiWs && apiWs.readyState === WebSocket.OPEN) return;
-
-  apiWs = new WebSocket(
-    'wss://ws.derivws.com/websockets/v3?app_id=1089'
-  );
-
-  apiWs.onopen = () => {
-    console.log("WS CONNECTED");
-    setConn?.('live', 'CONNECTED');
-  };
-
-  apiWs.onerror = (e) => {
-    console.error("WS ERROR", e);
-    setConn?.('err', 'WS ERROR');
-  };
-
-  apiWs.onclose = () => {
-    console.log("WS CLOSED");
-    setConn?.('warn', 'DISCONNECTED');
-  };
-
-  apiWs.onmessage = (msg) => {
-    const data = JSON.parse(msg.data);
-
-    console.log("WS MSG:", data);
-
-    // authorize result
-    if (data.msg_type === "authorize") {
-      console.log("AUTHORIZED:", data.authorize);
+function connectApiWS(){
+  if(apiWs){try{apiWs.close()}catch(e){}}
+  apiWs=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+API_APP_ID);
+  apiWs.onopen=()=>{apiWs.send(JSON.stringify({forget_all:'ticks'}));if(apiToken)apiSendAuthorize();apiWatchedSymbols.forEach(sym=>apiSubscribe(sym));};
+  apiWs.onmessage=(msg)=>{
+    const data=JSON.parse(msg.data);
+    if(data.msg_type==='authorize'){
+      if(data.error){isAuthorized=false;renderVirtualBalance();}
+      else{
+        isAuthorized=true;qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';renderVirtualBalance();
+        qs('badgeAccountMode').textContent=accountMode==='demo'?'DEMO 🧪':'REAL 💰';qs('badgeAccountMode').className='badge-mode '+accountMode;
+        apiAccountCurrency=data.authorize.currency||'USD';apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+        const bc=qs('badgeCurrency');if(bc)bc.textContent=apiAccountCurrency;
+        qs('accEmail').textContent=data.authorize.email;renderGlobalKpis();apiFetchBalance();
+      }
     }
-
-    // balance result
-    if (data.msg_type === "balance") {
-      console.log("BALANCE:", data.balance);
+    if(data.msg_type==='balance'&&!data.error&&data.balance&&isAuthorized){
+      const cur=data.balance.currency||apiAccountCurrency;
+      qs('accBalance').textContent=apiCurrencyIsCrypto?parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:8})+' '+cur:parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2})+' '+cur;
     }
+    if(data.msg_type==='buy'){
+      if(data.error){const sym=apiFocusedSymbol;if(apiState[sym])apiState[sym].pendingContracts=[];globalLockedSymbol=null;orderInFlight=false;renderGlobalKpis();console.warn('[Deriv buy error]',data.error.code,data.error.message);}
+      else{const bi=data.buy;apiWatchedSymbols.forEach(sym=>{ensureApiState(sym);apiState[sym].pendingContracts.forEach(c=>{if(c.id==='AWAIT-ID'&&!c.apiTracked){c.id=bi.contract_id;c.apiTracked=true;}});});}
+    }
+    if(data.msg_type==='tick')onApiTickReceived(data.tick);
   };
+  apiWs.onclose=()=>{isAuthorized=false;renderVirtualBalance();setTimeout(connectApiWS,4000);};
 }
-
-
-// 2) AUTHORIZE (ใช้ PAT)
-function apiAuthorize() {
-  const token = document.getElementById('apiTokenInput')?.value?.trim();
-
-  if (!token) {
-    console.error("NO TOKEN");
-    return;
-  }
-
-  apiToken = token;
-
-  if (!apiWs || apiWs.readyState !== WebSocket.OPEN) {
-    console.error("WS NOT READY");
-    return;
-  }
-
-  apiWs.send(JSON.stringify({
-    authorize: apiToken
-  }));
-}
-
-
-// 3) CONNECT + AUTO AUTHORIZE
-function apiConnectAndLogin() {
-  apiConnect();
-
-  // รอ socket เปิดก่อนค่อย authorize
-  const wait = setInterval(() => {
-    if (apiWs && apiWs.readyState === WebSocket.OPEN) {
-      clearInterval(wait);
-      apiAuthorize();
-    }
-  }, 300);
-}
-
-
-// 4) GET BALANCE
-function apiGetBalance() {
-  if (!apiWs || apiWs.readyState !== WebSocket.OPEN) return;
-
-  apiWs.send(JSON.stringify({
-    balance: 1,
-    subscribe: 1
-  }));
-}
-
-
-// expose global (สำคัญ)
-window.apiConnect = apiConnect;
-window.apiAuthorize = apiAuthorize;
-window.apiConnectAndLogin = apiConnectAndLogin;
-window.apiGetBalance = apiGetBalance;
+function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({ticks:sym}));}
+function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
 
 /* ══════════════════════════════════════════════════════
    SECTION D: TELEGRAM
