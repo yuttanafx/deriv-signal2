@@ -991,221 +991,766 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING
-   ══════════════════════════════════════════════════════ */
+SECTION C: FULL API TRADING — FIXED CONNECT
+
+══════════════════════════════════════════════════════ */
+
 const ALL_SYMBOLS_API=[
-  {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
-  {sym:'R_75',label:'Vol 75',dec:4},{sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
-  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
-  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
+
+{sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
+
+{sym:'R_75',label:'Vol 75',dec:4},{sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
+
+{sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
+
+{sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
+
 ];
+
 const API_APP_ID='1089';
+
 let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
+
 let apiAccountCurrency='USD';
+
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
+
 let apiCurrencyIsCrypto=false;
+
 let baseStake=1.0,virtualDemoBalance=10000;
+
 const VIRTUAL_PAYOUT_RATIO=0.85;
+
 let apiWatchedSymbols=['R_75','R_100','1HZ75V'],apiFocusedSymbol='R_75';
+
 let apiDurationVal='5_ticks',lookbackPeriod=30,allowedMaxSteps=5,martingaleMultiplier=2.0;
+
 let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
+
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
+
 let apiState={};
+
+
+
+// ── NEW: Reconnect state ──
+
+let reconnectTimer=null;
+
+let wsIntentionalClose=false;
+
+
+
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
+
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
+
 function ensureApiState(sym){if(!apiState[sym])apiState[sym]=freshState();}
+
 function isGlobalOrderLocked(){return globalLockedSymbol!==null;}
+
 function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='5_min')return 150;if(v==='15_min')return 450;return 5;}
+
 function renderGlobalKpis(){
-  const s=qs('apiKpiStep');const sk=qs('apiKpiStake');const lk=qs('apiKpiLock');const wr=qs('apiKpiWinrate');if(!s)return;
-  s.textContent='M-'+(globalStepCount+1);sk.textContent=apiFmtStake(baseStake*Math.pow(martingaleMultiplier,globalStepCount))+' '+apiAccountCurrency;
-  lk.textContent=isGlobalOrderLocked()?globalLockedSymbol:'ว่าง';lk.style.color=isGlobalOrderLocked()?'var(--amber)':'var(--muted)';
-  let tw=0,tl=0;apiWatchedSymbols.forEach(sym=>{const st=apiState[sym];if(st){tw+=st.statWins;tl+=st.statLosses;}});
-  const tot=tw+tl;wr.textContent=tot>0?((tw/tot)*100).toFixed(1)+'%':'—';
+
+const s=qs('apiKpiStep');const sk=qs('apiKpiStake');const lk=qs('apiKpiLock');const wr=qs('apiKpiWinrate');if(!s)return;
+
+s.textContent='M-'+(globalStepCount+1);sk.textContent=apiFmtStake(baseStake*Math.pow(martingaleMultiplier,globalStepCount))+' '+apiAccountCurrency;
+
+lk.textContent=isGlobalOrderLocked()?globalLockedSymbol:'ว่าง';lk.style.color=isGlobalOrderLocked()?'var(--amber)':'var(--muted)';
+
+let tw=0,tl=0;apiWatchedSymbols.forEach(sym=>{const st=apiState[sym];if(st){tw+=st.statWins;tl+=st.statLosses;}});
+
+const tot=tw+tl;wr.textContent=tot>0?((tw/tot)*100).toFixed(1)+'%':'—';
+
 }
+
 function renderVirtualBalance(){
-  const panel=qs('virtualBalancePanel');if(panel)panel.style.display=isAuthorized?'none':'block';
-  const el=qs('virtualBalanceVal');if(el)el.textContent='$'+virtualDemoBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
+const panel=qs('virtualBalancePanel');if(panel)panel.style.display=isAuthorized?'none':'block';
+
+const el=qs('virtualBalanceVal');if(el)el.textContent='$'+virtualDemoBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+
 }
+
 function renderTrackRecord(){
-  qs('trackFocusLabel').textContent=apiFocusedSymbol;const s=apiState[apiFocusedSymbol];
-  if(!s){qs('tsWins').textContent='0';qs('tsLosses').textContent='0';qs('tsPending').textContent='0';qs('tsWinrate').textContent='—';qs('tbFill').style.width='0%';qs('trackList').innerHTML='<li class="empty">ยังไม่มีข้อมูล</li>';return;}
-  const total=s.statWins+s.statLosses;
-  qs('tsWins').textContent=s.statWins;qs('tsLosses').textContent=s.statLosses;qs('tsPending').textContent=s.pendingContracts.length;
-  qs('tsWinrate').textContent=total>0?((s.statWins/total)*100).toFixed(0)+'%':'—';qs('tbFill').style.width=total>0?((s.statWins/total)*100)+'%':'0%';
-  const meta=ALL_SYMBOLS_API.find(i=>i.sym===apiFocusedSymbol)||{dec:4};const list=qs('trackList');
-  if(!s.resolvedContracts.length){list.innerHTML='<li class="empty">ยังไม่มีคำสั่งที่ปิด</li>';return;}
-  list.innerHTML=s.resolvedContracts.slice(0,20).map(r=>{
-    const rc=r.result.toLowerCase();const rs=r.result==='WIN'?'W':'L';
-    const dc=r.dir.toLowerCase()==='higher'?'buy':'sell';const dl=r.dir==='HIGHER'?'CALL':'PUT';
-    const t=r.resolvedAt.toLocaleTimeString('th-TH',{hour12:false});
-    return '<li><span class="tl-r '+rc+'">'+rs+'</span><span class="tl-dir '+dc+'">'+dl+'</span><span class="tl-pr">'+r.entryPrice.toFixed(meta.dec)+'→'+r.exitPrice.toFixed(meta.dec)+'</span><span class="tl-t">'+t+' M-'+r.step+'</span></li>';
-  }).join('');
+
+qs('trackFocusLabel').textContent=apiFocusedSymbol;const s=apiState[apiFocusedSymbol];
+
+if(!s){qs('tsWins').textContent='0';qs('tsLosses').textContent='0';qs('tsPending').textContent='0';qs('tsWinrate').textContent='—';qs('tbFill').style.width='0%';qs('trackList').innerHTML='<li class="empty">ยังไม่มีข้อมูล</li>';return;}
+
+const total=s.statWins+s.statLosses;
+
+qs('tsWins').textContent=s.statWins;qs('tsLosses').textContent=s.statLosses;qs('tsPending').textContent=s.pendingContracts.length;
+
+qs('tsWinrate').textContent=total>0?((s.statWins/total)*100).toFixed(0)+'%':'—';qs('tbFill').style.width=total>0?((s.statWins/total)*100)+'%':'0%';
+
+const meta=ALL_SYMBOLS_API.find(i=>i.sym===apiFocusedSymbol)||{dec:4};const list=qs('trackList');
+
+if(!s.resolvedContracts.length){list.innerHTML='<li class="empty">ยังไม่มีคำสั่งที่ปิด</li>';return;}
+
+list.innerHTML=s.resolvedContracts.slice(0,20).map(r=>{
+
+const rc=r.result.toLowerCase();const rs=r.result==='WIN'?'W':'L';
+
+const dc=r.dir.toLowerCase()==='higher'?'buy':'sell';const dl=r.dir==='HIGHER'?'CALL':'PUT';
+
+const t=r.resolvedAt.toLocaleTimeString('th-TH',{hour12:false});
+
+return '<li><span class="tl-r '+rc+'">'+rs+'</span><span class="tl-dir '+dc+'">'+dl+'</span><span class="tl-pr">'+r.entryPrice.toFixed(meta.dec)+'→'+r.exitPrice.toFixed(meta.dec)+'</span><span class="tl-t">'+t+' M-'+r.step+'</span></li>';
+
+}).join('');
+
 }
+
 function renderWatchPicker(){
-  const picker=qs('watchPicker');if(!picker)return;
-  picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(\''+item.sym+'\')">'+item.sym+'</span>';}).join('');
+
+const picker=qs('watchPicker');if(!picker)return;
+
+picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(\''+item.sym+'\')">'+item.sym+'</span>';}).join('');
+
 }
+
 function toggleWatchSym(sym){
-  if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];apiUnsubscribe(sym);}}
-  else{apiWatchedSymbols.push(sym);apiFocusedSymbol=sym;ensureApiState(sym);apiSubscribe(sym);}
-  renderWatchPicker();renderTrackRecord();renderGlobalKpis();renderWatchScan();
+
+if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];apiUnsubscribe(sym);}}
+
+else{apiWatchedSymbols.push(sym);apiFocusedSymbol=sym;ensureApiState(sym);apiSubscribe(sym);}
+
+renderWatchPicker();renderTrackRecord();renderGlobalKpis();renderWatchScan();
+
 }
+
 function toggleIndicator(key,el){
-  indicatorToggles[key]=!indicatorToggles[key];el.classList.toggle('active',indicatorToggles[key]);
-  const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
+
+indicatorToggles[key]=!indicatorToggles[key];el.classList.toggle('active',indicatorToggles[key]);
+
+const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
+
 }
-function apiConnectHandler(){const token=qs('apiTokenInput').value.trim();if(!token){alert('กรุณากรอก API Token');return;}apiToken=token;accountMode=qs('accountModeSelect').value;apiSendAuthorize();}
+
+
+
+// ── FIXED: API Connect Handler ──
+
+function apiConnectHandler(){
+
+const token=qs('apiTokenInput').value.trim();
+
+if(!token){alert('กรุณากรอก API Token');return;}
+
+apiToken=token;
+
+accountMode=qs('accountModeSelect').value;
+
+wsIntentionalClose=false;
+
+
+// ถ้า WS ยังไม่ได้เชื่อมต่อ ให้เชื่อมต่อก่อน
+
+if(!apiWs || apiWs.readyState!==WebSocket.OPEN){
+
+connectApiWS();
+
+} else {
+
+// ถ้าเชื่อมต่ออยู่แล้ว ส่ง authorize ทันที
+
+apiSendAuthorize();
+
+}
+
+}
+
+
+
+// ── FIXED: API Disconnect Handler ──
+
 function apiDisconnectHandler(){
-  if(confirm('ตัดการเชื่อมต่อ?')){
-    if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget_all:'ticks'}));
-    apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
-    const bc=qs('badgeCurrency');if(bc)bc.textContent='USD';
-    qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';qs('apiTokenInput').value='';
-    qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
-    apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
-    globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
-    renderTrackRecord();renderGlobalKpis();renderVirtualBalance();
-  }
+
+wsIntentionalClose=true;
+
+if(reconnectTimer){
+
+clearTimeout(reconnectTimer);
+
+reconnectTimer=null;
+
 }
-function apiSendAuthorize(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&apiToken)apiWs.send(JSON.stringify({authorize:apiToken}));}
-function apiFetchBalance(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&isAuthorized)apiWs.send(JSON.stringify({balance:1,subscribe:1}));}
-function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
-function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
-function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
-function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
-function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
-function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
-function executeRealContract(symbol,direction){
-  if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
-  orderInFlight=true;const currentStake=parseFloat((baseStake*Math.pow(martingaleMultiplier,globalStepCount)).toFixed(apiCurrencyIsCrypto?4:2));
-  const contractType=direction==='HIGHER'?'CALL':'PUT';
-  let durationNumber=5,durationUnitStr='t';
-  if(apiDurationVal==='5_ticks'){durationNumber=5;durationUnitStr='t';}
-  else if(apiDurationVal==='10_ticks'){durationNumber=10;durationUnitStr='t';}
-  else if(apiDurationVal==='5_min'){durationNumber=5;durationUnitStr='m';}
-  else if(apiDurationVal==='15_min'){durationNumber=15;durationUnitStr='m';}
-  const calculatedWaitTicks=durationToWaitTicks(apiDurationVal);
-  globalLockedSymbol=symbol;
-  if(!isAuthorized||!apiWs||apiWs.readyState!==WebSocket.OPEN){
-    const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
-    s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
-  }
-  apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,symbol:symbol}}));
-  orderInFlight=false;
-  const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
-  s.pendingContracts.push(ac);renderGlobalKpis();
+
+if(apiWs){
+
+try{
+
+apiWs.send(JSON.stringify({forget_all:'ticks'}));
+
+apiWs.close();
+
+} catch(e){}
+
+apiWs=null;
+
 }
-function evaluatePendingContracts(sym,currentPrice,currentTickNum){
-  const s=apiState[sym];if(!s||!s.pendingContracts.length)return;
-  const toResolve=s.pendingContracts.filter(c=>currentTickNum>=c.resolveAtTick);
-  s.pendingContracts=s.pendingContracts.filter(c=>currentTickNum<c.resolveAtTick);
-  toResolve.forEach(c=>{
-    let result='LOSS';
-    if(c.dir==='HIGHER'&&currentPrice>c.entryPrice)result='WIN';
-    if(c.dir==='LOWER'&&currentPrice<c.entryPrice)result='WIN';
-    if(result==='WIN'){s.statWins++;s.currentStepCount=0;globalStepCount=0;if(c.isVirtual){virtualDemoBalance+=c.stakeValue*VIRTUAL_PAYOUT_RATIO;renderVirtualBalance();}}
-    else{s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}}
-    if(globalLockedSymbol===sym)globalLockedSymbol=null;
-    s.resolvedContracts.unshift({id:c.id,dir:c.dir,entryPrice:c.entryPrice,exitPrice:currentPrice,result:result,step:c.step,stakeValue:c.stakeValue,resolvedAt:new Date()});
-  });
-  renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
+
+
+apiToken='';
+
+isAuthorized=false;
+
+apiAccountCurrency='USD';
+
+apiCurrencyIsCrypto=false;
+
+
+qs('accountInfoDisplay').style.display='none';
+
+qs('apiGateInputs').style.display='block';
+
+qs('apiTokenInput').value='';
+
+qs('accBalance').textContent='$0.00';
+
+qs('accEmail').textContent='—';
+
+
+apiWatchedSymbols.forEach(sym=>{
+
+apiState[sym]=freshState();
+
+});
+
+
+globalStepCount=0;
+
+globalLockedSymbol=null;
+
+orderInFlight=false;
+
+virtualDemoBalance=10000;
+
+
+renderTrackRecord();
+
+renderGlobalKpis();
+
+renderVirtualBalance();
+
+setConn('live','STATIC');
+
 }
-function onApiTickReceived(tick){
-  const sym=tick.symbol;if(!apiWatchedSymbols.includes(sym))return;
-  ensureApiState(sym);const s=apiState[sym];const price=parseFloat(tick.quote);
-  s.tickCounter++;s.prevPrice=s.lastPrice;s.lastPrice=price;s.ticks.push(price);if(s.ticks.length>lookbackPeriod)s.ticks.shift();
-  evaluatePendingContracts(sym,price,s.tickCounter);
-  if(s.ticks.length>=15){
-    s.resistance=Math.max(...s.ticks.slice(0,-2));s.support=Math.min(...s.ticks.slice(0,-2));
-    const lp=s.ticks.length,sp=4;
-    const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
-    let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
-    const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
-    // tick-level S/R clearance: ใช้ ATR จาก candle scan ถ้ามี fallback range*0.10
-    const srSrcTick=scanResults[sym]||null;
-    const tickClearance=(srSrcTick&&Number.isFinite(srSrcTick.atr)&&srSrcTick.atr>0)?(srSrcTick.atr*SR_TICK_MARGIN_MULT):(range>0?range*0.10:0);
-    if(price>midMin&&price<midMax){
-      s.sigType='BLOCK';
-    }else if(price>=s.resistance&&bias==='BULLISH'){
-      s.sigType='BUY';
-      if(prev!=='BUY'){
-        // ราคา BUY ต้องห่างจาก support >= tickClearance
-        const srOk=(range<=0)||((price-s.support)>=tickClearance);
-        if(srOk){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}
-      }
-    }else if(price<=s.support&&bias==='BEARISH'){
-      s.sigType='SELL';
-      if(prev!=='SELL'){
-        // ราคา SELL ต้องห่างจาก resistance >= tickClearance
-        const srOk=(range<=0)||((s.resistance-price)>=tickClearance);
-        if(srOk){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}
-      }
-    }else{s.sigType='BLOCK';}
-  }
-  renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
-}
+
+
+
+// ── FIXED: WebSocket Connection ──
+
 function connectApiWS(){
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
-  }
 
-  apiWs = new WebSocket(
-    'wss://ws.derivws.com/websockets/v3?app_id=' + API_APP_ID
-  );
+// ป้องกัน double connection
 
-  apiWs.onopen = () => {
-    console.log("WS CONNECTED");
+if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN)){
 
-    if(apiToken){
-      apiWs.send(JSON.stringify({
-        authorize: apiToken
-      }));
-    }
-  };
+return;
 
-  apiWs.onmessage = (msg) => {
-    const data = JSON.parse(msg.data);
-
-    // AUTH
-    if(data.msg_type === "authorize"){
-      if(data.error){
-        isAuthorized = false;
-        renderVirtualBalance();
-      } else {
-        isAuthorized = true;
-        qs('apiGateInputs').style.display='none';
-        qs('accountInfoDisplay').style.display='flex';
-        renderVirtualBalance();
-      }
-    }
-
-    // BALANCE
-    if(data.msg_type === "balance" && !data.error){
-      qs('accBalance').textContent = data.balance.balance;
-    }
-
-    // TICK
-    if(data.msg_type === "tick"){
-      onApiTickReceived(data.tick);
-    }
-
-    // BUY
-    if(data.msg_type === "buy"){
-      if(data.error){
-        console.warn("BUY ERROR", data.error);
-      }
-    }
-  };
-
-  apiWs.onclose = () => {
-    isAuthorized = false;
-    renderVirtualBalance();
-    setTimeout(connectApiWS, 4000);
-  };
 }
-function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({ticks:sym}));}
-function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
+
+// clear reconnect timer เก่า
+
+if(reconnectTimer){
+
+clearTimeout(reconnectTimer);
+
+reconnectTimer=null;
+
+}
+
+
+
+try{
+
+apiWs=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+API_APP_ID);
+
+} catch(e){
+
+console.error('WS create failed:',e);
+
+scheduleReconnect();
+
+return;
+
+}
+
+
+
+apiWs.onopen=()=>{
+
+console.log('✅ Deriv WS CONNECTED');
+
+setConn('live','API LIVE');
+
+wsIntentionalClose=false;
+
+
+
+// Re-authorize ถ้ามี token
+
+if(apiToken){
+
+apiWs.send(JSON.stringify({authorize:apiToken}));
+
+}
+
+
+
+// Re-subscribe ticks ทั้งหมด
+
+apiWatchedSymbols.forEach(sym=>apiSubscribe(sym));
+
+};
+
+
+
+apiWs.onmessage=(msg)=>{
+
+let data;
+
+try{
+
+data=JSON.parse(msg.data);
+
+} catch(e){
+
+console.warn('Invalid WS message:',msg.data);
+
+return;
+
+}
+
+
+
+// ── AUTHORIZE ──
+
+if(data.msg_type==='authorize'){
+
+if(data.error){
+
+isAuthorized=false;
+
+console.error('Authorize failed:',data.error.message);
+
+setConn('err','AUTH FAIL');
+
+renderVirtualBalance();
+
+} else {
+
+isAuthorized=true;
+
+apiAccountCurrency=data.authorize?.currency||'USD';
+
+apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+
+
+// อัปเดต UI
+
+qs('apiGateInputs').style.display='none';
+
+qs('accountInfoDisplay').style.display='flex';
+
+qs('badgeAccountMode').textContent=accountMode.toUpperCase();
+
+qs('badgeAccountMode').className='badge-mode '+accountMode;
+
+qs('badgeCurrency').textContent=apiAccountCurrency;
+
+qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
+
+
+// ดึง balance
+
+apiFetchBalance();
+
+renderVirtualBalance();
+
+setConn('live','AUTH OK');
+
+}
+
+}
+
+
+
+// ── BALANCE ──
+
+if(data.msg_type==='balance' && !data.error){
+
+const bal=data.balance?.balance;
+
+if(bal!==undefined){
+
+qs('accBalance').textContent='$'+Number(bal).toLocaleString('en-US',{
+
+minimumFractionDigits:apiCurrencyIsCrypto?4:2,
+
+maximumFractionDigits:apiCurrencyIsCrypto?4:2
+
+});
+
+}
+
+}
+
+
+
+// ── TICK ──
+
+if(data.msg_type==='tick'){
+
+onApiTickReceived(data.tick);
+
+}
+
+
+
+// ── BUY ──
+
+if(data.msg_type==='buy'){
+
+if(data.error){
+
+console.warn('BUY ERROR:',data.error);
+
+orderInFlight=false;
+
+if(globalLockedSymbol){
+
+globalLockedSymbol=null;
+
+}
+
+} else {
+
+console.log('BUY OK:',data.buy);
+
+const sym=data.buy?.symbol||globalLockedSymbol;
+
+if(sym && apiState[sym]){
+
+const pending=apiState[sym].pendingContracts;
+
+if(pending.length>0){
+
+const last=pending[pending.length-1];
+
+if(last.id==='AWAIT-ID'){
+
+last.id=data.buy.contract_id;
+
+last.apiTracked=true;
+
+}
+
+}
+
+}
+
+}
+
+}
+
+
+
+// ── PROFIT (ติดตามผลสัญญา) ──
+
+if(data.msg_type==='proposal_open_contract' && !data.error){
+
+const contract=data.proposal_open_contract;
+
+if(contract.is_sold){
+
+const sym=contract.underlying;
+
+if(apiState[sym]){
+
+const result=contract.profit>=0?'WIN':'LOSS';
+
+const resolved=apiState[sym].resolvedContracts.find(c=>c.id===contract.contract_id);
+
+if(resolved){
+
+resolved.result=result;
+
+resolved.exitPrice=parseFloat(contract.exit_tick);
+
+resolved.profit=contract.profit;
+
+}
+
+renderTrackRecord();
+
+renderGlobalKpis();
+
+}
+
+}
+
+}
+
+};
+
+
+
+apiWs.onerror=(err)=>{
+
+console.error('WS ERROR:',err);
+
+setConn('err','WS ERROR');
+
+};
+
+
+
+apiWs.onclose=(ev)=>{
+
+console.log('WS CLOSED',ev.code,ev.reason);
+
+apiWs=null;
+
+isAuthorized=false;
+
+setConn('warn','RECONNECTING...');
+
+renderVirtualBalance();
+
+
+
+if(!wsIntentionalClose){
+
+scheduleReconnect();
+
+}
+
+};
+
+}
+
+
+
+function scheduleReconnect(){
+
+if(reconnectTimer) clearTimeout(reconnectTimer);
+
+reconnectTimer=setTimeout(()=>{
+
+console.log('⏳ Reconnecting...');
+
+connectApiWS();
+
+},4000);
+
+}
+
+
+
+function apiSendAuthorize(){
+
+if(apiWs && apiWs.readyState===WebSocket.OPEN && apiToken){
+
+apiWs.send(JSON.stringify({authorize:apiToken}));
+
+}
+
+}
+
+
+
+function apiFetchBalance(){
+
+if(apiWs && apiWs.readyState===WebSocket.OPEN && isAuthorized){
+
+apiWs.send(JSON.stringify({balance:1,subscribe:1}));
+
+}
+
+}
+
+
+
+function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
+
+function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
+
+function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
+
+function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
+
+function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
+
+
+
+function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
+
+
+
+function executeRealContract(symbol,direction){
+
+if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
+
+orderInFlight=true;const currentStake=parseFloat((baseStake*Math.pow(martingaleMultiplier,globalStepCount)).toFixed(apiCurrencyIsCrypto?4:2));
+
+const contractType=direction==='HIGHER'?'CALL':'PUT';
+
+let durationNumber=5,durationUnitStr='t';
+
+if(apiDurationVal==='5_ticks'){durationNumber=5;durationUnitStr='t';}
+
+else if(apiDurationVal==='10_ticks'){durationNumber=10;durationUnitStr='t';}
+
+else if(apiDurationVal==='5_min'){durationNumber=5;durationUnitStr='m';}
+
+else if(apiDurationVal==='15_min'){durationNumber=15;durationUnitStr='m';}
+
+const calculatedWaitTicks=durationToWaitTicks(apiDurationVal);
+
+globalLockedSymbol=symbol;
+
+if(!isAuthorized||!apiWs||apiWs.readyState!==WebSocket.OPEN){
+
+const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
+
+s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
+
+}
+
+apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,symbol:symbol}}));
+
+orderInFlight=false;
+
+const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
+
+s.pendingContracts.push(ac);renderGlobalKpis();
+
+}
+
+
+
+function evaluatePendingContracts(sym,currentPrice,currentTickNum){
+
+const s=apiState[sym];if(!s||!s.pendingContracts.length)return;
+
+const toResolve=s.pendingContracts.filter(c=>currentTickNum>=c.resolveAtTick);
+
+s.pendingContracts=s.pendingContracts.filter(c=>currentTickNum<c.resolveAtTick);
+
+toResolve.forEach(c=>{
+
+let result='LOSS';
+
+if(c.dir==='HIGHER'&&currentPrice>c.entryPrice)result='WIN';
+
+if(c.dir==='LOWER'&&currentPrice<c.entryPrice)result='WIN';
+
+if(result==='WIN'){s.statWins++;s.currentStepCount=0;globalStepCount=0;if(c.isVirtual){virtualDemoBalance+=c.stakeValue*VIRTUAL_PAYOUT_RATIO;renderVirtualBalance();}}
+
+else{s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}}
+
+if(globalLockedSymbol===sym)globalLockedSymbol=null;
+
+s.resolvedContracts.unshift({id:c.id,dir:c.dir,entryPrice:c.entryPrice,exitPrice:currentPrice,result:result,step:c.step,stakeValue:c.stakeValue,resolvedAt:new Date()});
+
+});
+
+renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
+
+}
+
+
+
+function onApiTickReceived(tick){
+
+const sym=tick.symbol;if(!apiWatchedSymbols.includes(sym))return;
+
+ensureApiState(sym);const s=apiState[sym];const price=parseFloat(tick.quote);
+
+s.tickCounter++;s.prevPrice=s.lastPrice;s.lastPrice=price;s.ticks.push(price);if(s.ticks.length>lookbackPeriod)s.ticks.shift();
+
+evaluatePendingContracts(sym,price,s.tickCounter);
+
+if(s.ticks.length>=15){
+
+s.resistance=Math.max(...s.ticks.slice(0,-2));s.support=Math.min(...s.ticks.slice(0,-2));
+
+const lp=s.ticks.length,sp=4;
+
+const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
+
+let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
+
+const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
+
+const srSrcTick=scanResults[sym]||null;
+
+const tickClearance=(srSrcTick&&Number.isFinite(srSrcTick.atr)&&srSrcTick.atr>0)?(srSrcTick.atr*SR_TICK_MARGIN_MULT):(range>0?range*0.10:0);
+
+if(price>midMin&&price<midMax){
+
+s.sigType='BLOCK';
+
+}else if(price>=s.resistance&&bias==='BULLISH'){
+
+s.sigType='BUY';
+
+if(prev!=='BUY'){
+
+const srOk=(range<=0)||((price-s.support)>=tickClearance);
+
+if(srOk){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}
+
+}
+
+}else if(price<=s.support&&bias==='BEARISH'){
+
+s.sigType='SELL';
+
+if(prev!=='SELL'){
+
+const srOk=(range<=0)||((s.resistance-price)>=tickClearance);
+
+if(srOk){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}
+
+}
+
+}else{s.sigType='BLOCK';}
+
+}
+
+renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
+
+}
+
+
+
+function apiSubscribe(sym){
+
+if(apiWs&&apiWs.readyState===WebSocket.OPEN){
+
+apiWs.send(JSON.stringify({ticks:sym}));
+
+}
+
+}
+
+
+
+function apiUnsubscribe(sym){
+
+if(apiWs&&apiWs.readyState===WebSocket.OPEN){
+
+apiWs.send(JSON.stringify({forget:sym}));
+
+}
+
+} 
+
 
 /* ══════════════════════════════════════════════════════
    SECTION D: TELEGRAM
