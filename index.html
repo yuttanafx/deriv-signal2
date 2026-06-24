@@ -303,7 +303,7 @@ button{user-select:none;cursor:pointer}
       <div class="toolbar">
         <div class="field"><label>TV SYMBOL</label><input id="symbolInput" value="DERIV:VOLATILITY_10_INDEX" spellcheck="false"></div>
         <div class="field"><label>TF</label>
-          <select id="intervalInput">
+          <select id="intervalInput" onchange="onIntervalChanged()">
             <option value="1">1m</option><option value="3">3m</option><option value="5">5m</option>
             <option value="15">15m</option><option value="30">30m</option><option value="60">1H</option>
             <option value="240">4H</option><option value="D">1D</option>
@@ -326,10 +326,7 @@ button{user-select:none;cursor:pointer}
 
   <!-- ═══ SIGNAL PANEL (bottom, resizable, collapsible) ═══ -->
   <div class="sig-panel-wrap" id="sigPanel" style="height:220px">
-    <!-- Drag handle -->
     <div class="resize-handle" id="resizeHandle"></div>
-
-    <!-- Header -->
     <div class="sig-panel-header">
       <span class="sig-panel-title">SIGNAL</span>
       <div class="sig-panel-tabs">
@@ -345,10 +342,7 @@ button{user-select:none;cursor:pointer}
         <button class="sp-btn collapse-btn" id="collapseBtn" onclick="toggleCollapse()">▼ HIDE</button>
       </div>
     </div>
-
-    <!-- Body -->
     <div class="sig-panel-body">
-
       <!-- PANE: OVERVIEW -->
       <div class="sp-pane active" id="spOverview">
         <div class="sp-overview">
@@ -359,36 +353,14 @@ button{user-select:none;cursor:pointer}
             <div class="sp-score-bar"><div class="sp-score-fill" id="spScoreFill" style="width:50%"></div></div>
           </div>
           <div class="sp-metrics">
-            <div class="sp-metric-col">
-              <label>PRICE</label><span id="spPrice">—</span>
-              <div class="sub" id="spPriceSub">—</div>
-            </div>
-            <div class="sp-metric-col">
-              <label>CONF / SCORE</label>
-              <span id="spConf">—</span>
-              <div class="sub" id="spScoreVal">—</div>
-            </div>
-            <div class="sp-metric-col">
-              <label>RSI</label><span id="spRsi">—</span>
-              <div class="sub" id="spRsiSub">—</div>
-            </div>
-            <div class="sp-metric-col">
-              <label>EMA 9</label><span id="spEf">—</span>
-              <div class="sub">fast</div>
-            </div>
-            <div class="sp-metric-col">
-              <label>EMA 21</label><span id="spEs">—</span>
-              <div class="sub">slow</div>
-            </div>
-            <div class="sp-metric-col">
-              <label>ATR</label><span id="spAtr">—</span>
-            </div>
-            <div class="sp-metric-col">
-              <label>SUPPORT</label><span id="spSup" class="up">—</span>
-            </div>
-            <div class="sp-metric-col">
-              <label>RESIST</label><span id="spRes" class="dn">—</span>
-            </div>
+            <div class="sp-metric-col"><label>PRICE</label><span id="spPrice">—</span><div class="sub" id="spPriceSub">—</div></div>
+            <div class="sp-metric-col"><label>CONF / SCORE</label><span id="spConf">—</span><div class="sub" id="spScoreVal">—</div></div>
+            <div class="sp-metric-col"><label>RSI</label><span id="spRsi">—</span><div class="sub" id="spRsiSub">—</div></div>
+            <div class="sp-metric-col"><label>EMA 9</label><span id="spEf">—</span><div class="sub">fast</div></div>
+            <div class="sp-metric-col"><label>EMA 21</label><span id="spEs">—</span><div class="sub">slow</div></div>
+            <div class="sp-metric-col"><label>ATR</label><span id="spAtr">—</span></div>
+            <div class="sp-metric-col"><label>SUPPORT</label><span id="spSup" class="up">—</span></div>
+            <div class="sp-metric-col"><label>RESIST</label><span id="spRes" class="dn">—</span></div>
             <div class="sp-filter-col" id="spFilter">รอสัญญาณ...</div>
             <div class="sp-filter-col" id="spWatchScan" style="border-left:1px solid var(--border);min-width:200px">
               <b style="color:var(--text)">AUTO SCAN — WATCHLIST</b>
@@ -398,24 +370,17 @@ button{user-select:none;cursor:pointer}
           </div>
         </div>
       </div>
-
       <!-- PANE: LOG -->
       <div class="sp-pane" id="spLog">
-        <div class="sp-log" id="spLogList">
-          <div class="sp-log-empty">ยังไม่มีสัญญาณ — กด AUTO SCAN หรือ GET VALUE</div>
-        </div>
+        <div class="sp-log" id="spLogList"><div class="sp-log-empty">ยังไม่มีสัญญาณ — กด AUTO SCAN หรือ GET VALUE</div></div>
       </div>
-
       <!-- PANE: API TRADING -->
       <div class="sp-pane" id="spApiPane">
         <div class="sp-api">
-          <!-- col 1: auth -->
           <div class="sp-api-col">
             <div class="sp-section">การเชื่อมต่อ Deriv API</div>
             <div id="apiGateInputs">
-              <div class="sp-row"><label>โหมด</label>
-                <select id="accountModeSelect"><option value="demo">🧪 Demo</option><option value="real">💰 Real</option></select>
-              </div>
+              <div class="sp-row"><label>โหมด</label><select id="accountModeSelect"><option value="demo">🧪 Demo</option><option value="real">💰 Real</option></select></div>
               <div class="sp-row"><label>TOKEN</label><input type="password" id="apiTokenInput" placeholder="วาง API Token..."></div>
               <div class="sp-btnrow"><button class="btn green" onclick="apiConnectHandler()">เชื่อมต่อพอร์ต</button></div>
             </div>
@@ -434,16 +399,12 @@ button{user-select:none;cursor:pointer}
               <span class="badge-mode demo">VIRTUAL</span> <b id="virtualBalanceVal" style="color:var(--green)">$10,000.00</b>
             </div>
           </div>
-          <!-- col 2: settings -->
           <div class="sp-api-col">
             <div class="sp-section">ตั้งค่าเทรด</div>
             <div class="sp-row"><label>Duration</label>
               <select id="apiDurationSelect" onchange="apiDurationChanged(this.value)">
-                <option value="5_ticks" selected>5 Ticks</option>
-                <option value="10_ticks">10 Ticks</option>
-                <option value="1_min">1 นาที</option>
-                <option value="5_min">5 นาที</option>
-                <option value="15_min">15 นาที</option>
+                <option value="5_ticks" selected>5 Ticks</option><option value="10_ticks">10 Ticks</option>
+                <option value="1_min">1 นาที</option><option value="5_min">5 นาที</option><option value="15_min">15 นาที</option>
               </select>
             </div>
             <div class="sp-row"><label>Base Stake</label><input type="number" id="apiBaseStakeInput" value="1.00" min="0.35" step="0.01" style="max-width:80px" onchange="apiBaseStakeChanged(this.value)"></div>
@@ -465,7 +426,6 @@ button{user-select:none;cursor:pointer}
               <span class="chip-filter" data-ind="deepmtf" onclick="toggleIndicator('deepmtf',this)">Deep MTF</span>
             </div>
           </div>
-          <!-- col 3: kpis + track -->
           <div class="sp-api-col">
             <div class="sp-section">สถานะ Martingale กลาง</div>
             <div class="sp-kpis">
@@ -487,15 +447,10 @@ button{user-select:none;cursor:pointer}
           </div>
         </div>
       </div>
-
       <!-- PANE: TELEGRAM -->
       <div class="sp-pane" id="spTgPane">
         <div class="sp-tg">
-          <div class="sp-row">
-            <label>เปิด/ปิด</label>
-            <label class="sp-toggle"><input type="checkbox" id="tgEnableToggle" onchange="toggleTelegramBot(this.checked)"><span class="sl"></span></label>
-            <span class="status-pill off" id="tgStatusPill">OFF</span>
-          </div>
+          <div class="sp-row"><label>เปิด/ปิด</label><label class="sp-toggle"><input type="checkbox" id="tgEnableToggle" onchange="toggleTelegramBot(this.checked)"><span class="sl"></span></label><span class="status-pill off" id="tgStatusPill">OFF</span></div>
           <div class="sp-row"><label>BOT TOKEN</label><input type="password" id="tgBotToken" placeholder="123456:ABC-DEF..."></div>
           <div class="sp-row"><label>CHAT ID</label><input type="text" id="tgChatId" placeholder="123456789"></div>
           <div class="sp-row"><label>ส่งเมื่อ</label>
@@ -504,15 +459,11 @@ button{user-select:none;cursor:pointer}
             <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--muted)"><input type="checkbox" id="tgOnWait"> WAIT</label>
           </div>
           <div class="sp-row"><label>Conf ≥</label><input type="number" id="tgMinConf" value="0" min="0" max="100" step="1" style="max-width:70px"><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">%</span></div>
-          <div class="sp-btnrow">
-            <button class="btn blue" onclick="saveTelegramConfig()">SAVE</button>
-            <button class="btn green" onclick="sendTelegramTest()">TEST</button>
-          </div>
+          <div class="sp-btnrow"><button class="btn blue" onclick="saveTelegramConfig()">SAVE</button><button class="btn green" onclick="sendTelegramTest()">TEST</button></div>
           <div class="sp-mini-note" style="margin-top:6px">แจ้งเตือนเท่านั้น — ไม่ส่งคำสั่งเทรด</div>
           <div class="sp-mini-note warn" id="tgLastResult" style="display:none"></div>
         </div>
       </div>
-
       <!-- PANE: WATCHLIST -->
       <div class="sp-pane" id="spWatchPane">
         <div class="sp-watch">
@@ -520,24 +471,19 @@ button{user-select:none;cursor:pointer}
           <div id="watchPicker"></div>
         </div>
       </div>
-
-    </div><!-- end sig-panel-body -->
-  </div><!-- end sig-panel-wrap -->
-</div><!-- end body-wrap -->
+    </div>
+  </div>
+</div>
 
 <!-- ═══ MODALS ═══ -->
 <div id="modalBackdrop" class="modal-backdrop" onclick="hidePanels()"></div>
-
 <div class="panel" id="chartPanel">
-  <h3>วางกราฟ / Symbol</h3>
-  <p>วาง symbol หรือ JSON เช่น <b>DERIV:VOLATILITY_100_INDEX</b></p>
+  <h3>วางกราฟ / Symbol</h3><p>วาง symbol หรือ JSON เช่น <b>DERIV:VOLATILITY_100_INDEX</b></p>
   <textarea id="chartPaste" placeholder='{ "symbol": "DERIV:VOLATILITY_100_INDEX", "interval": "1" }'></textarea>
   <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn blue" onclick="applyPastedChart()">LOAD</button></div>
 </div>
-
 <div class="panel" id="signalPanel">
-  <h3>วาง JSON Signal</h3>
-  <p>วาง JSON จาก Pine Script หรือ clipboard</p>
+  <h3>วาง JSON Signal</h3><p>วาง JSON จาก Pine Script หรือ clipboard</p>
   <textarea id="signalPaste" placeholder='{"symbol":"DERIV:VOLATILITY_10_INDEX","price":1234.56,"rsi":58.2,...}'></textarea>
   <div id="pasteHelp" class="paste-help">กด Ctrl+V / Cmd+V ในช่องนี้</div>
   <div class="panel-actions">
@@ -547,7 +493,6 @@ button{user-select:none;cursor:pointer}
     <button class="btn green" onclick="applySignalPaste()">APPLY</button>
   </div>
 </div>
-
 <div class="panel" id="manualPanel">
   <h3>Manual Filter</h3>
   <div class="manual-grid">
@@ -562,7 +507,6 @@ button{user-select:none;cursor:pointer}
   </div>
   <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn green" onclick="manualCalculate()">CALCULATE</button></div>
 </div>
-
 <div class="panel" id="pinePanel">
   <h3>Pine Script</h3>
   <textarea id="pineCode" class="pine-ta" readonly>//@version=5
@@ -595,76 +539,50 @@ plotshape(signal=="PUT",style=shape.labeldown,location=location.abovebar,color=c
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
-/* ══════════════════════════════════════════════════════
-   SECTION 0: FIREBASE AUTH GATE
-   ระบบทั้งหมดด้านล่าง (Section A-E) จะถูกเรียกใน bootApp()
-   ซึ่งทำงานก็ต่อเมื่อล็อกอินผ่านแล้วเท่านั้น
-   ══════════════════════════════════════════════════════ */
-const firebaseConfig = {
-  apiKey: "AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",
-  authDomain: "deriv-signal3.firebaseapp.com",
-  projectId: "deriv-signal3",
-  storageBucket: "deriv-signal3.firebasestorage.app",
-  messagingSenderId: "1047757017057",
-  appId: "1:1047757017057:web:02cb845e7f8fc345988ca0",
-  measurementId: "G-ZV32T1XVJC"
-};
+const firebaseConfig={apiKey:"AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",authDomain:"deriv-signal3.firebaseapp.com",projectId:"deriv-signal3",storageBucket:"deriv-signal3.firebasestorage.app",messagingSenderId:"1047757017057",appId:"1:1047757017057:web:02cb845e7f8fc345988ca0",measurementId:"G-ZV32T1XVJC"};
 firebase.initializeApp(firebaseConfig);
-const fbAuth = firebase.auth();
-
-const loginOverlayEl = document.getElementById('loginOverlay');
-const appRootEl = document.getElementById('appRoot');
-const loginEmailEl = document.getElementById('loginEmail');
-const loginPasswordEl = document.getElementById('loginPassword');
-const loginSubmitBtnEl = document.getElementById('loginSubmitBtn');
-const loginErrorEl = document.getElementById('loginError');
-const loginLoadingEl = document.getElementById('loginLoading');
-
-function showLoginErr(msg){ loginErrorEl.textContent = msg; loginErrorEl.style.display = 'block'; }
-function clearLoginErr(){ loginErrorEl.style.display = 'none'; loginErrorEl.textContent = ''; }
-
+const fbAuth=firebase.auth();
+const loginOverlayEl=document.getElementById('loginOverlay');
+const appRootEl=document.getElementById('appRoot');
+const loginEmailEl=document.getElementById('loginEmail');
+const loginPasswordEl=document.getElementById('loginPassword');
+const loginSubmitBtnEl=document.getElementById('loginSubmitBtn');
+const loginErrorEl=document.getElementById('loginError');
+const loginLoadingEl=document.getElementById('loginLoading');
+function showLoginErr(msg){loginErrorEl.textContent=msg;loginErrorEl.style.display='block';}
+function clearLoginErr(){loginErrorEl.style.display='none';loginErrorEl.textContent='';}
 function doFirebaseLogin(){
-  const email = loginEmailEl.value.trim();
-  const password = loginPasswordEl.value;
-  if(!email || !password){ showLoginErr('กรุณากรอกอีเมลและรหัสผ่านให้ครบครับ'); return; }
-  clearLoginErr();
-  loginLoadingEl.style.display = 'block';
-  loginSubmitBtnEl.disabled = true;
-  fbAuth.signInWithEmailAndPassword(email, password)
+  const email=loginEmailEl.value.trim();const password=loginPasswordEl.value;
+  if(!email||!password){showLoginErr('กรุณากรอกอีเมลและรหัสผ่านให้ครบครับ');return;}
+  clearLoginErr();loginLoadingEl.style.display='block';loginSubmitBtnEl.disabled=true;
+  fbAuth.signInWithEmailAndPassword(email,password)
     .catch((err)=>{
-      let msg = 'เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมล/รหัสผ่าน';
+      let msg='เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมล/รหัสผ่าน';
       if(err.code==='auth/invalid-credential'||err.code==='auth/wrong-password'||err.code==='auth/user-not-found'){msg='อีเมลหรือรหัสผ่านไม่ถูกต้อง';}
       else if(err.code==='auth/invalid-email'){msg='รูปแบบอีเมลไม่ถูกต้อง';}
       else if(err.code==='auth/too-many-requests'){msg='พยายามเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอสักครู่';}
       showLoginErr(msg);
     })
-    .finally(()=>{ loginLoadingEl.style.display='none'; loginSubmitBtnEl.disabled=false; });
+    .finally(()=>{loginLoadingEl.style.display='none';loginSubmitBtnEl.disabled=false;});
 }
-loginSubmitBtnEl.addEventListener('click', doFirebaseLogin);
-loginPasswordEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doFirebaseLogin(); });
-loginEmailEl.addEventListener('keydown', e=>{ if(e.key==='Enter') doFirebaseLogin(); });
-
-let appBootedFlag = false;
+loginSubmitBtnEl.addEventListener('click',doFirebaseLogin);
+loginPasswordEl.addEventListener('keydown',e=>{if(e.key==='Enter')doFirebaseLogin();});
+loginEmailEl.addEventListener('keydown',e=>{if(e.key==='Enter')doFirebaseLogin();});
+let appBootedFlag=false;
 fbAuth.onAuthStateChanged((user)=>{
   if(user){
-    loginOverlayEl.style.display='none';
-    appRootEl.style.display='flex';
-    appRootEl.style.flexDirection='column';
-    appRootEl.style.height='100vh';
-    loginEmailEl.value=''; loginPasswordEl.value=''; clearLoginErr();
-    if(!appBootedFlag){ appBootedFlag = true; bootApp(); }
-    const lb = document.getElementById('logoutBtn');
-    if(lb) lb.addEventListener('click', ()=>{ if(confirm('ออกจากระบบใช่ไหมครับ?')) fbAuth.signOut(); }, {once:false});
-  } else {
-    loginOverlayEl.style.display='flex';
-    appRootEl.style.display='none';
-  }
+    loginOverlayEl.style.display='none';appRootEl.style.display='flex';appRootEl.style.flexDirection='column';appRootEl.style.height='100vh';
+    loginEmailEl.value='';loginPasswordEl.value='';clearLoginErr();
+    if(!appBootedFlag){appBootedFlag=true;bootApp();}
+    const lb=document.getElementById('logoutBtn');
+    if(lb)lb.addEventListener('click',()=>{if(confirm('ออกจากระบบใช่ไหมครับ?'))fbAuth.signOut();},{once:false});
+  }else{loginOverlayEl.style.display='flex';appRootEl.style.display='none';}
 });
 </script>
 
 <script>
 /* ══════════════════════════════════════════════════════
-   SECTION A: SIGNAL / CHART SYSTEM (from V36 file 1)
+   SECTION A: SIGNAL / CHART SYSTEM
    ══════════════════════════════════════════════════════ */
 const SYMBOLS=[
   {id:'R_10',tv:'DERIV:VOLATILITY_10_INDEX',name:'Volatility 10'},
@@ -682,7 +600,6 @@ let active=SYMBOLS[0];
 let signalStore=loadStore();
 let signalHistory=loadHistory();
 let receivedCount=Object.keys(signalStore).length;
-
 function qs(id){return document.getElementById(id)}
 function normalizeSymbol(v){return String(v||'').trim().toUpperCase().replace(/^DERIV:/,'').replace(/[^A-Z0-9_:.\-]/g,'')}
 function compactKey(v){return normalizeSymbol(v).replace(/^DERIV:/,'')}
@@ -693,14 +610,11 @@ function pct(v){const n=Number(v);return Number.isFinite(n)?Math.round(n)+'%':'�
 function timeLabel(v){if(!v)return '—';if(typeof v==='string'&&!/^\d+$/.test(v))return v;const n=Number(v);if(!Number.isFinite(n))return String(v);const ms=n>1000000000000?n:n*1000;return new Date(ms).toLocaleTimeString('th-TH',{hour12:false})}
 function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
 function num(v){const n=Number(String(v??'').replace(/,/g,''));return Number.isFinite(n)?n:NaN}
-
 function loadStore(){try{return JSON.parse(localStorage.getItem('v36Signals')||'{}')||{}}catch(e){return {}}}
 function saveStore(){try{localStorage.setItem('v36Signals',JSON.stringify(signalStore))}catch(e){}}
 function loadHistory(){try{return JSON.parse(localStorage.getItem('v36History')||'[]')||[]}catch(e){return []}}
 function saveHistory(){try{localStorage.setItem('v36History',JSON.stringify(signalHistory.slice(0,80)))}catch(e){}}
-
 function setConn(kind,text){qs('conn').className='conn '+kind;qs('dot').className='dot '+kind;qs('connText').textContent=text}
-
 function symbolForPayload(payload){
   const raw=payload.symbol||payload.ticker||payload.tv_symbol||payload.id||qs('symbolInput').value||active.tv;
   const key=compactKey(raw);
@@ -708,16 +622,8 @@ function symbolForPayload(payload){
   return found||{id:key||'CUSTOM',tv:raw||'CUSTOM',name:'Custom'}
 }
 function valueFor(sym){return signalStore[sym.id]||signalStore[compactKey(sym.tv)]||signalStore[compactKey(sym.tv.split(':').pop())]||null}
-
-function buildTabs(){
-  qs('tabs').innerHTML=SYMBOLS.map(s=>'<div class="tab '+(s.id===active.id?'active':'')+'" onclick="setActive(\''+s.id+'\')">'+s.id+'</div>').join('');
-}
-function setActive(id){
-  active=SYMBOLS.find(s=>s.id===id)||SYMBOLS[0];
-  qs('symbolInput').value=active.tv;
-  buildTabs();loadTradingView(active.tv,qs('intervalInput').value);render();
-}
-
+function buildTabs(){qs('tabs').innerHTML=SYMBOLS.map(s=>'<div class="tab '+(s.id===active.id?'active':'')+'" onclick="setActive(\''+s.id+'\')">'+s.id+'</div>').join('');}
+function setActive(id){active=SYMBOLS.find(s=>s.id===id)||SYMBOLS[0];qs('symbolInput').value=active.tv;buildTabs();loadTradingView(active.tv,qs('intervalInput').value);render();}
 function loadTradingView(tvSymbol,interval){
   const sym=tvSymbol||active.tv;const tf=String(interval||'1');
   const root=qs('tvContainer');root.innerHTML='<div class="tradingview-widget-container__widget"></div>';
@@ -728,12 +634,13 @@ function loadTradingView(tvSymbol,interval){
   qs('chartNote').textContent='Chart: '+sym+' / '+tf+'m — AUTO SCAN สแกนจาก symbol นี้โดยตรง';
   setConn('live','STATIC');
 }
-
 function applyChartFromInputs(){
   const tv=qs('symbolInput').value.trim()||active.tv;const interval=qs('intervalInput').value;
   const found=SYMBOLS.find(s=>compactKey(s.tv)===compactKey(tv));
   if(found){active=found;buildTabs()}
   loadTradingView(tv,interval);render();
+  // re-scan ทันทีด้วย TF/Symbol ใหม่ถ้า AUTO SCAN เปิดอยู่
+  if(autoScanOn){runAutoScanOnce();runAutoScanAll();}
 }
 function showPanel(id){hidePanels();const p=qs(id);if(p){p.classList.add('show');qs('modalBackdrop').classList.add('show')}}
 function hidePanels(){document.querySelectorAll('.panel').forEach(p=>p.classList.remove('show'));qs('modalBackdrop').classList.remove('show')}
@@ -750,7 +657,6 @@ function applyPastedChart(){
   qs('symbolInput').value=sym;if(interval)qs('intervalInput').value=interval;
   applyChartFromInputs();hidePanels();
 }
-
 function normalizePayload(payload){
   const out=Object.assign({},payload||{});
   out.signal=sigClass(out.signal||out.action||out.side||'');
@@ -817,11 +723,7 @@ function prettySignalText(txt){const raw=String(txt||'').trim();if(!raw)return '
 let autoApplyAfterManualPaste=false;
 function setPasteHelp(show,msg){const h=qs('pasteHelp');if(!h)return;if(msg)h.textContent=msg;h.className=show?'paste-help show':'paste-help'}
 function openManualPasteFallback(err,autoApply){showPanel('signalPanel');setPasteHelp(true,'กด Ctrl+V / Cmd+V ในช่องนี้');autoApplyAfterManualPaste=!!autoApply;qs('signalPaste').focus();}
-function applySignalPaste(){
-  const rows=parseSignals(qs('signalPaste').value);
-  if(!rows.length){setPasteHelp(true,'ไม่พบ JSON signal');return}
-  rows.forEach(r=>ingestSignal(r,'PASTE'));fillManualFromPayload(rows[rows.length-1]);setPasteHelp(false);autoApplyAfterManualPaste=false;
-}
+function applySignalPaste(){const rows=parseSignals(qs('signalPaste').value);if(!rows.length){setPasteHelp(true,'ไม่พบ JSON signal');return}rows.forEach(r=>ingestSignal(r,'PASTE'));fillManualFromPayload(rows[rows.length-1]);setPasteHelp(false);autoApplyAfterManualPaste=false;}
 async function readSignalFromClipboard(){try{if(!navigator.clipboard||!navigator.clipboard.readText)throw new Error('no API');const txt=await navigator.clipboard.readText();qs('signalPaste').value=prettySignalText(txt);showPanel('signalPanel');}catch(e){openManualPasteFallback(e,false)}}
 async function readAndApplySignalFromClipboard(){try{if(!navigator.clipboard||!navigator.clipboard.readText)throw new Error('no API');const txt=await navigator.clipboard.readText();qs('signalPaste').value=prettySignalText(txt);showPanel('signalPanel');const rows=parseSignals(txt);if(!rows.length)return;rows.forEach(r=>ingestSignal(r,'GET_VALUE'));fillManualFromPayload(rows[rows.length-1]);}catch(e){openManualPasteFallback(e,true)}}
 function applyClipboardSignal(){readAndApplySignalFromClipboard()}
@@ -836,45 +738,28 @@ function quickDemo(side){
 function resetSignals(){signalStore={};signalHistory=[];receivedCount=0;saveStore();saveHistory();render();}
 function showPineScript(){showPanel('pinePanel')}
 function copyPine(){const el=qs('pineCode');el.select();navigator.clipboard.writeText(el.value).catch(()=>{document.execCommand('copy')})}
-
-/* ── RENDER ── */
 function render(){
   const currentTv=qs('symbolInput').value.trim()||active.tv;
   const currentSym=SYMBOLS.find(s=>compactKey(s.tv)===compactKey(currentTv))||active;
   const v=valueFor(currentSym)||valueFor(active);
   const sig=sigClass(v&&v.signal);
-  // pricebar
   qs('pbSymbol').textContent=currentSym.id||active.id;
-  setTxtCls('pbPrice',v?fmt(v.price,4):'—',classFor(sig));
-  setTxtCls('pbSignal',sig,classFor(sig));
-  setTxtCls('pbConf',v?pct(v.confidence):'—',classFor(sig));
-  setTxtCls('pbScore',v?fmt(v.score,2):'—',classFor(sig));
-  qs('pbRsi').textContent=v?fmt(v.rsi,1):'—';
-  qs('pbEma').textContent=v?fmt(v.ema_fast,4)+'/'+fmt(v.ema_slow,4):'—';
+  setTxtCls('pbPrice',v?fmt(v.price,4):'—',classFor(sig));setTxtCls('pbSignal',sig,classFor(sig));
+  setTxtCls('pbConf',v?pct(v.confidence):'—',classFor(sig));setTxtCls('pbScore',v?fmt(v.score,2):'—',classFor(sig));
+  qs('pbRsi').textContent=v?fmt(v.rsi,1):'—';qs('pbEma').textContent=v?fmt(v.ema_fast,4)+'/'+fmt(v.ema_slow,4):'—';
   qs('pbAtr').textContent=v?fmt(v.atr,4):'—';
-  setTxtCls('pbSup',v?fmt(v.support,4):'—','up');
-  setTxtCls('pbRes',v?fmt(v.resistance,4):'—','dn');
-  qs('pbFilter').textContent=v?(v.filter||'—'):'—';
-  qs('pbUpdated').textContent=v?timeLabel(v.received_at||v.bar_time||v.time):'—';
-  // overview panel
+  setTxtCls('pbSup',v?fmt(v.support,4):'—','up');setTxtCls('pbRes',v?fmt(v.resistance,4):'—','dn');
+  qs('pbFilter').textContent=v?(v.filter||'—'):'—';qs('pbUpdated').textContent=v?timeLabel(v.received_at||v.bar_time||v.time):'—';
   const ovSig=qs('spSigBig');ovSig.textContent=sig;ovSig.className='sp-sig-big '+sig;
-  qs('spSigSym').textContent=currentSym.id||'—';
-  qs('spSigTime').textContent=v?timeLabel(v.received_at||v.bar_time):'—';
-  const sc=v?Math.max(0,Math.min(100,50+Number(v.score||0)*8)):50;
-  qs('spScoreFill').style.width=sc+'%';
-  qs('spPrice').textContent=v?fmt(v.price,4):'—';
-  qs('spPriceSub').textContent=v?'TF '+escapeHtml(v.timeframe||'—'):'—';
-  setTxtCls('spConf',v?pct(v.confidence):'—',classFor(sig));
-  qs('spScoreVal').textContent=v?fmt(v.score,2):'—';
+  qs('spSigSym').textContent=currentSym.id||'—';qs('spSigTime').textContent=v?timeLabel(v.received_at||v.bar_time):'—';
+  const sc=v?Math.max(0,Math.min(100,50+Number(v.score||0)*8)):50;qs('spScoreFill').style.width=sc+'%';
+  qs('spPrice').textContent=v?fmt(v.price,4):'—';qs('spPriceSub').textContent=v?'TF '+escapeHtml(v.timeframe||'—'):'—';
+  setTxtCls('spConf',v?pct(v.confidence):'—',classFor(sig));qs('spScoreVal').textContent=v?fmt(v.score,2):'—';
   setTxtCls('spRsi',v?fmt(v.rsi,1):'—',v?((v.rsi>=58)?'up':(v.rsi<=42)?'dn':'neu'):'dim');
   qs('spRsiSub').textContent=v&&Number.isFinite(v.rsi)?(v.rsi>=70?'OB':v.rsi<=30?'OS':'NORMAL'):'—';
-  qs('spEf').textContent=v?fmt(v.ema_fast,4):'—';
-  qs('spEs').textContent=v?fmt(v.ema_slow,4):'—';
-  qs('spAtr').textContent=v?fmt(v.atr,4):'—';
-  setTxtCls('spSup',v?fmt(v.support,4):'—','up');
-  setTxtCls('spRes',v?fmt(v.resistance,4):'—','dn');
+  qs('spEf').textContent=v?fmt(v.ema_fast,4):'—';qs('spEs').textContent=v?fmt(v.ema_slow,4):'—';qs('spAtr').textContent=v?fmt(v.atr,4):'—';
+  setTxtCls('spSup',v?fmt(v.support,4):'—','up');setTxtCls('spRes',v?fmt(v.resistance,4):'—','dn');
   qs('spFilter').innerHTML=v?'<b>Filter:</b> '+escapeHtml(v.filter||'—')+'<br><b>EMA:</b> '+fmt(v.ema_fast,4)+' / '+fmt(v.ema_slow,4)+'<br><b>ATR:</b> '+fmt(v.atr,4)+'<br><b>Src:</b> '+escapeHtml(v.source||'—'):'รอสัญญาณ...';
-  // log
   renderSPLog();
 }
 function setTxtCls(id,text,cls){const el=qs(id);if(!el)return;el.textContent=text;el.className=cls}
@@ -886,59 +771,35 @@ function renderSPLog(){
     return `<div class="sp-log-row"><span class="lr-sig ${s}">${s}</span><span class="lr-sym">${escapeHtml(it.symbol||'—')}</span><span class="lr-price">${fmt(it.price,4)}</span><span class="lr-conf ${classFor(s)}">${pct(it.confidence)}</span><span style="color:var(--muted);font-size:9px">${escapeHtml(it.filter||'—').substring(0,30)}</span><span class="lr-time">${t}</span></div>`;
   }).join('');
 }
-
-/* ── SIGNAL PANEL UI ── */
 let spCollapsed=false;
 function setSPTab(paneId){
   document.querySelectorAll('.sp-tab').forEach((t,i)=>{const tabs=['spOverview','spLog','spApiPane','spTgPane','spWatchPane'];t.classList.toggle('active',tabs[i]===paneId)});
   document.querySelectorAll('.sp-pane').forEach(p=>p.classList.toggle('active',p.id===paneId));
 }
-function toggleCollapse(){
-  spCollapsed=!spCollapsed;const wrap=qs('sigPanel');const btn=qs('collapseBtn');
-  wrap.classList.toggle('collapsed',spCollapsed);
-  btn.textContent=spCollapsed?'▲ SHOW':'▼ HIDE';
-}
-function setSPHeight(h){
-  if(spCollapsed){spCollapsed=false;qs('sigPanel').classList.remove('collapsed');qs('collapseBtn').textContent='▼ HIDE';}
-  qs('sigPanel').style.height=h+'px';
-}
-
-/* ── RESIZE HANDLE ── */
+function toggleCollapse(){spCollapsed=!spCollapsed;const wrap=qs('sigPanel');const btn=qs('collapseBtn');wrap.classList.toggle('collapsed',spCollapsed);btn.textContent=spCollapsed?'▲ SHOW':'▼ HIDE';}
+function setSPHeight(h){if(spCollapsed){spCollapsed=false;qs('sigPanel').classList.remove('collapsed');qs('collapseBtn').textContent='▼ HIDE';}qs('sigPanel').style.height=h+'px';}
 function initResize(){
   const handle=qs('resizeHandle');const panel=qs('sigPanel');
   let startY=0,startH=0,dragging=false;
   handle.addEventListener('mousedown',e=>{dragging=true;startY=e.clientY;startH=panel.offsetHeight;document.body.style.userSelect='none';e.preventDefault()});
   document.addEventListener('mousemove',e=>{if(!dragging)return;const delta=startY-e.clientY;const newH=Math.max(28,Math.min(window.innerHeight*0.75,startH+delta));panel.style.height=newH+'px';if(spCollapsed&&newH>28){spCollapsed=false;panel.classList.remove('collapsed');qs('collapseBtn').textContent='▼ HIDE'}});
   document.addEventListener('mouseup',()=>{dragging=false;document.body.style.userSelect=''});
-  // touch
   handle.addEventListener('touchstart',e=>{dragging=true;startY=e.touches[0].clientY;startH=panel.offsetHeight;e.preventDefault()},{passive:false});
   document.addEventListener('touchmove',e=>{if(!dragging)return;const delta=startY-e.touches[0].clientY;const newH=Math.max(28,Math.min(window.innerHeight*0.75,startH+delta));panel.style.height=newH+'px'},{passive:false});
   document.addEventListener('touchend',()=>{dragging=false});
 }
-
 window.addEventListener('message',ev=>{if(ev&&ev.data&&typeof ev.data==='object'&&(ev.data.signal||ev.data.price||ev.data.type==='signal'))ingestSignal(ev.data,'POSTMESSAGE')});
 window.addEventListener('keydown',ev=>{if(ev.key==='Escape')hidePanels()});
 
 /* ══════════════════════════════════════════════════════
-   SECTION B: AUTO SCAN — สแกนจาก symbol ที่กรากฟแสดง
-   ทุก indicator ประมวลผลจาก Deriv candles API symbol เดียวกับที่ chart แสดง
+   SECTION B: AUTO SCAN
    ══════════════════════════════════════════════════════ */
-const DERIV_SYM_MAP={
-  R_10:'R_10',R_25:'R_25',R_50:'R_50',R_75:'R_75',R_100:'R_100',
-  V10_1S:'1HZ10V',V25_1S:'1HZ25V',V50_1S:'1HZ50V',V75_1S:'1HZ75V',V100_1S:'1HZ100V',
-  // also accept raw deriv IDs directly
-  '1HZ10V':'1HZ10V','1HZ25V':'1HZ25V','1HZ50V':'1HZ50V','1HZ75V':'1HZ75V','1HZ100V':'1HZ100V'
-};
+const DERIV_SYM_MAP={R_10:'R_10',R_25:'R_25',R_50:'R_50',R_75:'R_75',R_100:'R_100',V10_1S:'1HZ10V',V25_1S:'1HZ25V',V50_1S:'1HZ50V',V75_1S:'1HZ75V',V100_1S:'1HZ100V','1HZ10V':'1HZ10V','1HZ25V':'1HZ25V','1HZ50V':'1HZ50V','1HZ75V':'1HZ75V','1HZ100V':'1HZ100V'};
 let autoScanOn=false,autoScanTimer=null,scanWs=null,scanReqId=2000;
-
 function getChartDerivSymbol(){
-  // always derive from the CURRENT chart symbol input
   const tvSym=qs('symbolInput').value.trim()||active.tv;
-  // strip DERIV: prefix
   const bare=tvSym.replace(/^DERIV:/i,'').toUpperCase().replace(/[^A-Z0-9_]/g,'');
-  // map through all possible keys
   if(DERIV_SYM_MAP[bare])return DERIV_SYM_MAP[bare];
-  // try compact match against SYMBOLS array
   const found=SYMBOLS.find(s=>s.id===bare||compactKey(s.tv)===bare||s.tv.replace(/^DERIV:/i,'').toUpperCase()===bare);
   if(found&&DERIV_SYM_MAP[found.id])return DERIV_SYM_MAP[found.id];
   return bare||'R_25';
@@ -969,125 +830,64 @@ function requestCandles(symbol,granularity){
     ws.send(JSON.stringify({ticks_history:symbol,adjust_start_time:1,count:100,end:'latest',start:1,style:'candles',granularity,req_id}));
   });
 }
-
-// ── ALL INDICATORS computed from candles ──
 function emaFrom(vals,period){if(!vals.length)return NaN;const k=2/(period+1);let e=vals[0];for(let i=1;i<vals.length;i++)e=vals[i]*k+e*(1-k);return e;}
 function rsiFrom(vals,period=14){if(vals.length<period+1)return NaN;let g=0,l=0;for(let i=vals.length-period;i<vals.length;i++){const d=vals[i]-vals[i-1];if(d>0)g+=d;else l+=Math.abs(d);}const ag=g/period,al=l/period;if(al===0)return 100;return 100-(100/(1+ag/al));}
 function stochFrom(closes,highs,lows,period=14){if(closes.length<period)return NaN;const sl=lows.slice(-period),sh=highs.slice(-period);const mn=Math.min(...sl),mx=Math.max(...sh);if(mx===mn)return 50;return((closes[closes.length-1]-mn)/(mx-mn))*100;}
 function atrFrom(candles,period=14){if(candles.length<period+1)return NaN;const trs=[];for(let i=1;i<candles.length;i++){const h=Number(candles[i].high),l=Number(candles[i].low),pc=Number(candles[i-1].close);trs.push(Math.max(h-l,Math.abs(h-pc),Math.abs(l-pc)));}return trs.slice(-period).reduce((a,b)=>a+b,0)/period;}
 function srFrom(candles,lookback=40){const c=candles.slice(-lookback);if(!c.length)return{support:NaN,resistance:NaN};return{support:Math.min(...c.map(x=>Number(x.low))),resistance:Math.max(...c.map(x=>Number(x.high)))};}
 function velocityFrom(closes,n=5){if(closes.length<n+1)return NaN;return(closes[closes.length-1]-closes[closes.length-1-n])/n;}
-
 function analyzeCandles(candles,tvSymbol,derivSymbol){
   if(!candles||candles.length<30)throw new Error('candle ไม่พอ (ได้ '+(candles?candles.length:0)+')');
-  const closes=candles.map(c=>Number(c.close));
-  const highs=candles.map(c=>Number(c.high));
-  const lows=candles.map(c=>Number(c.low));
-  const last=candles[candles.length-1];
-  const price=Number(last.close);
-
-  // EMA indicators
-  const ema_fast=emaFrom(closes,9);
-  const ema_slow=emaFrom(closes,21);
-  const ema50=emaFrom(closes,50);
-  const ema200=emaFrom(closes,200);
-
-  // Momentum
-  const rsi=rsiFrom(closes,14);
-  const stoch=stochFrom(closes,highs,lows,14);
-  const atr=atrFrom(candles,14);
-  const {support,resistance}=srFrom(candles,40);
-
-  // Tick velocity (from last 5 candle closes)
-  const velocity=velocityFrom(closes,5);
-
-  // Deep MTF: compare short vs medium term trend
-  const mtfShort=emaFrom(closes.slice(-10),5);
-  const mtfMed=emaFrom(closes.slice(-25),10);
-  const mtfLong=emaFrom(closes.slice(-50),20);
-
-  // ── SCORING ──
-  let score=0;const reasons=[];
-  const indToggles=indicatorToggles;
-
-  // Core: EMA trend
+  const closes=candles.map(c=>Number(c.close));const highs=candles.map(c=>Number(c.high));const lows=candles.map(c=>Number(c.low));
+  const last=candles[candles.length-1];const price=Number(last.close);
+  const ema_fast=emaFrom(closes,9);const ema_slow=emaFrom(closes,21);const ema50=emaFrom(closes,50);const ema200=emaFrom(closes,200);
+  const rsi=rsiFrom(closes,14);const stoch=stochFrom(closes,highs,lows,14);const atr=atrFrom(candles,14);
+  const {support,resistance}=srFrom(candles,40);const velocity=velocityFrom(closes,5);
+  const mtfShort=emaFrom(closes.slice(-10),5);const mtfMed=emaFrom(closes.slice(-25),10);const mtfLong=emaFrom(closes.slice(-50),20);
+  let score=0;const reasons=[];const indToggles=indicatorToggles;
   if(price>ema_fast&&ema_fast>ema_slow){score+=3;reasons.push('ราคาเหนือ EMA9>21')}
   else if(price<ema_fast&&ema_fast<ema_slow){score-=3;reasons.push('ราคาต่ำกว่า EMA9<21')}
   else reasons.push('EMA ยังไม่ชัด');
-
-  // EMA50
-  if(Number.isFinite(ema50)){
-    if(price>ema50){score+=0.7;reasons.push('เหนือ EMA50')}
-    else{score-=0.7;reasons.push('ต่ำกว่า EMA50');}
-  }
-
-  // RSI/Stoch filter
+  if(Number.isFinite(ema50)){if(price>ema50){score+=0.7;reasons.push('เหนือ EMA50')}else{score-=0.7;reasons.push('ต่ำกว่า EMA50');}}
   if(indToggles.rsi&&Number.isFinite(rsi)&&Number.isFinite(stoch)){
     if(rsi>=58&&rsi<78&&stoch>=50){score+=1.5;reasons.push('RSI+Stoch bullish')}
     else if(rsi<=42&&rsi>22&&stoch<=50){score-=1.5;reasons.push('RSI+Stoch bearish')}
-    else if(rsi>=78){score-=1.2;reasons.push('RSI OB')}
-    else if(rsi<=22){score+=1.2;reasons.push('RSI OS')}
+    else if(rsi>=78){score-=1.2;reasons.push('RSI OB')}else if(rsi<=22){score+=1.2;reasons.push('RSI OS')}
     else reasons.push('RSI/Stoch กลาง');
-  } else if(Number.isFinite(rsi)){
+  }else if(Number.isFinite(rsi)){
     if(rsi>=58&&rsi<78){score+=1.3;reasons.push('RSI bullish')}
     else if(rsi<=42&&rsi>22){score-=1.3;reasons.push('RSI bearish')}
-    else if(rsi>=78){score-=1.1;reasons.push('RSI OB')}
-    else if(rsi<=22){score+=1.1;reasons.push('RSI OS')}
+    else if(rsi>=78){score-=1.1;reasons.push('RSI OB')}else if(rsi<=22){score+=1.1;reasons.push('RSI OS')}
   }
-
-  // SR proximity
   if(Number.isFinite(atr)&&atr>0){
     const srThreshold=indToggles.atr?atr*0.5:atr*0.75;
     if(Number.isFinite(support)&&(price-support)<=srThreshold){score+=1;reasons.push('ใกล้แนวรับ')}
     if(Number.isFinite(resistance)&&(resistance-price)<=srThreshold){score-=1;reasons.push('ใกล้แนวต้าน')}
   }
-
-  // Velocity filter
   if(indToggles.velocity&&Number.isFinite(velocity)){
     if(velocity>0&&score>0){score+=0.6;reasons.push('Velocity+UP')}
     else if(velocity<0&&score<0){score-=0.6;reasons.push('Velocity+DN')}
     else if(velocity!==0){reasons.push('Velocity mixed')}
   }
-
-  // Deep MTF
   if(indToggles.deepmtf&&Number.isFinite(mtfShort)&&Number.isFinite(mtfMed)&&Number.isFinite(mtfLong)){
-    const mtfUp=mtfShort>mtfMed&&mtfMed>mtfLong;
-    const mtfDn=mtfShort<mtfMed&&mtfMed<mtfLong;
+    const mtfUp=mtfShort>mtfMed&&mtfMed>mtfLong;const mtfDn=mtfShort<mtfMed&&mtfMed<mtfLong;
     if(mtfUp&&score>0){score+=1.2;reasons.push('Deep MTF ขาขึ้น')}
     else if(mtfDn&&score<0){score-=1.2;reasons.push('Deep MTF ขาลง')}
     else reasons.push('MTF ยังขัดแย้ง');
   }
-
   const signal=score>=2.4?'CALL':score<=-2.4?'PUT':'WAIT';
-  return{
-    type:'signal',symbol:tvSymbol,deriv_symbol:derivSymbol,
-    timeframe:qs('intervalInput').value,signal,price,rsi,stoch:Number.isFinite(stoch)?stoch:undefined,
-    atr,ema_fast,ema_slow,ema50:Number.isFinite(ema50)?ema50:undefined,
-    support,resistance,score,
-    confidence:Math.min(94,Math.max(50,50+Math.abs(score)*11)),
-    filter:reasons.join(' · '),
-    bar_time:last.epoch||Date.now(),source:'AUTO_SCAN'
-  };
+  return{type:'signal',symbol:tvSymbol,deriv_symbol:derivSymbol,timeframe:qs('intervalInput').value,signal,price,rsi,stoch:Number.isFinite(stoch)?stoch:undefined,atr,ema_fast,ema_slow,ema50:Number.isFinite(ema50)?ema50:undefined,support,resistance,score,confidence:Math.min(94,Math.max(50,50+Math.abs(score)*11)),filter:reasons.join(' · '),bar_time:last.epoch||Date.now(),source:'AUTO_SCAN'};
 }
-
 async function runAutoScanOnce(){
-  const tvSym=qs('symbolInput').value.trim()||active.tv;
-  const derivSym=getChartDerivSymbol();
-  const gran=granularityFromInterval();
+  const tvSym=qs('symbolInput').value.trim()||active.tv;const derivSym=getChartDerivSymbol();const gran=granularityFromInterval();
   qs('chartNote').textContent='🔄 กำลังสแกน '+derivSym+' ('+gran+'s candles)...';
   try{
-    const candles=await requestCandles(derivSym,gran);
-    const payload=analyzeCandles(candles,tvSym,derivSym);
-    qs('signalPaste').value=JSON.stringify(payload,null,2);
-    fillManualFromPayload(payload);
-    ingestSignal(payload,'AUTO_SCAN');
+    const candles=await requestCandles(derivSym,gran);const payload=analyzeCandles(candles,tvSym,derivSym);
+    qs('signalPaste').value=JSON.stringify(payload,null,2);fillManualFromPayload(payload);ingestSignal(payload,'AUTO_SCAN');
     const sig=sigClass(payload.signal);
     qs('chartNote').textContent='✅ '+derivSym+' '+gran+'s → '+sig+' | Score '+payload.score.toFixed(2)+' | '+payload.filter.substring(0,60);
     setConn('live','AUTO SCAN');
-  }catch(e){
-    qs('chartNote').textContent='❌ SCAN ERROR: '+escapeHtml(e.message||e);
-    setConn('err','SCAN ERR');
-  }
+  }catch(e){qs('chartNote').textContent='❌ SCAN ERROR: '+escapeHtml(e.message||e);setConn('err','SCAN ERR');}
 }
 function toggleAutoScan(){
   autoScanOn=!autoScanOn;const btn=qs('autoScanBtn');
@@ -1097,43 +897,25 @@ function toggleAutoScan(){
     runAutoScanAll();autoScanAllTimer=setInterval(runAutoScanAll,20000);
   }else{
     btn.textContent='AUTO SCAN';btn.classList.remove('active-btn');
-    clearInterval(autoScanTimer);autoScanTimer=null;
-    clearInterval(autoScanAllTimer);autoScanAllTimer=null;
+    clearInterval(autoScanTimer);autoScanTimer=null;clearInterval(autoScanAllTimer);autoScanAllTimer=null;
     try{scanWs&&scanWs.close()}catch(e){}
-    setConn('live','STATIC');
-    qs('chartNote').textContent='AUTO SCAN ปิดแล้ว';
+    setConn('live','STATIC');qs('chartNote').textContent='AUTO SCAN ปิดแล้ว';
   }
 }
 
-/* ── WATCHLIST AUTO SCAN (ภาพรวม) ──
-   สแกนทุก symbol ใน Watchlist (apiWatchedSymbols) พร้อมกัน ด้วย logic วิเคราะห์เดียวกับ analyzeCandles()
-   แล้วสรุปเป็นภาพรวม (aggregate) เพื่อใช้เป็นตัวกรองราคาก่อนส่งออเดอร์จริงใน onApiTickReceived
-   ไม่แก้ไข logic เดิมของ AUTO SCAN (chart symbol เดี่ยว) หรือ API Trading เลย — เป็นชั้นเสริมเท่านั้น */
+/* ── WATCHLIST AUTO SCAN ── */
 let scanResults={};
 let aggregateSignal='WAIT',aggregateScore=0;
 let autoScanAllTimer=null;
-
-function tvSymbolForDeriv(derivSym){
-  const found=SYMBOLS.find(s=>DERIV_SYM_MAP[s.id]===derivSym||compactKey(s.tv.split(':').pop())===derivSym);
-  return found?found.tv:('DERIV:'+derivSym);
-}
+function tvSymbolForDeriv(derivSym){const found=SYMBOLS.find(s=>DERIV_SYM_MAP[s.id]===derivSym||compactKey(s.tv.split(':').pop())===derivSym);return found?found.tv:('DERIV:'+derivSym);}
 async function scanOneWatchSymbol(derivSym){
-  try{
-    const gran=granularityFromInterval();
-    const candles=await requestCandles(derivSym,gran);
-    const payload=analyzeCandles(candles,tvSymbolForDeriv(derivSym),derivSym);
-    scanResults[derivSym]=payload;
-    return payload;
-  }catch(e){
-    return null;
-  }
+  try{const gran=granularityFromInterval();const candles=await requestCandles(derivSym,gran);const payload=analyzeCandles(candles,tvSymbolForDeriv(derivSym),derivSym);scanResults[derivSym]=payload;return payload;}
+  catch(e){return null;}
 }
 async function runAutoScanAll(){
   if(!apiWatchedSymbols||!apiWatchedSymbols.length)return;
   const jobs=apiWatchedSymbols.map(sym=>scanOneWatchSymbol(sym));
-  await Promise.all(jobs);
-  computeAggregate();
-  renderWatchScan();
+  await Promise.all(jobs);computeAggregate();renderWatchScan();
 }
 function computeAggregate(){
   const entries=Object.values(scanResults).filter(Boolean);
@@ -1143,52 +925,83 @@ function computeAggregate(){
   aggregateSignal=aggregateScore>=1?'CALL':aggregateScore<=-1?'PUT':'WAIT';
 }
 function renderWatchScan(){
-  const aggSig=qs('spWatchAggSig');const aggScore=qs('spWatchAggScore');const list=qs('spWatchScanList');
-  if(!aggSig||!list)return;
-  aggSig.textContent=aggregateSignal;aggSig.className=classFor(aggregateSignal);
-  aggScore.textContent='(score '+fmt(aggregateScore,2)+')';
+  const aggSig=qs('spWatchAggSig');const aggScore=qs('spWatchAggScore');const list=qs('spWatchScanList');if(!aggSig||!list)return;
+  aggSig.textContent=aggregateSignal;aggSig.className=classFor(aggregateSignal);aggScore.textContent='(score '+fmt(aggregateScore,2)+')';
   const rows=apiWatchedSymbols.map(sym=>{
-    const r=scanResults[sym];
-    if(!r)return '<div style="padding:2px 0;color:var(--muted)">'+escapeHtml(sym)+': —</div>';
+    const r=scanResults[sym];if(!r)return '<div style="padding:2px 0;color:var(--muted)">'+escapeHtml(sym)+': —</div>';
     const cls=classFor(sigClass(r.signal));
     return '<div style="padding:2px 0;display:flex;justify-content:space-between;gap:6px"><span>'+escapeHtml(sym)+'</span><span class="'+cls+'">'+sigClass(r.signal)+' ('+fmt(r.score,1)+')</span></div>';
   }).join('');
   list.innerHTML=rows||'ยังไม่ได้สแกน — กด AUTO SCAN';
 }
-/* ใช้เป็นตัวกรองก่อนส่งออเดอร์: ต้องสอดคล้องทั้งภาพรวม (aggregate) และสัญญาณเฉพาะ symbol นั้น
-   ถ้า AUTO SCAN ยังไม่เปิด จะคืนค่า true เสมอ (ไม่กระทบ logic เดิม) */
+
+/* ── onIntervalChanged: เมื่อเปลี่ยน TF dropdown — re-scan ทันทีด้วย granularity ใหม่ ── */
+function onIntervalChanged(){
+  const tv=qs('symbolInput').value.trim()||active.tv;const interval=qs('intervalInput').value;
+  loadTradingView(tv,interval);
+  if(autoScanOn){
+    // ล้างผลเก่าจาก TF ที่แล้วก่อน เพื่อไม่ให้ค้างข้าม TF
+    scanResults={};aggregateSignal='WAIT';aggregateScore=0;renderWatchScan();
+    runAutoScanOnce();   // chart symbol เดี่ยว
+    runAutoScanAll();    // watchlist ทุก symbol
+  }
+}
+
+/* ── passAutoScanFilter (UPDATED) ──
+   รวม score จาก AUTO SCAN (chart) + WATCHLIST aggregate
+   + ตรวจ S/R clearance จาก candle scan ก่อนอนุญาตเข้าออเดอร์
+   ถ้า AUTO SCAN ปิด — คืน true เสมอ (backward-compat) */
+const SR_CLEARANCE_MULT=1.2;   // ห่างจาก S/R อีกฝั่ง >= ATR*1.2 จึงเข้าออเดอร์
+const SR_TICK_MARGIN_MULT=0.5; // tick-level margin >= ATR*0.5
+
 function passAutoScanFilter(sym,direction){
   if(!autoScanOn)return true;
-  if(!aggregateSignal||aggregateSignal==='WAIT')return false;
   const wantCall=direction==='HIGHER';
-  if(wantCall&&aggregateSignal!=='CALL')return false;
-  if(!wantCall&&aggregateSignal!=='PUT')return false;
-  const r=scanResults[sym];
-  if(r){
-    const rs=sigClass(r.signal);
-    if(wantCall&&rs==='PUT')return false;
-    if(!wantCall&&rs==='CALL')return false;
+  // ── 1. รวม score chart scan + watchlist aggregate ──
+  const chartDerivSym=getChartDerivSymbol();
+  const chartResult=scanResults[chartDerivSym]||null;
+  const symResult=scanResults[sym]||null;
+  const chartScore=chartResult?(Number(chartResult.score)||0):0;
+  const watchScore=aggregateScore||0;
+  // combined = chart 50% + watchlist 50% (ถ้าไม่มี chart result ใช้ watchlist 100%)
+  const combinedScore=chartResult?(chartScore*0.5+watchScore*0.5):watchScore;
+  if(wantCall&&combinedScore<=0)return false;
+  if(!wantCall&&combinedScore>=0)return false;
+  // aggregate ต้องไม่ขัดแย้ง
+  if(aggregateSignal&&aggregateSignal!=='WAIT'){
+    if(wantCall&&aggregateSignal!=='CALL')return false;
+    if(!wantCall&&aggregateSignal!=='PUT')return false;
+  }
+  // symbol เฉพาะตัวต้องไม่ขัดแย้ง
+  if(symResult){const rs=sigClass(symResult.signal);if(wantCall&&rs==='PUT')return false;if(!wantCall&&rs==='CALL')return false;}
+  // ── 2. ตรวจ S/R clearance จาก candle scan ──
+  const srSrc=symResult||chartResult;
+  if(srSrc){
+    const p=Number(srSrc.price),sup=Number(srSrc.support),res=Number(srSrc.resistance),atrVal=Number(srSrc.atr);
+    if(Number.isFinite(p)&&Number.isFinite(sup)&&Number.isFinite(res)){
+      const range=res-sup;
+      if(range>0){
+        const clearance=(Number.isFinite(atrVal)&&atrVal>0)?(atrVal*SR_CLEARANCE_MULT):(range*0.12);
+        if(wantCall){if((res-p)<clearance)return false;}  // CALL: ราคาต้องห่าง resistance >= clearance
+        else{if((p-sup)<clearance)return false;}           // PUT: ราคาต้องห่าง support >= clearance
+      }
+    }
   }
   return true;
 }
 
 /* ══════════════════════════════════════════════════════
    SECTION C: FULL API TRADING
-   BUG FIX (currency mismatch): เดิมระบบ hardcode currency เป็น 'USD' ตายตัวในคำสั่ง buy
-   ทำให้บัญชีจริงที่ใช้สกุลเงินอื่น (USDC/BTC/ETH/GBP/EUR ฯลฯ) ถูก Deriv API ปฏิเสธคำสั่งซื้อแบบเงียบๆ
-   ตอนนี้ดึง currency จริงจาก authorize response (apiAccountCurrency) มาใช้แทนเสมอ
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
-  {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},
-  {sym:'R_50',label:'Vol 50',dec:4},{sym:'R_75',label:'Vol 75',dec:4},
-  {sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
-  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},
-  {sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},{sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},
-  {sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
+  {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
+  {sym:'R_75',label:'Vol 75',dec:4},{sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
+  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
+  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
 const API_APP_ID='1089';
 let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
-let apiAccountCurrency='USD'; // ดึงจริงจากบัญชีตอน authorize แทนการ hardcode
+let apiAccountCurrency='USD';
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
 let apiCurrencyIsCrypto=false;
 let baseStake=1.0,virtualDemoBalance=10000;
@@ -1198,18 +1011,14 @@ let apiDurationVal='5_ticks',lookbackPeriod=30,allowedMaxSteps=5,martingaleMulti
 let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
 let apiState={};
-
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
-
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
 function ensureApiState(sym){if(!apiState[sym])apiState[sym]=freshState();}
 function isGlobalOrderLocked(){return globalLockedSymbol!==null;}
 function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='5_min')return 150;if(v==='15_min')return 450;return 5;}
-
 function renderGlobalKpis(){
   const s=qs('apiKpiStep');const sk=qs('apiKpiStake');const lk=qs('apiKpiLock');const wr=qs('apiKpiWinrate');if(!s)return;
-  s.textContent='M-'+(globalStepCount+1);
-  sk.textContent=apiFmtStake(baseStake*Math.pow(martingaleMultiplier,globalStepCount))+' '+apiAccountCurrency;
+  s.textContent='M-'+(globalStepCount+1);sk.textContent=apiFmtStake(baseStake*Math.pow(martingaleMultiplier,globalStepCount))+' '+apiAccountCurrency;
   lk.textContent=isGlobalOrderLocked()?globalLockedSymbol:'ว่าง';lk.style.color=isGlobalOrderLocked()?'var(--amber)':'var(--muted)';
   let tw=0,tl=0;apiWatchedSymbols.forEach(sym=>{const st=apiState[sym];if(st){tw+=st.statWins;tl+=st.statLosses;}});
   const tot=tw+tl;wr.textContent=tot>0?((tw/tot)*100).toFixed(1)+'%':'—';
@@ -1219,15 +1028,12 @@ function renderVirtualBalance(){
   const el=qs('virtualBalanceVal');if(el)el.textContent='$'+virtualDemoBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
 }
 function renderTrackRecord(){
-  qs('trackFocusLabel').textContent=apiFocusedSymbol;
-  const s=apiState[apiFocusedSymbol];
+  qs('trackFocusLabel').textContent=apiFocusedSymbol;const s=apiState[apiFocusedSymbol];
   if(!s){qs('tsWins').textContent='0';qs('tsLosses').textContent='0';qs('tsPending').textContent='0';qs('tsWinrate').textContent='—';qs('tbFill').style.width='0%';qs('trackList').innerHTML='<li class="empty">ยังไม่มีข้อมูล</li>';return;}
   const total=s.statWins+s.statLosses;
   qs('tsWins').textContent=s.statWins;qs('tsLosses').textContent=s.statLosses;qs('tsPending').textContent=s.pendingContracts.length;
-  qs('tsWinrate').textContent=total>0?((s.statWins/total)*100).toFixed(0)+'%':'—';
-  qs('tbFill').style.width=total>0?((s.statWins/total)*100)+'%':'0%';
-  const meta=ALL_SYMBOLS_API.find(i=>i.sym===apiFocusedSymbol)||{dec:4};
-  const list=qs('trackList');
+  qs('tsWinrate').textContent=total>0?((s.statWins/total)*100).toFixed(0)+'%':'—';qs('tbFill').style.width=total>0?((s.statWins/total)*100)+'%':'0%';
+  const meta=ALL_SYMBOLS_API.find(i=>i.sym===apiFocusedSymbol)||{dec:4};const list=qs('trackList');
   if(!s.resolvedContracts.length){list.innerHTML='<li class="empty">ยังไม่มีคำสั่งที่ปิด</li>';return;}
   list.innerHTML=s.resolvedContracts.slice(0,20).map(r=>{
     const rc=r.result.toLowerCase();const rs=r.result==='WIN'?'W':'L';
@@ -1268,9 +1074,7 @@ function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{
 function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
 function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
 function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
-function apiResetStats(){
-  if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}
-}
+function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
 function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
 function executeRealContract(symbol,direction){
   if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
@@ -1287,8 +1091,6 @@ function executeRealContract(symbol,direction){
     const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
     s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
   }
-  // BUG FIX: ใช้ apiAccountCurrency จริงของบัญชี (ดึงตอน authorize) แทน hardcode 'USD'
-  // เดิมถ้าบัญชีจริงไม่ใช่ USD (USDC/BTC/ETH/GBP/EUR ฯลฯ) Deriv จะปฏิเสธคำสั่งซื้อแบบเงียบๆ
   apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,symbol:symbol}}));
   orderInFlight=false;
   const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
@@ -1303,9 +1105,7 @@ function evaluatePendingContracts(sym,currentPrice,currentTickNum){
     if(c.dir==='HIGHER'&&currentPrice>c.entryPrice)result='WIN';
     if(c.dir==='LOWER'&&currentPrice<c.entryPrice)result='WIN';
     if(result==='WIN'){s.statWins++;s.currentStepCount=0;globalStepCount=0;if(c.isVirtual){virtualDemoBalance+=c.stakeValue*VIRTUAL_PAYOUT_RATIO;renderVirtualBalance();}}
-    else{s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}
-      if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}
-    }
+    else{s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}}
     if(globalLockedSymbol===sym)globalLockedSymbol=null;
     s.resolvedContracts.unshift({id:c.id,dir:c.dir,entryPrice:c.entryPrice,exitPrice:currentPrice,result:result,step:c.step,stakeValue:c.stakeValue,resolvedAt:new Date()});
   });
@@ -1319,15 +1119,29 @@ function onApiTickReceived(tick){
   if(s.ticks.length>=15){
     s.resistance=Math.max(...s.ticks.slice(0,-2));s.support=Math.min(...s.ticks.slice(0,-2));
     const lp=s.ticks.length,sp=4;
-    const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;
-    const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
+    const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
     let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
-    const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;
-    const prev=s.sigType;
-    if(price>midMin&&price<midMax){s.sigType='BLOCK';}
-    else if(price>=s.resistance&&bias==='BULLISH'){s.sigType='BUY';if(prev!=='BUY'){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}}
-    else if(price<=s.support&&bias==='BEARISH'){s.sigType='SELL';if(prev!=='SELL'){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}}
-    else{s.sigType='BLOCK';}
+    const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
+    // tick-level S/R clearance: ใช้ ATR จาก candle scan ถ้ามี fallback range*0.10
+    const srSrcTick=scanResults[sym]||null;
+    const tickClearance=(srSrcTick&&Number.isFinite(srSrcTick.atr)&&srSrcTick.atr>0)?(srSrcTick.atr*SR_TICK_MARGIN_MULT):(range>0?range*0.10:0);
+    if(price>midMin&&price<midMax){
+      s.sigType='BLOCK';
+    }else if(price>=s.resistance&&bias==='BULLISH'){
+      s.sigType='BUY';
+      if(prev!=='BUY'){
+        // ราคา BUY ต้องห่างจาก support >= tickClearance
+        const srOk=(range<=0)||((price-s.support)>=tickClearance);
+        if(srOk){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}
+      }
+    }else if(price<=s.support&&bias==='BEARISH'){
+      s.sigType='SELL';
+      if(prev!=='SELL'){
+        // ราคา SELL ต้องห่างจาก resistance >= tickClearance
+        const srOk=(range<=0)||((s.resistance-price)>=tickClearance);
+        if(srOk){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}
+      }
+    }else{s.sigType='BLOCK';}
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
@@ -1342,26 +1156,17 @@ function connectApiWS(){
       else{
         isAuthorized=true;qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';renderVirtualBalance();
         qs('badgeAccountMode').textContent=accountMode==='demo'?'DEMO 🧪':'REAL 💰';qs('badgeAccountMode').className='badge-mode '+accountMode;
-        // BUG FIX: ดึง currency จริงจากบัญชีตอน authorize แทนการสมมติว่าเป็น USD เสมอ
-        apiAccountCurrency=data.authorize.currency||'USD';
-        apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+        apiAccountCurrency=data.authorize.currency||'USD';apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
         const bc=qs('badgeCurrency');if(bc)bc.textContent=apiAccountCurrency;
-        qs('accEmail').textContent=data.authorize.email;
-        renderGlobalKpis();
-        apiFetchBalance();
+        qs('accEmail').textContent=data.authorize.email;renderGlobalKpis();apiFetchBalance();
       }
     }
     if(data.msg_type==='balance'&&!data.error&&data.balance&&isAuthorized){
       const cur=data.balance.currency||apiAccountCurrency;
-      qs('accBalance').textContent=apiCurrencyIsCrypto
-        ? parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:8})+' '+cur
-        : parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2})+' '+cur;
+      qs('accBalance').textContent=apiCurrencyIsCrypto?parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:8})+' '+cur:parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2})+' '+cur;
     }
     if(data.msg_type==='buy'){
-      if(data.error){
-        const sym=apiFocusedSymbol;if(apiState[sym])apiState[sym].pendingContracts=[];globalLockedSymbol=null;orderInFlight=false;renderGlobalKpis();
-        console.warn('[Deriv buy error]',data.error.code,data.error.message);
-      }
+      if(data.error){const sym=apiFocusedSymbol;if(apiState[sym])apiState[sym].pendingContracts=[];globalLockedSymbol=null;orderInFlight=false;renderGlobalKpis();console.warn('[Deriv buy error]',data.error.code,data.error.message);}
       else{const bi=data.buy;apiWatchedSymbols.forEach(sym=>{ensureApiState(sym);apiState[sym].pendingContracts.forEach(c=>{if(c.id==='AWAIT-ID'&&!c.apiTracked){c.id=bi.contract_id;c.apiTracked=true;}});});}
     }
     if(data.msg_type==='tick')onApiTickReceived(data.tick);
@@ -1372,7 +1177,7 @@ function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.sen
 function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
 
 /* ══════════════════════════════════════════════════════
-   SECTION D: TELEGRAM (from file 1 — unchanged)
+   SECTION D: TELEGRAM
    ══════════════════════════════════════════════════════ */
 function loadTgConfig(){try{return JSON.parse(localStorage.getItem('v36TgConfig')||'{}')||{}}catch(e){return {}}}
 function saveTgConfigToStorage(cfg){try{localStorage.setItem('v36TgConfig',JSON.stringify(cfg))}catch(e){}}
@@ -1400,15 +1205,11 @@ async function maybeNotifyTelegram(sym,normalized,sourceLabel){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION E: INIT — เรียกใช้เฉพาะหลังล็อกอินผ่านแล้ว (bootApp)
+   SECTION E: INIT
    ══════════════════════════════════════════════════════ */
 function bootApp(){
-  initResize();
-  initTg();
-  buildTabs();
-  qs('symbolInput').value=active.tv;
-  loadTradingView(active.tv,'1');
-  render();
+  initResize();initTg();buildTabs();qs('symbolInput').value=active.tv;
+  loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
   connectApiWS();
