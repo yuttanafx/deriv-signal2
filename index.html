@@ -1147,7 +1147,7 @@ function onApiTickReceived(tick){
 }
 function connectApiWS(){
   if(apiWs){try{apiWs.close()}catch(e){}}
-  apiWs=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+API_APP_ID);
+  apiWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
   apiWs.onopen=()=>{apiWs.send(JSON.stringify({forget_all:'ticks'}));if(apiToken)apiSendAuthorize();apiWatchedSymbols.forEach(sym=>apiSubscribe(sym));};
   apiWs.onmessage=(msg)=>{
     const data=JSON.parse(msg.data);
