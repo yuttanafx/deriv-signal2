@@ -813,7 +813,7 @@ function ensureScanSocket(){
   return new Promise((resolve,reject)=>{
     if(scanWs&&scanWs.readyState===WebSocket.OPEN)return resolve(scanWs);
     try{scanWs&&scanWs.close()}catch(e){}
-    scanWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+    scanWs=new WebSocket('wss://ws.binaryws.com/websockets/v3');
     scanWs.onopen=()=>{setConn('live','SCANNING');resolve(scanWs)};
     scanWs.onerror=()=>{setConn('err','SCAN ERR');reject(new Error('Scan WS error'))};
     scanWs.onclose=()=>{if(autoScanOn)setConn('warn','RECONNECT')};
