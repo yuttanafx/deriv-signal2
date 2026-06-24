@@ -380,10 +380,17 @@ button{user-select:none;cursor:pointer}
           <div class="sp-api-col">
             <div class="sp-section">การเชื่อมต่อ Deriv API</div>
             <div id="apiGateInputs">
-              <div class="sp-row"><label>โหมด</label><select id="accountModeSelect"><option value="demo">🧪 Demo</option><option value="real">💰 Real</option></select></div>
-              <div class="sp-row"><label>TOKEN</label><input type="password" id="apiTokenInput" placeholder="วาง API Token..."></div>
-              <div class="sp-btnrow"><button class="btn green" onclick="apiConnectHandler()">เชื่อมต่อพอร์ต</button></div>
-            </div>
+
+  <div class="sp-row">
+    <label>TOKEN</label>
+    <input type="password" id="apiTokenInput" placeholder="วาง API Token...">
+  </div>
+
+  <div class="sp-btnrow">
+    <button class="btn green" onclick="apiConnectHandler()">เชื่อมต่อพอร์ต</button>
+  </div>
+
+</div>
             <div id="accountInfoDisplay" style="display:none">
               <div class="sp-row">
                 <span class="badge-mode demo" id="badgeAccountMode">DEMO</span>
