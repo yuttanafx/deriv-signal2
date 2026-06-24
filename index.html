@@ -1077,7 +1077,20 @@ function apiDisconnectHandler(){
     renderTrackRecord();renderGlobalKpis();renderVirtualBalance();
   }
 }
-function apiSendAuthorize(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&apiToken)apiWs.send(JSON.stringify({authorize:apiToken}));}
+function apiSendAuthorize() {
+    if (apiWs && apiWs.readyState === WebSocket.OPEN && apiToken) {
+        // บังคับส่งแบบตรงไปตรงมาสำหรับ PAT Token
+        const authPayload = {
+            "authorize": apiToken,
+            "req_id": Math.floor(Math.random() * 1000)
+        };
+        
+        console.log("Sending Authorization for PAT...");
+        apiWs.send(JSON.stringify(authPayload));
+    } else {
+        console.error("WebSocket not ready or Token missing");
+    }
+}
 function apiFetchBalance(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&isAuthorized)apiWs.send(JSON.stringify({balance:1,subscribe:1}));}
 function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
 function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
