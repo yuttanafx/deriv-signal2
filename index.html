@@ -1046,7 +1046,7 @@ function connectApiWS(){
 
   try{
     // ไม่ใส่ app_id
-    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3');
+    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
     console.log('WS connecting...');
   }catch(e){
     console.error('WS create failed:', e);
