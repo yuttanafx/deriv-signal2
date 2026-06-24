@@ -944,7 +944,7 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING  —  FIXED CONNECT
+   SECTION C: FULL API TRADING  —  REST API VERSION
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
   {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
@@ -952,8 +952,9 @@ const ALL_SYMBOLS_API=[
   {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
   {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
-const API_APP_ID='33E143WJ66weI33yinuxV';
-let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
+const API_APP_ID='1089';
+const API_BASE='https://api.derivws.com';
+let apiToken='',isAuthorized=false,accountMode='demo';
 let apiAccountCurrency='USD';
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
 let apiCurrencyIsCrypto=false;
@@ -964,9 +965,7 @@ let apiDurationVal='5_ticks',lookbackPeriod=30,allowedMaxSteps=5,martingaleMulti
 let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
 let apiState={};
-
-let reconnectTimer=null;
-let wsIntentionalClose=false;
+let tickPollingTimer=null,balancePollingTimer=null;
 
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
@@ -1004,8 +1003,8 @@ function renderWatchPicker(){
   picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(\''+item.sym+'\')">'+item.sym+'</span>';}).join('');
 }
 function toggleWatchSym(sym){
-  if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];apiUnsubscribe(sym);}}
-  else{apiWatchedSymbols.push(sym);apiFocusedSymbol=sym;ensureApiState(sym);apiSubscribe(sym);}
+  if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];}}
+  else{apiWatchedSymbols.push(sym);apiFocusedSymbol=sym;ensureApiState(sym);}
   renderWatchPicker();renderTrackRecord();renderGlobalKpis();renderWatchScan();
 }
 function toggleIndicator(key,el){
@@ -1013,119 +1012,121 @@ function toggleIndicator(key,el){
   const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
 }
 
-function apiConnectHandler(){
+// ── REST API CONNECTION ──
+function connectApiWS(){
+  console.log('Using REST API instead of WebSocket');
+  apiConnectREST();
+}
+
+async function apiConnectREST(){
   const token=qs('apiTokenInput').value.trim();
   if(!token){alert('กรุณากรอก API Token');return;}
+  
   apiToken=token;
   accountMode=qs('accountModeSelect').value;
-  wsIntentionalClose=false;
-  if(apiWs){try{apiWs.close();}catch(e){}apiWs=null;}
-  connectApiWS();
-}
-
-function apiDisconnectHandler(){
-  wsIntentionalClose=true;
-  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
-  if(apiWs){const oldWs=apiWs;apiWs=null;try{oldWs.send(JSON.stringify({forget_all:'ticks'}));oldWs.close();}catch(e){}}
-  apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
-  qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';
-  qs('apiTokenInput').value='';qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
-  apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
-  globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
-  renderTrackRecord();renderGlobalKpis();renderVirtualBalance();setConn('live','STATIC');
-}
-
-function connectApiWS(){
-  if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN))return;
-  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+  
   try{
-    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
-  }catch(e){
-    setConn('err','WS FAIL');scheduleReconnect();return;
+    const authRes=await fetch(API_BASE+'/websockets/v3',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({authorize:apiToken,req_id:1})
+    });
+    
+    const authData=await authRes.json();
+    
+    if(authData.error){
+      console.error('Auth failed:',authData.error);
+      isAuthorized=false;
+      setConn('err','AUTH FAIL: '+authData.error.message);
+      qs('accEmail').textContent='AUTH FAIL';
+      qs('accEmail').style.color='var(--red)';
+      return;
+    }
+    
+    console.log('Auth success:',authData.authorize);
+    isAuthorized=true;
+    apiAccountCurrency=authData.authorize?.currency||'USD';
+    apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+    
+    qs('apiGateInputs').style.display='none';
+    qs('accountInfoDisplay').style.display='flex';
+    qs('badgeAccountMode').textContent=accountMode.toUpperCase();
+    qs('badgeAccountMode').className='badge-mode '+accountMode;
+    qs('badgeCurrency').textContent=apiAccountCurrency;
+    qs('accEmail').textContent=authData.authorize?.email||authData.authorize?.loginid||'—';
+    qs('accEmail').style.color='var(--text)';
+    
+    await apiFetchBalanceREST();
+    setConn('live','AUTH OK');
+    startPolling();
+    
+  }catch(err){
+    console.error('REST Error:',err);
+    setConn('err','CONNECTION FAIL: '+err.message);
   }
-  apiWs.onopen=function(){
-    if(!apiWs)return;
-    setConn('live','API LIVE');wsIntentionalClose=false;
-    if(apiToken){apiWs.send(JSON.stringify({authorize:apiToken}));}
-    apiWatchedSymbols.forEach(function(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}});
-  };
-  apiWs.onmessage=function(msg){
-    if(!apiWs)return;
-    let data;try{data=JSON.parse(msg.data);}catch(e){return;}
-    if(data.msg_type==='authorize'){
-      if(data.error){
-        isAuthorized=false;setConn('err','AUTH FAIL');
-        qs('accEmail').textContent='AUTH FAIL';qs('accEmail').style.color='var(--red)';
-      } else {
-        isAuthorized=true;
-        apiAccountCurrency=data.authorize?.currency||'USD';
-        apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-        qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';
-        qs('badgeAccountMode').textContent=accountMode.toUpperCase();
-        qs('badgeAccountMode').className='badge-mode '+accountMode;
-        qs('badgeCurrency').textContent=apiAccountCurrency;
-        qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
-        qs('accEmail').style.color='var(--text)';
-        apiFetchBalance();renderVirtualBalance();setConn('live','AUTH OK');
-      }
+}
+
+async function apiFetchBalanceREST(){
+  if(!isAuthorized)return;
+  try{
+    const res=await fetch(API_BASE+'/websockets/v3',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({balance:1,subscribe:1,req_id:Date.now()})
+    });
+    const data=await res.json();
+    if(data.error){console.warn('Balance error:',data.error);return;}
+    const bal=data.balance?.balance;
+    if(bal!==undefined){
+      qs('accBalance').textContent='$'+Number(bal).toLocaleString('en-US',{
+        minimumFractionDigits:apiCurrencyIsCrypto?4:2,
+        maximumFractionDigits:apiCurrencyIsCrypto?4:2
+      });
     }
-    if(data.msg_type==='balance' && !data.error){
-      const bal=data.balance?.balance;
-      if(bal!==undefined){
-        qs('accBalance').textContent='$'+Number(bal).toLocaleString('en-US',{
-          minimumFractionDigits:apiCurrencyIsCrypto?4:2,
-          maximumFractionDigits:apiCurrencyIsCrypto?4:2
-        });
-      }
-    }
-    if(data.msg_type==='tick'){onApiTickReceived(data.tick);}
-    if(data.msg_type==='buy'){
-      if(data.error){
-        orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
-      } else {
-        const sym=data.buy?.symbol||globalLockedSymbol;
-        if(sym && apiState[sym]){
-          const pending=apiState[sym].pendingContracts;
-          if(pending.length>0){
-            const last=pending[pending.length-1];
-            if(last.id==='AWAIT-ID'){last.id=data.buy.contract_id;last.apiTracked=true;}
-          }
+  }catch(err){console.error('Balance fetch error:',err);}
+}
+
+function startPolling(){
+  stopPolling();
+  balancePollingTimer=setInterval(()=>apiFetchBalanceREST(),5000);
+  tickPollingTimer=setInterval(()=>{
+    if(!isAuthorized)return;
+    apiWatchedSymbols.forEach(sym=>{
+      ensureApiState(sym);
+      const s=apiState[sym];
+      const scanResult=scanResults[sym];
+      if(scanResult&&scanResult.price){
+        const price=Number(scanResult.price);
+        s.tickCounter++;s.prevPrice=s.lastPrice;s.lastPrice=price;s.ticks.push(price);
+        if(s.ticks.length>lookbackPeriod)s.ticks.shift();
+        evaluatePendingContracts(sym,price,s.tickCounter);
+        if(s.ticks.length>=15){
+          s.resistance=Math.max(...s.ticks.slice(0,-2));s.support=Math.min(...s.ticks.slice(0,-2));
+          const lp=s.ticks.length,sp=4;
+          const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
+          let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
+          const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
+          if(price>midMin&&price<midMax){s.sigType='BLOCK';}
+          else if(price>=s.resistance&&bias==='BULLISH'){
+            s.sigType='BUY';
+            if(prev!=='BUY'){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContractREST(sym,'HIGHER');}
+          }else if(price<=s.support&&bias==='BEARISH'){
+            s.sigType='SELL';
+            if(prev!=='SELL'){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContractREST(sym,'LOWER');}
+          }else{s.sigType='BLOCK';}
         }
+        renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
       }
-    }
-  };
-  apiWs.onerror=function(){if(apiWs)setConn('err','WS ERROR');};
-  apiWs.onclose=function(ev){
-    if(apiWs){apiWs=null;isAuthorized=false;setConn('warn','RECONNECTING...');renderVirtualBalance();if(!wsIntentionalClose)scheduleReconnect();}
-  };
+    });
+  },1000);
 }
 
-function scheduleReconnect(){
-  if(reconnectTimer)clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(function(){connectApiWS();},4000);
+function stopPolling(){
+  if(tickPollingTimer){clearInterval(tickPollingTimer);tickPollingTimer=null;}
+  if(balancePollingTimer){clearInterval(balancePollingTimer);balancePollingTimer=null;}
 }
 
-function apiSendAuthorize(){
-  if(apiWs && apiWs.readyState===WebSocket.OPEN && apiToken){
-    apiWs.send(JSON.stringify({authorize:apiToken}));
-  }
-}
-
-function apiFetchBalance(){
-  if(apiWs && apiWs.readyState===WebSocket.OPEN && isAuthorized){
-    apiWs.send(JSON.stringify({balance:1,subscribe:1}));
-  }
-}
-
-function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
-function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
-function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
-function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
-function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
-
-function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
-
-function executeRealContract(symbol,direction){
+async function executeRealContractREST(symbol,direction){
   if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
   orderInFlight=true;const currentStake=parseFloat((baseStake*Math.pow(martingaleMultiplier,globalStepCount)).toFixed(apiCurrencyIsCrypto?4:2));
   const contractType=direction==='HIGHER'?'CALL':'PUT';
@@ -1136,14 +1137,32 @@ function executeRealContract(symbol,direction){
   else if(apiDurationVal==='15_min'){durationNumber=15;durationUnitStr='m';}
   const calculatedWaitTicks=durationToWaitTicks(apiDurationVal);
   globalLockedSymbol=symbol;
-  if(!isAuthorized||!apiWs||apiWs.readyState!==WebSocket.OPEN){
+  if(!isAuthorized){
     const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
     s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
   }
-  apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,symbol:symbol}}));
-  orderInFlight=false;
-  const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
-  s.pendingContracts.push(ac);renderGlobalKpis();
+  try{
+    const res=await fetch(API_BASE+'/websockets/v3',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        buy:1,price:currentStake,
+        parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,symbol:symbol},
+        req_id:Date.now()
+      })
+    });
+    const data=await res.json();
+    if(data.error){
+      console.warn('Buy error:',data.error);orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
+    }else{
+      console.log('Buy success:',data.buy);
+      const ac={id:data.buy?.contract_id||'REST-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:true,isVirtual:false};
+      s.pendingContracts.push(ac);
+    }
+  }catch(err){
+    console.error('Buy REST error:',err);orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
+  }
+  renderGlobalKpis();
 }
 
 function evaluatePendingContracts(sym,currentPrice,currentTickNum){
@@ -1162,6 +1181,26 @@ function evaluatePendingContracts(sym,currentPrice,currentTickNum){
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
 
+function apiConnectHandler(){connectApiWS();}
+function apiDisconnectHandler(){
+  stopPolling();apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
+  qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';
+  qs('apiTokenInput').value='';qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
+  apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
+  globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
+  renderTrackRecord();renderGlobalKpis();renderVirtualBalance();setConn('live','STATIC');
+}
+function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
+function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
+function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
+function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
+function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
+function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
+function apiSubscribe(sym){}
+function apiUnsubscribe(sym){}
+function apiSendAuthorize(){}
+function apiFetchBalance(){apiFetchBalanceREST();}
+
 function onApiTickReceived(tick){
   const sym=tick.symbol;if(!apiWatchedSymbols.includes(sym))return;
   ensureApiState(sym);const s=apiState[sym];const price=parseFloat(tick.quote);
@@ -1173,35 +1212,17 @@ function onApiTickReceived(tick){
     const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
     let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
     const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
-    const srSrcTick=scanResults[sym]||null;
-    const tickClearance=(srSrcTick&&Number.isFinite(srSrcTick.atr)&&srSrcTick.atr>0)?(srSrcTick.atr*SR_TICK_MARGIN_MULT):(range>0?range*0.10:0);
-    if(price>midMin&&price<midMax){
-      s.sigType='BLOCK';
-    }else if(price>=s.resistance&&bias==='BULLISH'){
+    if(price>midMin&&price<midMax){s.sigType='BLOCK';}
+    else if(price>=s.resistance&&bias==='BULLISH'){
       s.sigType='BUY';
-      if(prev!=='BUY'){
-        const srOk=(range<=0)||((price-s.support)>=tickClearance);
-        if(srOk){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}
-      }
+      if(prev!=='BUY'){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContractREST(sym,'HIGHER');}
     }else if(price<=s.support&&bias==='BEARISH'){
       s.sigType='SELL';
-      if(prev!=='SELL'){
-        const srOk=(range<=0)||((s.resistance-price)>=tickClearance);
-        if(srOk){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}
-      }
+      if(prev!=='SELL'){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContractREST(sym,'LOWER');}
     }else{s.sigType='BLOCK';}
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-
-function apiSubscribe(sym){
-  if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}
-}
-
-function apiUnsubscribe(sym){
-  if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({forget:sym}));}
-}
-
 /* ══════════════════════════════════════════════════════
    SECTION D: TELEGRAM
    ══════════════════════════════════════════════════════ */
