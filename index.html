@@ -989,7 +989,8 @@ function passAutoScanFilter(sym,direction){
   }
   return true;
 }
-
+let reconnectTimer = null;
+let wsIntentionalClose = false;
 /* ══════════════════════════════════════════════════════
 SECTION C: FULL API TRADING — FIXED CONNECT
 
