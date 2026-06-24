@@ -1037,7 +1037,6 @@ function apiDisconnectHandler(){
 
 function connectApiWS(){
   if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN)){
-    console.log('WS already connected');
     return;
   }
   if(reconnectTimer){
@@ -1046,9 +1045,9 @@ function connectApiWS(){
   }
 
   try{
-    // เปลี่ยน endpoint เป็น frontend.binaryws.com
-    apiWs=new WebSocket('wss://frontend.binaryws.com/websockets/v3?app_id=1089');
-    console.log('WS connecting to frontend.binaryws.com...');
+    // ไม่ใส่ app_id
+    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3');
+    console.log('WS connecting...');
   }catch(e){
     console.error('WS create failed:', e);
     setConn('err','WS FAIL');
@@ -1063,7 +1062,6 @@ function connectApiWS(){
     heartbeatTimer=setInterval(function(){
       if(apiWs && apiWs.readyState===WebSocket.OPEN){
         apiWs.send(JSON.stringify({ping:1}));
-        console.log('💓 ping sent');
       }
     }, 30000);
   }
@@ -1079,11 +1077,9 @@ function connectApiWS(){
     console.log('✅ WS OPEN');
     setConn('live','API LIVE');
     wsIntentionalClose=false;
-    
     startHeartbeat();
     
     if(apiToken){
-      console.log('📤 Sending authorize...');
       apiWs.send(JSON.stringify({authorize:apiToken}));
     }
     
@@ -1101,24 +1097,19 @@ function connectApiWS(){
     }catch(e){
       return;
     }
-    
-    console.log('📩 msg_type:', data.msg_type);
 
     if(data.msg_type==='ping'){
-      console.log('💓 pong received');
       return;
     }
 
     if(data.msg_type==='authorize'){
       if(data.error){
-        console.error('❌ Auth failed:', data.error);
         isAuthorized=false;
-        setConn('err','AUTH FAIL: '+data.error.message);
+        setConn('err','AUTH FAIL');
         qs('accEmail').textContent='AUTH FAIL';
         qs('accEmail').style.color='var(--red)';
         stopHeartbeat();
       } else {
-        console.log('✅ Auth success:', data.authorize.loginid);
         isAuthorized=true;
         apiAccountCurrency=data.authorize?.currency||'USD';
         apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
@@ -1151,11 +1142,9 @@ function connectApiWS(){
     
     if(data.msg_type==='buy'){
       if(data.error){
-        console.warn('❌ Buy error:', data.error);
         orderInFlight=false;
         if(globalLockedSymbol)globalLockedSymbol=null;
       } else {
-        console.log('✅ Buy success:', data.buy?.contract_id);
         const sym=data.buy?.symbol||globalLockedSymbol;
         if(sym && apiState[sym]){
           const pending=apiState[sym].pendingContracts;
@@ -1171,13 +1160,12 @@ function connectApiWS(){
     }
   };
 
-  apiWs.onerror=function(err){
-    console.error('❌ WS ERROR:', err);
+  apiWs.onerror=function(){
     setConn('err','WS ERROR');
   };
 
   apiWs.onclose=function(ev){
-    console.log('🔌 WS CLOSE code:', ev.code, 'reason:', ev.reason);
+    console.log('🔌 WS CLOSE code:', ev.code);
     stopHeartbeat();
     
     if(apiWs){
@@ -1187,19 +1175,16 @@ function connectApiWS(){
       renderVirtualBalance();
       
       if(!wsIntentionalClose){
-        const delay = ev.code === 1000 || ev.code === 1001 ? 5000 : 10000;
-        scheduleReconnect(delay);
+        scheduleReconnect(5000);
       }
     }
   };
 }
 
 function scheduleReconnect(delay){
-  delay = delay || 4000;
+  delay = delay || 5000;
   if(reconnectTimer) clearTimeout(reconnectTimer);
-  console.log('⏳ Reconnect in', delay, 'ms');
   reconnectTimer=setTimeout(function(){
-    console.log('🔄 Reconnecting now...');
     connectApiWS();
   }, delay);
 }
