@@ -1151,8 +1151,8 @@ function connectApiWS(){
   }
 
   apiWs = new WebSocket(
-    'wss://ws.derivws.com/websockets/v3?app_id=' + API_APP_ID
-  );
+  'wss://ws.binaryws.com/websockets/v3?app_id=' + API_APP_ID
+);
 
   apiWs.onopen = () => {
     console.log("WS CONNECTED");
