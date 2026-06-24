@@ -999,7 +999,51 @@ const ALL_SYMBOLS_API=[
   {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
   {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
-const API_APP_ID='1089';
+// เปลี่ยน API_APP_ID ให้เป็น ID ที่คุณลงทะเบียนใน Dashboard ของ Deriv
+const API_APP_ID = 'YOUR_APP_ID'; 
+let apiWs = null;
+
+function connectApiWS() {
+    // 1. เชื่อมต่อผ่าน WebSocket V3
+    apiWs = new WebSocket(`wss://ws.derivws.com/websockets/v3?app_id=${API_APP_ID}`);
+
+    apiWs.onopen = () => {
+        console.log("Connected to Deriv API V3");
+        // 2. ส่ง Authorize ทันทีหลังจากเชื่อมต่อสำเร็จ
+        apiSendAuthorize();
+    };
+
+    apiWs.onmessage = (msg) => {
+        const response = JSON.parse(msg.data);
+
+        // 3. จัดการ Error แบบ V3 (สำคัญมาก)
+        if (response.error) {
+            console.error("API Error:", response.error.code, response.error.message);
+            return;
+        }
+
+        // 4. รับค่าตอบกลับจากการ Authorize
+        if (response.msg_type === 'authorize') {
+            console.log("Authorization Successful:", response.authorize.email);
+            // เมื่อเชื่อมต่อสำเร็จ สามารถสั่ง subscribe ราคา หรือเทรดได้เลย
+        }
+        
+        // ... โค้ดส่วนอื่นๆ ของคุณ ...
+    };
+
+    apiWs.onclose = () => console.log("Connection closed");
+}
+
+function apiSendAuthorize() {
+    if (apiWs && apiWs.readyState === WebSocket.OPEN && apiToken) {
+        // ใช้โครงสร้างคำสั่ง authorize แบบใหม่สำหรับ PAT Token
+        const authPayload = {
+            "authorize": apiToken, // วาง pat_... ของคุณที่นี่
+            "add_account_info": 1  // ส่งค่านี้เพื่อให้ได้รายละเอียดบัญชีทั้งหมด
+        };
+        apiWs.send(JSON.stringify(authPayload));
+    }
+}
 let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
 let apiAccountCurrency='USD';
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
