@@ -1036,39 +1036,107 @@ function apiDisconnectHandler(){
 }
 
 function connectApiWS(){
-  if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN))return;
-  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
-  try{
-    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
-  }catch(e){
-    setConn('err','WS FAIL');scheduleReconnect();return;
+  if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN)){
+    console.log('WS already connected');
+    return;
   }
+  if(reconnectTimer){
+    clearTimeout(reconnectTimer);
+    reconnectTimer=null;
+  }
+
+  try{
+    // เปลี่ยน endpoint เป็น frontend.binaryws.com
+    apiWs=new WebSocket('wss://frontend.binaryws.com/websockets/v3?app_id=1089');
+    console.log('WS connecting to frontend.binaryws.com...');
+  }catch(e){
+    console.error('WS create failed:', e);
+    setConn('err','WS FAIL');
+    scheduleReconnect();
+    return;
+  }
+
+  let heartbeatTimer=null;
+
+  function startHeartbeat(){
+    if(heartbeatTimer) clearInterval(heartbeatTimer);
+    heartbeatTimer=setInterval(function(){
+      if(apiWs && apiWs.readyState===WebSocket.OPEN){
+        apiWs.send(JSON.stringify({ping:1}));
+        console.log('💓 ping sent');
+      }
+    }, 30000);
+  }
+
+  function stopHeartbeat(){
+    if(heartbeatTimer){
+      clearInterval(heartbeatTimer);
+      heartbeatTimer=null;
+    }
+  }
+
   apiWs.onopen=function(){
-    if(!apiWs)return;
-    setConn('live','API LIVE');wsIntentionalClose=false;
-    if(apiToken){apiWs.send(JSON.stringify({authorize:apiToken}));}
-    apiWatchedSymbols.forEach(function(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}});
+    console.log('✅ WS OPEN');
+    setConn('live','API LIVE');
+    wsIntentionalClose=false;
+    
+    startHeartbeat();
+    
+    if(apiToken){
+      console.log('📤 Sending authorize...');
+      apiWs.send(JSON.stringify({authorize:apiToken}));
+    }
+    
+    apiWatchedSymbols.forEach(function(sym){
+      if(apiWs && apiWs.readyState===WebSocket.OPEN){
+        apiWs.send(JSON.stringify({ticks:sym}));
+      }
+    });
   };
+
   apiWs.onmessage=function(msg){
-    if(!apiWs)return;
-    let data;try{data=JSON.parse(msg.data);}catch(e){return;}
+    let data;
+    try{
+      data=JSON.parse(msg.data);
+    }catch(e){
+      return;
+    }
+    
+    console.log('📩 msg_type:', data.msg_type);
+
+    if(data.msg_type==='ping'){
+      console.log('💓 pong received');
+      return;
+    }
+
     if(data.msg_type==='authorize'){
       if(data.error){
-        isAuthorized=false;setConn('err','AUTH FAIL');
-        qs('accEmail').textContent='AUTH FAIL';qs('accEmail').style.color='var(--red)';
+        console.error('❌ Auth failed:', data.error);
+        isAuthorized=false;
+        setConn('err','AUTH FAIL: '+data.error.message);
+        qs('accEmail').textContent='AUTH FAIL';
+        qs('accEmail').style.color='var(--red)';
+        stopHeartbeat();
       } else {
+        console.log('✅ Auth success:', data.authorize.loginid);
         isAuthorized=true;
         apiAccountCurrency=data.authorize?.currency||'USD';
         apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-        qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';
+        
+        qs('apiGateInputs').style.display='none';
+        qs('accountInfoDisplay').style.display='flex';
         qs('badgeAccountMode').textContent=accountMode.toUpperCase();
         qs('badgeAccountMode').className='badge-mode '+accountMode;
         qs('badgeCurrency').textContent=apiAccountCurrency;
         qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
         qs('accEmail').style.color='var(--text)';
-        apiFetchBalance();renderVirtualBalance();setConn('live','AUTH OK');
+        
+        apiFetchBalance();
+        renderVirtualBalance();
+        setConn('live','AUTH OK');
       }
     }
+    
     if(data.msg_type==='balance' && !data.error){
       const bal=data.balance?.balance;
       if(bal!==undefined){
@@ -1078,31 +1146,62 @@ function connectApiWS(){
         });
       }
     }
+    
     if(data.msg_type==='tick'){onApiTickReceived(data.tick);}
+    
     if(data.msg_type==='buy'){
       if(data.error){
-        orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
+        console.warn('❌ Buy error:', data.error);
+        orderInFlight=false;
+        if(globalLockedSymbol)globalLockedSymbol=null;
       } else {
+        console.log('✅ Buy success:', data.buy?.contract_id);
         const sym=data.buy?.symbol||globalLockedSymbol;
         if(sym && apiState[sym]){
           const pending=apiState[sym].pendingContracts;
           if(pending.length>0){
             const last=pending[pending.length-1];
-            if(last.id==='AWAIT-ID'){last.id=data.buy.contract_id;last.apiTracked=true;}
+            if(last.id==='AWAIT-ID'){
+              last.id=data.buy.contract_id;
+              last.apiTracked=true;
+            }
           }
         }
       }
     }
   };
-  apiWs.onerror=function(){if(apiWs)setConn('err','WS ERROR');};
+
+  apiWs.onerror=function(err){
+    console.error('❌ WS ERROR:', err);
+    setConn('err','WS ERROR');
+  };
+
   apiWs.onclose=function(ev){
-    if(apiWs){apiWs=null;isAuthorized=false;setConn('warn','RECONNECTING...');renderVirtualBalance();if(!wsIntentionalClose)scheduleReconnect();}
+    console.log('🔌 WS CLOSE code:', ev.code, 'reason:', ev.reason);
+    stopHeartbeat();
+    
+    if(apiWs){
+      apiWs=null;
+      isAuthorized=false;
+      setConn('warn','RECONNECTING...');
+      renderVirtualBalance();
+      
+      if(!wsIntentionalClose){
+        const delay = ev.code === 1000 || ev.code === 1001 ? 5000 : 10000;
+        scheduleReconnect(delay);
+      }
+    }
   };
 }
 
-function scheduleReconnect(){
-  if(reconnectTimer)clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(function(){connectApiWS();},4000);
+function scheduleReconnect(delay){
+  delay = delay || 4000;
+  if(reconnectTimer) clearTimeout(reconnectTimer);
+  console.log('⏳ Reconnect in', delay, 'ms');
+  reconnectTimer=setTimeout(function(){
+    console.log('🔄 Reconnecting now...');
+    connectApiWS();
+  }, delay);
 }
 
 function apiSendAuthorize(){
