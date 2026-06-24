@@ -952,7 +952,7 @@ const ALL_SYMBOLS_API=[
   {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
   {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
-const API_APP_ID='33E143WJ66weI33yinuxV';
+const API_APP_ID='1089';
 let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
 let apiAccountCurrency='USD';
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
@@ -1035,237 +1035,40 @@ function apiDisconnectHandler(){
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();setConn('live','STATIC');
 }
 
-const API_APP_ID = '33E143WJ66weI33yinuxV';
-
 function connectApiWS(){
-  // ปิดเก่าก่อน
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
-    apiWs = null;
-  }
-  if(reconnectTimer){
-    clearTimeout(reconnectTimer);
-    reconnectTimer = null;
-  }
-
+  if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN))return;
+  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
   try{
-    apiWs = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=' + API_APP_ID);
-    console.log('WS connecting with PAT app...');
+    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
   }catch(e){
-    console.error('WS create failed:', e);
-    setConn('err','WS FAIL');
-    return;
+    setConn('err','WS FAIL');scheduleReconnect();return;
   }
-
-  apiWs.onopen = function(){
-    console.log('✅ WS OPEN');
-    setConn('live','API LIVE');
-
-    if(apiToken){
-      console.log('📤 Sending authorize...');
-      apiWs.send(JSON.stringify({authorize: apiToken}));
-    }
-  };
-
-  apiWs.onmessage = function(msg){
-    let data;
-    try{
-      data = JSON.parse(msg.data);
-    }catch(e){
-      return;
-    }
-
-    console.log('📩 msg_type:', data.msg_type);
-
-    if(data.msg_type === 'authorize'){
-      if(data.error){
-        console.error('❌ Auth failed:', data.error);
-        isAuthorized = false;
-        setConn('err','AUTH FAIL: ' + data.error.message);
-        qs('accEmail').textContent = 'AUTH FAIL';
-        qs('accEmail').style.color = 'var(--red)';
-      } else {
-        console.log('✅ Auth success:', data.authorize);
-        isAuthorized = true;
-        apiAccountCurrency = data.authorize?.currency || 'USD';
-        apiCurrencyIsCrypto = API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-        
-        qs('apiGateInputs').style.display='none';
-        qs('accountInfoDisplay').style.display='flex';
-        qs('badgeAccountMode').textContent = accountMode.toUpperCase();
-        qs('badgeAccountMode').className = 'badge-mode ' + accountMode;
-        qs('badgeCurrency').textContent = apiAccountCurrency;
-        qs('accEmail').textContent = data.authorize?.email || data.authorize?.loginid || '—';
-        qs('accEmail').style.color = 'var(--text)';
-        
-        apiFetchBalance();
-        renderVirtualBalance();
-        setConn('live','AUTH OK');
-      }
-    }
-
-    if(data.msg_type === 'balance' && !data.error){
-      const bal = data.balance?.balance;
-      if(bal !== undefined){
-        qs('accBalance').textContent = '$' + Number(bal).toLocaleString('en-US',{
-          minimumFractionDigits: apiCurrencyIsCrypto ? 4 : 2,
-          maximumFractionDigits: apiCurrencyIsCrypto ? 4 : 2
-        });
-      }
-    }
-
-    if(data.msg_type === 'tick'){
-      onApiTickReceived(data.tick);
-    }
-
-    if(data.msg_type === 'buy'){
-      if(data.error){
-        console.warn('❌ Buy error:', data.error);
-        orderInFlight = false;
-        if(globalLockedSymbol) globalLockedSymbol = null;
-      } else {
-        const sym = data.buy?.symbol || globalLockedSymbol;
-        if(sym && apiState[sym]){
-          const pending = apiState[sym].pendingContracts;
-          if(pending.length > 0){
-            const last = pending[pending.length - 1];
-            if(last.id === 'AWAIT-ID'){
-              last.id = data.buy.contract_id;
-              last.apiTracked = true;
-            }
-          }
-        }
-      }
-    }
-  };
-
-  apiWs.onerror = function(){
-    console.error('❌ WS ERROR');
-    setConn('err','WS ERROR');
-  };
-
-  apiWs.onclose = function(ev){
-    console.log('🔌 WS CLOSE code:', ev.code);
-    apiWs = null;
-    isAuthorized = false;
-    setConn('live','STATIC');
-    renderVirtualBalance();
-    // ไม่ auto reconnect — รอผู้ใช้กด "เชื่อมต่อพอร์ต" ใหม่
-  };
-}
-
-function apiConnectHandler(){
-  const token = qs('apiTokenInput').value.trim();
-  if(!token){
-    alert('กรุณากรอก API Token');
-    return;
-  }
-  
-  apiToken = token;
-  accountMode = qs('accountModeSelect').value;
-  
-  // ปิดเก่าแล้วสร้างใหม่
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
-    apiWs = null;
-  }
-  
-  connectApiWS();
-}
-
-function apiDisconnectHandler(){
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
-    apiWs = null;
-  }
-  
-  apiToken = '';
-  isAuthorized = false;
-  apiAccountCurrency = 'USD';
-  apiCurrencyIsCrypto = false;
-  
-  qs('accountInfoDisplay').style.display = 'none';
-  qs('apiGateInputs').style.display = 'block';
-  qs('apiTokenInput').value = '';
-  qs('accBalance').textContent = '$0.00';
-  qs('accEmail').textContent = '—';
-  
-  apiWatchedSymbols.forEach(function(sym){
-    apiState[sym] = freshState();
-  });
-  
-  globalStepCount = 0;
-  globalLockedSymbol = null;
-  orderInFlight = false;
-  virtualDemoBalance = 10000;
-  
-  renderTrackRecord();
-  renderGlobalKpis();
-  renderVirtualBalance();
-  setConn('live','STATIC');
-}
-  function stopHeartbeat(){
-    if(heartbeatTimer){
-      clearInterval(heartbeatTimer);
-      heartbeatTimer=null;
-    }
-  }
-
   apiWs.onopen=function(){
-    console.log('✅ WS OPEN');
-    setConn('live','API LIVE');
-    wsIntentionalClose=false;
-    startHeartbeat();
-    
-    if(apiToken){
-      apiWs.send(JSON.stringify({authorize:apiToken}));
-    }
-    
-    apiWatchedSymbols.forEach(function(sym){
-      if(apiWs && apiWs.readyState===WebSocket.OPEN){
-        apiWs.send(JSON.stringify({ticks:sym}));
-      }
-    });
+    if(!apiWs)return;
+    setConn('live','API LIVE');wsIntentionalClose=false;
+    if(apiToken){apiWs.send(JSON.stringify({authorize:apiToken}));}
+    apiWatchedSymbols.forEach(function(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}});
   };
-
   apiWs.onmessage=function(msg){
-    let data;
-    try{
-      data=JSON.parse(msg.data);
-    }catch(e){
-      return;
-    }
-
-    if(data.msg_type==='ping'){
-      return;
-    }
-
+    if(!apiWs)return;
+    let data;try{data=JSON.parse(msg.data);}catch(e){return;}
     if(data.msg_type==='authorize'){
       if(data.error){
-        isAuthorized=false;
-        setConn('err','AUTH FAIL');
-        qs('accEmail').textContent='AUTH FAIL';
-        qs('accEmail').style.color='var(--red)';
-        stopHeartbeat();
+        isAuthorized=false;setConn('err','AUTH FAIL');
+        qs('accEmail').textContent='AUTH FAIL';qs('accEmail').style.color='var(--red)';
       } else {
         isAuthorized=true;
         apiAccountCurrency=data.authorize?.currency||'USD';
         apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-        
-        qs('apiGateInputs').style.display='none';
-        qs('accountInfoDisplay').style.display='flex';
+        qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';
         qs('badgeAccountMode').textContent=accountMode.toUpperCase();
         qs('badgeAccountMode').className='badge-mode '+accountMode;
         qs('badgeCurrency').textContent=apiAccountCurrency;
         qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
         qs('accEmail').style.color='var(--text)';
-        
-        apiFetchBalance();
-        renderVirtualBalance();
-        setConn('live','AUTH OK');
+        apiFetchBalance();renderVirtualBalance();setConn('live','AUTH OK');
       }
     }
-    
     if(data.msg_type==='balance' && !data.error){
       const bal=data.balance?.balance;
       if(bal!==undefined){
@@ -1275,56 +1078,31 @@ function apiDisconnectHandler(){
         });
       }
     }
-    
     if(data.msg_type==='tick'){onApiTickReceived(data.tick);}
-    
     if(data.msg_type==='buy'){
       if(data.error){
-        orderInFlight=false;
-        if(globalLockedSymbol)globalLockedSymbol=null;
+        orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
       } else {
         const sym=data.buy?.symbol||globalLockedSymbol;
         if(sym && apiState[sym]){
           const pending=apiState[sym].pendingContracts;
           if(pending.length>0){
             const last=pending[pending.length-1];
-            if(last.id==='AWAIT-ID'){
-              last.id=data.buy.contract_id;
-              last.apiTracked=true;
-            }
+            if(last.id==='AWAIT-ID'){last.id=data.buy.contract_id;last.apiTracked=true;}
           }
         }
       }
     }
   };
-
-  apiWs.onerror=function(){
-    setConn('err','WS ERROR');
-  };
-
+  apiWs.onerror=function(){if(apiWs)setConn('err','WS ERROR');};
   apiWs.onclose=function(ev){
-    console.log('🔌 WS CLOSE code:', ev.code);
-    stopHeartbeat();
-    
-    if(apiWs){
-      apiWs=null;
-      isAuthorized=false;
-      setConn('warn','RECONNECTING...');
-      renderVirtualBalance();
-      
-      if(!wsIntentionalClose){
-        scheduleReconnect(5000);
-      }
-    }
+    if(apiWs){apiWs=null;isAuthorized=false;setConn('warn','RECONNECTING...');renderVirtualBalance();if(!wsIntentionalClose)scheduleReconnect();}
   };
 }
 
-function scheduleReconnect(delay){
-  delay = delay || 5000;
-  if(reconnectTimer) clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(function(){
-    connectApiWS();
-  }, delay);
+function scheduleReconnect(){
+  if(reconnectTimer)clearTimeout(reconnectTimer);
+  reconnectTimer=setTimeout(function(){connectApiWS();},4000);
 }
 
 function apiSendAuthorize(){
@@ -1460,7 +1238,7 @@ function bootApp(){
   loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
-  // ไม่เรียก connectApiWS() ที่นี่
+  // ไม่เรียก connectApiWS() ที่นี่ — รอผู้ใช้กด "เชื่อมต่อพอร์ต"
   const initData=valueFor(active);if(initData)render();
 }
 </script>
