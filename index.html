@@ -1128,19 +1128,29 @@ function apiDisconnectHandler(){
 
 // ── FIXED: WebSocket Connection ──
 function connectApiWS(){
-  console.log('🚀 connectApiWS() called');
-  
-  // ป้องกัน double connection
-  if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN)){
-    console.log('⚠️ WS already connected/connecting');
-    return;
+  if(apiWs && (apiWs.readyState===WebSocket.CONNECTING || apiWs.readyState===WebSocket.OPEN)) return;
+  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+
+  try{
+    // ใช้ OAuth token ผ่าน Deriv WS
+    apiWs=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+  }catch(e){
+    setConn('err','WS CREATE FAIL');scheduleReconnect();return;
   }
-  
-  // clear reconnect timer เก่า
-  if(reconnectTimer){
-    clearTimeout(reconnectTimer);
-    reconnectTimer=null;
-  }
+
+  apiWs.onopen=()=>{
+    setConn('live','API LIVE');wsIntentionalClose=false;
+    
+    // ส่ง authorize ด้วย token (รองรับทั้ง pat_ และไม่มี pat_)
+    if(apiToken){
+      apiWs.send(JSON.stringify({authorize:apiToken}));
+    }
+    
+    apiWatchedSymbols.forEach(sym=>apiSubscribe(sym));
+  };
+
+  // ... rest of the code
+}
 
   // ใช้ endpoint เดียวกับ scan system (ที่ทำงานได้)
   const wsUrl = 'wss://ws.binaryws.com/websockets/v3?app_id=' + API_APP_ID;
