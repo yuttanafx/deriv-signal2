@@ -1460,7 +1460,7 @@ function bootApp(){
   loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
-  // ไม่เรียก connectApiWS() ที่นี่ — รอผู้ใช้กด "เชื่อมต่อพอร์ต"
+  // ไม่เรียก connectApiWS() ที่นี่
   const initData=valueFor(active);if(initData)render();
 }
 </script>
