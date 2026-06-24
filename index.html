@@ -1146,32 +1146,63 @@ function onApiTickReceived(tick){
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
 function connectApiWS(){
-  if(apiWs){try{apiWs.close()}catch(e){}}
-  apiWs=new WebSocket('wss://ws.derivws.com/websockets/v3?app_id='+API_APP_ID);
-  apiWs.onopen=()=>{apiWs.send(JSON.stringify({forget_all:'ticks'}));if(apiToken)apiSendAuthorize();apiWatchedSymbols.forEach(sym=>apiSubscribe(sym));};
-  apiWs.onmessage=(msg)=>{
-    const data=JSON.parse(msg.data);
-    if(data.msg_type==='authorize'){
-      if(data.error){isAuthorized=false;renderVirtualBalance();}
-      else{
-        isAuthorized=true;qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';renderVirtualBalance();
-        qs('badgeAccountMode').textContent=accountMode==='demo'?'DEMO 🧪':'REAL 💰';qs('badgeAccountMode').className='badge-mode '+accountMode;
-        apiAccountCurrency=data.authorize.currency||'USD';apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-        const bc=qs('badgeCurrency');if(bc)bc.textContent=apiAccountCurrency;
-        qs('accEmail').textContent=data.authorize.email;renderGlobalKpis();apiFetchBalance();
+  if(apiWs){
+    try{apiWs.close()}catch(e){}
+  }
+
+  apiWs = new WebSocket(
+    'wss://ws.derivws.com/websockets/v3?app_id=' + API_APP_ID
+  );
+
+  apiWs.onopen = () => {
+    console.log("WS CONNECTED");
+
+    if(apiToken){
+      apiWs.send(JSON.stringify({
+        authorize: apiToken
+      }));
+    }
+  };
+
+  apiWs.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
+
+    // AUTH
+    if(data.msg_type === "authorize"){
+      if(data.error){
+        isAuthorized = false;
+        renderVirtualBalance();
+      } else {
+        isAuthorized = true;
+        qs('apiGateInputs').style.display='none';
+        qs('accountInfoDisplay').style.display='flex';
+        renderVirtualBalance();
       }
     }
-    if(data.msg_type==='balance'&&!data.error&&data.balance&&isAuthorized){
-      const cur=data.balance.currency||apiAccountCurrency;
-      qs('accBalance').textContent=apiCurrencyIsCrypto?parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:8})+' '+cur:parseFloat(data.balance.balance).toLocaleString('en-US',{minimumFractionDigits:2})+' '+cur;
+
+    // BALANCE
+    if(data.msg_type === "balance" && !data.error){
+      qs('accBalance').textContent = data.balance.balance;
     }
-    if(data.msg_type==='buy'){
-      if(data.error){const sym=apiFocusedSymbol;if(apiState[sym])apiState[sym].pendingContracts=[];globalLockedSymbol=null;orderInFlight=false;renderGlobalKpis();console.warn('[Deriv buy error]',data.error.code,data.error.message);}
-      else{const bi=data.buy;apiWatchedSymbols.forEach(sym=>{ensureApiState(sym);apiState[sym].pendingContracts.forEach(c=>{if(c.id==='AWAIT-ID'&&!c.apiTracked){c.id=bi.contract_id;c.apiTracked=true;}});});}
+
+    // TICK
+    if(data.msg_type === "tick"){
+      onApiTickReceived(data.tick);
     }
-    if(data.msg_type==='tick')onApiTickReceived(data.tick);
+
+    // BUY
+    if(data.msg_type === "buy"){
+      if(data.error){
+        console.warn("BUY ERROR", data.error);
+      }
+    }
   };
-  apiWs.onclose=()=>{isAuthorized=false;renderVirtualBalance();setTimeout(connectApiWS,4000);};
+
+  apiWs.onclose = () => {
+    isAuthorized = false;
+    renderVirtualBalance();
+    setTimeout(connectApiWS, 4000);
+  };
 }
 function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({ticks:sym}));}
 function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
