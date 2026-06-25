@@ -593,12 +593,16 @@ function buildTabs(){qs('tabs').innerHTML=SYMBOLS.map(s=>'<div class="tab '+(s.i
 function setActive(id){active=SYMBOLS.find(s=>s.id===id)||SYMBOLS[0];qs('symbolInput').value=active.tv;buildTabs();loadTradingView(active.tv,qs('intervalInput').value);render();}
 function loadTradingView(tvSymbol,interval){
   const sym=tvSymbol||active.tv;const tf=String(interval||'1');
-  const root=qs('tvContainer');root.innerHTML='<div class="tradingview-widget-container__widget"></div>';
-  const script=document.createElement('script');script.type='text/javascript';script.async=true;
-  script.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  script.text=JSON.stringify({autosize:true,symbol:sym,interval:tf,timezone:'Asia/Bangkok',theme:'dark',style:'1',locale:'en',allow_symbol_change:true,calendar:false,details:false,hide_side_toolbar:false,hide_top_toolbar:false,hide_legend:false,hide_volume:false,hotlist:false,save_image:false,support_host:'https://www.tradingview.com',studies:['STD;EMA','STD;RSI']});
-  root.appendChild(script);
-  qs('chartNote').textContent='Chart: '+sym+' / '+tf+'m — AUTO SCAN สแกนจาก symbol นี้โดยตรง';
+  const root=qs('tvContainer');
+  root.innerHTML='';
+  const iframe=document.createElement('iframe');
+  iframe.style.width='100%';
+  iframe.style.height='100%';
+  iframe.style.border='none';
+  iframe.style.background='var(--bg)';
+  iframe.src='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(sym)+'&interval='+tf;
+  root.appendChild(iframe);
+  qs('chartNote').textContent='Chart: '+sym+' / '+tf+'m — กด AUTO SCAN เพื่อสแกนสัญญาณ';
   setConn('live','STATIC');
 }
 function applyChartFromInputs(){
@@ -945,7 +949,8 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING  —  PAT / API v3 VERSION
+let apiWs=null;
+   SECTION C: FULL API TRADING  —  REST API VERSION
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
   {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
@@ -967,7 +972,6 @@ let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
 let apiState={};
 let tickPollingTimer=null,balancePollingTimer=null;
-let apiWs = null;
 
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
@@ -1002,7 +1006,7 @@ function renderTrackRecord(){
 }
 function renderWatchPicker(){
   const picker=qs('watchPicker');if(!picker)return;
-  picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(''+item.sym+'')">'+item.sym+'</span>';}).join('');
+  picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(\''+item.sym+'\')">'+item.sym+'</span>';}).join('');
 }
 function toggleWatchSym(sym){
   if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];}}
@@ -1016,10 +1020,13 @@ function toggleIndicator(key,el){
 
 // ── REST API CONNECTION ──
 function connectApiWS(){
+  // ปิดเก่าก่อน
   if(apiWs){
     try{apiWs.close()}catch(e){}
     apiWs = null;
   }
+
+  // ใช้ REST API ผ่าน Netlify แทน WebSocket
   console.log('Using REST API via Netlify');
   apiConnectREST();
 }
@@ -1030,46 +1037,37 @@ async function apiConnectREST(){
     alert('กรุณากรอก API Token');
     return;
   }
-
+  
   apiToken = token;
   accountMode = qs('accountModeSelect').value;
-
+  
   try{
-    console.log('Connecting to:', API_BASE);
-    const authRes = await fetch(API_BASE, {
+    // ใช้ Netlify Functions
+    const authRes = await fetch('/.netlify/functions/deriv', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
-        authorize: { pat: apiToken },  // ← PAT format
+        authorize: { pat: apiToken },
         req_id: 1
       })
     });
-
-    if(!authRes.ok){
-      console.error('HTTP Error:', authRes.status, authRes.statusText);
-      setConn('err', 'HTTP ' + authRes.status + ' — ตรวจสอบ Netlify Function');
-      qs('accEmail').textContent = 'HTTP ' + authRes.status;
-      qs('accEmail').style.color = 'var(--red)';
-      return;
-    }
-
+    
     const authData = await authRes.json();
-    console.log('Response:', authData);
-
+    
     if(authData.error){
       console.error('Auth failed:', authData.error);
       isAuthorized = false;
-      setConn('err', 'AUTH FAIL: ' + (authData.error.message || JSON.stringify(authData.error)));
+      setConn('err', 'AUTH FAIL: ' + authData.error.message);
       qs('accEmail').textContent = 'AUTH FAIL';
       qs('accEmail').style.color = 'var(--red)';
       return;
     }
-
+    
     console.log('Auth success:', authData.authorize);
     isAuthorized = true;
     apiAccountCurrency = authData.authorize?.currency || 'USD';
     apiCurrencyIsCrypto = API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-
+    
     qs('apiGateInputs').style.display = 'none';
     qs('accountInfoDisplay').style.display = 'flex';
     qs('badgeAccountMode').textContent = accountMode.toUpperCase();
@@ -1077,11 +1075,15 @@ async function apiConnectREST(){
     qs('badgeCurrency').textContent = apiAccountCurrency;
     qs('accEmail').textContent = authData.authorize?.email || authData.authorize?.loginid || '—';
     qs('accEmail').style.color = 'var(--text)';
-
+    
+    // ดึง balance
     await apiFetchBalanceREST();
+    
     setConn('live', 'AUTH OK');
+    
+    // เริ่ม polling
     startPolling();
-
+    
   } catch(err){
     console.error('REST Error:', err);
     setConn('err', 'CONNECTION FAIL: ' + err.message);
@@ -1090,8 +1092,9 @@ async function apiConnectREST(){
 
 async function apiFetchBalanceREST(){
   if(!isAuthorized) return;
+  
   try{
-    const res = await fetch(API_BASE, {
+    const res = await fetch('/.netlify/functions/deriv', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
@@ -1100,10 +1103,10 @@ async function apiFetchBalanceREST(){
         req_id: Date.now()
       })
     });
-
+    
     const data = await res.json();
     if(data.error){ console.warn('Balance error:', data.error); return; }
-
+    
     const bal = data.balance?.balance;
     if(bal !== undefined){
       qs('accBalance').textContent = '$' + Number(bal).toLocaleString('en-US', {
@@ -1111,7 +1114,7 @@ async function apiFetchBalanceREST(){
         maximumFractionDigits: apiCurrencyIsCrypto ? 4 : 2
       });
     }
-
+    
   } catch(err){ console.error('Balance fetch error:', err); }
 }
 
@@ -1120,6 +1123,7 @@ function startPolling(){
   balancePollingTimer = setInterval(() => apiFetchBalanceREST(), 5000);
   tickPollingTimer = setInterval(() => {
     if(!isAuthorized) return;
+    // ใช้ scanResults แทน tick
     apiWatchedSymbols.forEach(sym => {
       ensureApiState(sym);
       const s = apiState[sym];
@@ -1175,7 +1179,7 @@ async function executeRealContractREST(symbol, direction){
     s.pendingContracts.push(lc); renderGlobalKpis(); orderInFlight = false; return;
   }
   try{
-    const res = await fetch(API_BASE, {
+    const res = await fetch('/.netlify/functions/deriv', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({
