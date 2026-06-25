@@ -593,12 +593,17 @@ function buildTabs(){qs('tabs').innerHTML=SYMBOLS.map(s=>'<div class="tab '+(s.i
 function setActive(id){active=SYMBOLS.find(s=>s.id===id)||SYMBOLS[0];qs('symbolInput').value=active.tv;buildTabs();loadTradingView(active.tv,qs('intervalInput').value);render();}
 function loadTradingView(tvSymbol,interval){
   const sym=tvSymbol||active.tv;const tf=String(interval||'1');
-  const root=qs('tvContainer');root.innerHTML='<div class="tradingview-widget-container__widget"></div>';
-  const script=document.createElement('script');script.type='text/javascript';script.async=true;
-  script.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  script.text=JSON.stringify({autosize:true,symbol:sym,interval:tf,timezone:'Asia/Bangkok',theme:'dark',style:'1',locale:'en',allow_symbol_change:true,calendar:false,details:false,hide_side_toolbar:false,hide_top_toolbar:false,hide_legend:false,hide_volume:false,hotlist:false,save_image:false,support_host:'https://www.tradingview.com',studies:['STD;EMA','STD;RSI']});
-  root.appendChild(script);
-  qs('chartNote').textContent='Chart: '+sym+' / '+tf+'m — AUTO SCAN สแกนจาก symbol นี้โดยตรง';
+  const root=qs('tvContainer');
+  // ใช้ iframe แทน script widget (เสถียรกว่า ไม่โหลดพัง)
+  root.innerHTML='';
+  const iframe=document.createElement('iframe');
+  iframe.style.width='100%';
+  iframe.style.height='100%';
+  iframe.style.border='none';
+  iframe.style.background='var(--bg)';
+  iframe.src='https://www.tradingview.com/chart/?symbol='+encodeURIComponent(sym)+'&interval='+tf;
+  root.appendChild(iframe);
+  qs('chartNote').textContent='Chart: '+sym+' / '+tf+'m — กด AUTO SCAN เพื่อสแกนสัญญาณ';
   setConn('live','STATIC');
 }
 function applyChartFromInputs(){
@@ -945,17 +950,20 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING  —  REST API VERSION (Netlify)
+   SECTION C: FULL API TRADING  —  REST API VERSION
+   ══════════════════════════════════════════════════════ */
+const ALL_SYMBOLS_API=[
+  {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'V/* ══════════════════════════════════════════════════════
+   SECTION C: FULL API TRADING  —  DIRECT WEBSOCKET VERSION
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
   {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
   {sym:'R_75',label:'Vol 75',dec:4},{sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
-  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
-  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},
-  {sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
+  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
+  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
 const API_APP_ID='1089';
-const API_BASE = '/.netlify/functions/deriv';
+const API_WS_URL = 'wss://ws.binaryws.com/websockets/v3?app_id=' + API_APP_ID;
 let apiToken='',isAuthorized=false,accountMode='demo';
 let apiAccountCurrency='USD';
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
@@ -968,8 +976,8 @@ let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
 let apiState={};
 let tickPollingTimer=null,balancePollingTimer=null;
-let apiWs = null; // สำหรับ WebSocket โดยตรง (fallback)
-let useDirectWS = false; // true = ใช้ WebSocket ตรง, false = ใช้ Netlify REST
+let apiWs=null; // Direct WebSocket connection
+let apiReqId=100;
 
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
@@ -1016,304 +1024,335 @@ function toggleIndicator(key,el){
   const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
 }
 
-/* ── REST API via Netlify Function ── */
-async function apiCall(payload){
-  const res = await fetch(API_BASE, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify(payload)
-  });
-  if(!res.ok){
-    const text = await res.text().catch(()=>'');
-    throw new Error('HTTP '+res.status+': '+text);
-  }
-  return await res.json();
-}
-
+// ── DIRECT WEBSOCKET CONNECTION ──
 function connectApiWS(){
-  if(apiWs){try{apiWs.close()}catch(e){}apiWs=null;}
-  console.log('Using REST API via Netlify Function');
-  apiConnectREST();
+  // ปิดเก่าก่อน
+  if(apiWs){
+    try{apiWs.close()}catch(e){}
+    apiWs=null;
+  }
+
+  const token=qs('apiTokenInput').value.trim();
+  if(!token){alert('กรุณากรอก API Token');return;}
+
+  apiToken=token;
+  accountMode=qs('accountModeSelect').value;
+
+  try{
+    console.log('Connecting to Deriv WebSocket:', API_WS_URL);
+    apiWs=new WebSocket(API_WS_URL);
+
+    apiWs.onopen=function(){
+      console.log('WS connected');
+      // ส่ง authorize
+      apiWs.send(JSON.stringify({authorize:apiToken,req_id:++apiReqId}));
+    };
+
+    apiWs.onmessage=function(ev){
+      const data=JSON.parse(ev.data);
+      console.log('WS msg:', data.msg_type, data);
+      handleApiMessage(data);
+    };
+
+    apiWs.onerror=function(err){
+      console.error('WS error:', err);
+      setConn('err','WS ERROR');
+      isAuthorized=false;
+    };
+
+    apiWs.onclose=function(){
+      console.log('WS closed');
+      isAuthorized=false;
+      setConn('warn','DISCONNECTED');
+      stopPolling();
+    };
+
+  }catch(err){
+    console.error('WS init error:', err);
+    setConn('err','WS INIT FAIL: '+err.message);
+  }
 }
 
-async function apiConnectREST(){
-  const token = qs('apiTokenInput').value.trim();
-  if(!token){alert('กรุณากรอก API Token');return;}
-  apiToken = token;
-  accountMode = qs('accountModeSelect').value;
-  try{
-    console.log('Connecting to:', API_BASE);
-    const authData = await apiCall({authorize: apiToken, req_id: 1});
-    if(authData.error){
-      console.error('Auth failed:', authData.error);
-      isAuthorized = false;
-      setConn('err', 'AUTH FAIL: ' + (authData.error.message || JSON.stringify(authData.error)));
-      qs('accEmail').textContent = 'AUTH FAIL';
-      qs('accEmail').style.color = 'var(--red)';
+function handleApiMessage(data){
+  if(!data||!data.msg_type)return;
+
+  // Authorize response
+  if(data.msg_type==='authorize'){
+    if(data.error){
+      console.error('Auth failed:', data.error);
+      isAuthorized=false;
+      setConn('err','AUTH FAIL: '+(data.error.message||JSON.stringify(data.error)));
+      qs('accEmail').textContent='AUTH FAIL';
+      qs('accEmail').style.color='var(--red)';
       return;
     }
-    console.log('Auth success:', authData.authorize);
-    isAuthorized = true;
-    apiAccountCurrency = authData.authorize?.currency || 'USD';
-    apiCurrencyIsCrypto = API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-    qs('apiGateInputs').style.display = 'none';
-    qs('accountInfoDisplay').style.display = 'flex';
-    qs('badgeAccountMode').textContent = accountMode.toUpperCase();
-    qs('badgeAccountMode').className = 'badge-mode ' + accountMode;
-    qs('badgeCurrency').textContent = apiAccountCurrency;
-    qs('accEmail').textContent = authData.authorize?.email || authData.authorize?.loginid || '—';
-    qs('accEmail').style.color = 'var(--text)';
-    // ดึง balance ครั้งแรก
-    await apiFetchBalanceREST();
-    setConn('live', 'AUTH OK');
-    // เริ่ม polling balance + ใช้ scanResults เป็น tick
-    startPolling();
-  }catch(err){
-    console.error('REST Error:', err);
-    setConn('err', 'CONNECTION FAIL: ' + err.message);
-  }
-}
+    console.log('Auth success:', data.authorize);
+    isAuthorized=true;
+    apiAccountCurrency=data.authorize?.currency||'USD';
+    apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
 
-async function apiFetchBalanceREST(){
-  if(!isAuthorized) return;
-  try{
-    const data = await apiCall({balance: 1, req_id: Date.now()});
-    if(data.error){ console.warn('Balance error:', data.error); return; }
-    const bal = data.balance?.balance;
-    if(bal !== undefined){
-      qs('accBalance').textContent = '$' + Number(bal).toLocaleString('en-US', {
-        minimumFractionDigits: apiCurrencyIsCrypto ? 4 : 2,
-        maximumFractionDigits: apiCurrencyIsCrypto ? 4 : 2
+    qs('apiGateInputs').style.display='none';
+    qs('accountInfoDisplay').style.display='flex';
+    qs('badgeAccountMode').textContent=accountMode.toUpperCase();
+    qs('badgeAccountMode').className='badge-mode '+accountMode;
+    qs('badgeCurrency').textContent=apiAccountCurrency;
+    qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
+    qs('accEmail').style.color='var(--text)';
+
+    // ขอ balance
+    apiWs.send(JSON.stringify({balance:1,subscribe:1,req_id:++apiReqId}));
+
+    // ขอ ticks สำหรับ symbols ที่ watch
+    apiWatchedSymbols.forEach(sym=>{
+      apiWs.send(JSON.stringify({ticks:sym,subscribe:1,req_id:++apiReqId}));
+    });
+
+    setConn('live','AUTH OK');
+    startPolling();
+  }
+
+  // Balance response
+  if(data.msg_type==='balance'){
+    const bal=data.balance?.balance;
+    if(bal!==undefined){
+      qs('accBalance').textContent='$'+Number(bal).toLocaleString('en-US',{
+        minimumFractionDigits:apiCurrencyIsCrypto?4:2,
+        maximumFractionDigits:apiCurrencyIsCrypto?4:2
       });
     }
-  }catch(err){ console.error('Balance fetch error:', err); }
+  }
+
+  // Tick response
+  if(data.msg_type==='tick'){
+    onApiTickReceived(data.tick);
+  }
+
+  // Proposal response
+  if(data.msg_type==='proposal'){
+    if(data.error){
+      console.warn('Proposal error:', data.error);
+      orderInFlight=false;
+      if(globalLockedSymbol)globalLockedSymbol=null;
+    }else{
+      // ซื้อทันทีที่ได้ proposal
+      const proposalId=data.proposal?.id;
+      if(proposalId&&apiWs){
+        apiWs.send(JSON.stringify({
+          buy:proposalId,
+          price:data.proposal?.ask_price||baseStake,
+          req_id:++apiReqId
+        }));
+      }
+    }
+  }
+
+  // Buy response
+  if(data.msg_type==='buy'){
+    orderInFlight=false;
+    if(data.error){
+      console.warn('Buy error:', data.error);
+      if(globalLockedSymbol)globalLockedSymbol=null;
+    }else{
+      console.log('Buy success:', data.buy);
+      const contractId=data.buy?.contract_id;
+      const buyPrice=data.buy?.buy_price;
+      const symbol=data.echo_req?.parameters?.symbol;
+      if(symbol&&apiState[symbol]){
+        const s=apiState[symbol];
+        const pending=s.pendingContracts.find(c=>c.apiTracked&&!c.contractId);
+        if(pending){
+          pending.contractId=contractId;
+          pending.buyPrice=buyPrice;
+        }
+        // ติดตามผล contract
+        if(contractId){
+          trackContractWS(contractId,symbol);
+        }
+      }
+    }
+  }
+
+  // Proposal open contract
+  if(data.msg_type==='proposal_open_contract'){
+    const poc=data.proposal_open_contract;
+    if(poc&&poc.is_sold){
+      handleContractClosed(poc);
+    }
+  }
 }
 
 function startPolling(){
   stopPolling();
   // Polling balance ทุก 5 วินาที
-  balancePollingTimer = setInterval(() => apiFetchBalanceREST(), 5000);
-  // Polling "tick" จาก scanResults ทุก 1 วินาที
-  tickPollingTimer = setInterval(() => {
-    if(!isAuthorized) return;
-    apiWatchedSymbols.forEach(sym => {
-      ensureApiState(sym);
-      const s = apiState[sym];
-      const scanResult = scanResults[sym];
-      if(scanResult && scanResult.price){
-        const price = Number(scanResult.price);
-        s.tickCounter++; s.prevPrice = s.lastPrice; s.lastPrice = price; s.ticks.push(price);
-        if(s.ticks.length > lookbackPeriod) s.ticks.shift();
-        evaluatePendingContracts(sym, price, s.tickCounter);
-        if(s.ticks.length >= 15){
-          s.resistance = Math.max(...s.ticks.slice(0, -2));
-          s.support = Math.min(...s.ticks.slice(0, -2));
-          const lp = s.ticks.length, sp = 4;
-          const mtfMain = s.ticks.reduce((a,b) => a+b, 0) / lp;
-          const curMom = s.ticks.slice(-sp).reduce((a,b) => a+b, 0) / sp;
-          let bias = 'SIDEWAYS'; if(curMom > mtfMain) bias = 'BULLISH'; if(curMom < mtfMain) bias = 'BEARISH';
-          const range = s.resistance - s.support;
-          const midMin = s.support + range * 0.35, midMax = s.support + range * 0.65;
-          const prev = s.sigType;
-          if(price > midMin && price < midMax){ s.sigType = 'BLOCK'; }
-          else if(price >= s.resistance && bias === 'BULLISH'){
-            s.sigType = 'BUY';
-            if(prev !== 'BUY'){ playSignalSound('HIGHER'); if(passAutoScanFilter(sym, 'HIGHER')) executeRealContractREST(sym, 'HIGHER'); }
-          } else if(price <= s.support && bias === 'BEARISH'){
-            s.sigType = 'SELL';
-            if(prev !== 'SELL'){ playSignalSound('LOWER'); if(passAutoScanFilter(sym, 'LOWER')) executeRealContractREST(sym, 'LOWER'); }
-          } else { s.sigType = 'BLOCK'; }
-        }
-        renderGlobalKpis(); if(sym === apiFocusedSymbol) renderTrackRecord();
-      }
-    });
-  }, 1000);
+  balancePollingTimer=setInterval(()=>{
+    if(apiWs&&apiWs.readyState===WebSocket.OPEN&&isAuthorized){
+      apiWs.send(JSON.stringify({balance:1,req_id:++apiReqId}));
+    }
+  },5000);
 }
 
 function stopPolling(){
-  if(tickPollingTimer){ clearInterval(tickPollingTimer); tickPollingTimer = null; }
-  if(balancePollingTimer){ clearInterval(balancePollingTimer); balancePollingTimer = null; }
+  if(tickPollingTimer){clearInterval(tickPollingTimer);tickPollingTimer=null;}
+  if(balancePollingTimer){clearInterval(balancePollingTimer);balancePollingTimer=null;}
 }
 
-async function executeRealContractREST(symbol, direction){
-  if(orderInFlight) return; ensureApiState(symbol); const s = apiState[symbol]; if(isGlobalOrderLocked()) return;
-  orderInFlight = true;
-  const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(apiCurrencyIsCrypto ? 4 : 2));
-  const contractType = direction === 'HIGHER' ? 'CALL' : 'PUT';
-  let durationNumber = 5, durationUnitStr = 't';
-  if(apiDurationVal === '5_ticks'){ durationNumber = 5; durationUnitStr = 't'; }
-  else if(apiDurationVal === '10_ticks'){ durationNumber = 10; durationUnitStr = 't'; }
-  else if(apiDurationVal === '1_min'){ durationNumber = 1; durationUnitStr = 'm'; }
-  else if(apiDurationVal === '5_min'){ durationNumber = 5; durationUnitStr = 'm'; }
-  else if(apiDurationVal === '15_min'){ durationNumber = 15; durationUnitStr = 'm'; }
-  const calculatedWaitTicks = durationToWaitTicks(apiDurationVal);
-  globalLockedSymbol = symbol;
+async function executeRealContractREST(symbol,direction){
+  if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
+  orderInFlight=true;
+  const currentStake=parseFloat((baseStake*Math.pow(martingaleMultiplier,globalStepCount)).toFixed(apiCurrencyIsCrypto?4:2));
+  const contractType=direction==='HIGHER'?'CALL':'PUT';
+  let durationNumber=5,durationUnitStr='t';
+  if(apiDurationVal==='5_ticks'){durationNumber=5;durationUnitStr='t';}
+  else if(apiDurationVal==='10_ticks'){durationNumber=10;durationUnitStr='t';}
+  else if(apiDurationVal==='1_min'){durationNumber=1;durationUnitStr='m';}
+  else if(apiDurationVal==='5_min'){durationNumber=5;durationUnitStr='m';}
+  else if(apiDurationVal==='15_min'){durationNumber=15;durationUnitStr='m';}
+  const calculatedWaitTicks=durationToWaitTicks(apiDurationVal);
+  globalLockedSymbol=symbol;
+
   // Virtual mode (ไม่ได้ authorize)
-  if(!isAuthorized){
-    const lc = { id: 'VIR-' + Math.floor(Math.random() * 99999), dir: direction, entryPrice: s.lastPrice, entryTick: s.tickCounter, resolveAtTick: s.tickCounter + calculatedWaitTicks, step: globalStepCount + 1, stakeValue: currentStake, apiTracked: false, isVirtual: true };
-    s.pendingContracts.push(lc); renderGlobalKpis(); orderInFlight = false; return;
+  if(!isAuthorized||!apiWs||apiWs.readyState!==WebSocket.OPEN){
+    const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
+    s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
   }
+
+  // Real trade - ขอ proposal ก่อน
   try{
-    // ขอ proposal ก่อน
-    const proposalPayload = {
-      proposal: 1,
-      amount: currentStake,
-      basis: 'stake',
-      contract_type: contractType,
-      currency: apiAccountCurrency,
-      duration: durationNumber,
-      duration_unit: durationUnitStr,
-      symbol: symbol,
-      req_id: Date.now()
-    };
-    const propData = await apiCall(proposalPayload);
-    if(propData.error){
-      console.warn('Proposal error:', propData.error);
-      orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
-      return;
-    }
-    const proposalId = propData.proposal?.id;
-    if(!proposalId){
-      console.warn('No proposal ID');
-      orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
-      return;
-    }
-    // ซื้อจริง
-    const buyData = await apiCall({
-      buy: proposalId,
-      price: currentStake,
-      req_id: Date.now() + 1
-    });
-    if(buyData.error){
-      console.warn('Buy error:', buyData.error);
-      orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
-    } else {
-      console.log('Buy success:', buyData.buy);
-      const contractId = buyData.buy?.contract_id;
-      const ac = { id: contractId || 'REST-' + Math.floor(Math.random() * 99999), dir: direction, entryPrice: s.lastPrice, entryTick: s.tickCounter, resolveAtTick: s.tickCounter + calculatedWaitTicks, step: globalStepCount + 1, stakeValue: currentStake, apiTracked: true, isVirtual: false, contractId: contractId };
-      s.pendingContracts.push(ac);
-      // ติดตามผล contract
-      if(contractId) trackContractResult(contractId, symbol, ac);
-    }
-  } catch(err){
-    console.error('Buy REST error:', err);
-    orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
+    const ac={id:'PEND-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:true,isVirtual:false};
+    s.pendingContracts.push(ac);
+
+    apiWs.send(JSON.stringify({
+      proposal:1,
+      amount:currentStake,
+      basis:'stake',
+      contract_type:contractType,
+      currency:apiAccountCurrency,
+      duration:durationNumber,
+      duration_unit:durationUnitStr,
+      symbol:symbol,
+      req_id:++apiReqId
+    }));
+  }catch(err){
+    console.error('Trade error:',err);
+    orderInFlight=false;
+    if(globalLockedSymbol)globalLockedSymbol=null;
   }
   renderGlobalKpis();
 }
 
-// ติดตามผลการเทรดจริงผ่าน proposal_open_contract
-async function trackContractResult(contractId, symbol, contract){
-  if(!contractId || !isAuthorized) return;
-  const maxAttempts = 60; // ติดตามสูงสุด 60 ครั้ง (ประมาณ 60 วินาที)
-  let attempts = 0;
-  const checkInterval = setInterval(async () => {
-    attempts++;
-    if(attempts > maxAttempts){ clearInterval(checkInterval); return; }
-    try{
-      const data = await apiCall({
-        proposal_open_contract: 1,
-        contract_id: contractId,
-        req_id: Date.now() + 1000 + attempts
-      });
-      if(data.error){ console.warn('Track error:', data.error); return; }
-      const poc = data.proposal_open_contract;
-      if(!poc) return;
-      // ถ้า contract ปิดแล้ว
-      if(poc.is_sold || poc.exit_tick){
-        clearInterval(checkInterval);
-        const profit = Number(poc.profit) || 0;
-        const result = profit > 0 ? 'WIN' : 'LOSS';
-        const exitPrice = Number(poc.exit_tick) || Number(poc.sell_spot) || contract.entryPrice;
-        // อัปเดตสถิติ
-        const s = apiState[symbol];
-        if(!s) return;
-        s.pendingContracts = s.pendingContracts.filter(c => c.id !== contract.id);
-        if(result === 'WIN'){
-          s.statWins++; s.currentStepCount = 0; globalStepCount = 0;
-        } else {
-          s.statLosses++; s.currentStepCount++; globalStepCount++;
-          if(globalStepCount >= allowedMaxSteps){ globalStepCount = 0; s.currentStepCount = 0; }
-        }
-        if(globalLockedSymbol === symbol) globalLockedSymbol = null;
-        orderInFlight = false;
-        s.resolvedContracts.unshift({
-          id: contract.id, dir: contract.dir, entryPrice: contract.entryPrice,
-          exitPrice: exitPrice, result: result, step: contract.step,
-          stakeValue: contract.stakeValue, resolvedAt: new Date(),
-          profit: profit, payout: Number(poc.payout) || 0
-        });
-        // ดึง balance ใหม่ทันที
-        await apiFetchBalanceREST();
-        renderGlobalKpis(); renderTrackRecord();
-      }
-    }catch(e){ console.error('Track interval error:', e); }
-  }, 1000);
+// ติดตามผล contract ผ่าน WebSocket
+function trackContractWS(contractId,symbol){
+  if(!apiWs||!isAuthorized)return;
+  // ส่ง subscribe proposal_open_contract
+  apiWs.send(JSON.stringify({
+    proposal_open_contract:1,
+    contract_id:contractId,
+    subscribe:1,
+    req_id:++apiReqId
+  }));
 }
 
-function evaluatePendingContracts(sym, currentPrice, currentTickNum){
-  const s = apiState[sym]; if(!s || !s.pendingContracts.length) return;
-  const toResolve = s.pendingContracts.filter(c => currentTickNum >= c.resolveAtTick && c.isVirtual);
-  s.pendingContracts = s.pendingContracts.filter(c => !(currentTickNum >= c.resolveAtTick && c.isVirtual));
-  toResolve.forEach(c => {
-    let result = 'LOSS';
-    if(c.dir === 'HIGHER' && currentPrice > c.entryPrice) result = 'WIN';
-    if(c.dir === 'LOWER' && currentPrice < c.entryPrice) result = 'WIN';
-    if(result === 'WIN'){ s.statWins++; s.currentStepCount = 0; globalStepCount = 0; if(c.isVirtual){ virtualDemoBalance += c.stakeValue * VIRTUAL_PAYOUT_RATIO; renderVirtualBalance(); } }
-    else { s.statLosses++; s.currentStepCount++; globalStepCount++; if(c.isVirtual){ virtualDemoBalance -= c.stakeValue; renderVirtualBalance(); } if(globalStepCount >= allowedMaxSteps){ globalStepCount = 0; s.currentStepCount = 0; } }
-    if(globalLockedSymbol === sym) globalLockedSymbol = null;
-    s.resolvedContracts.unshift({ id: c.id, dir: c.dir, entryPrice: c.entryPrice, exitPrice: currentPrice, result: result, step: c.step, stakeValue: c.stakeValue, resolvedAt: new Date() });
+function handleContractClosed(poc){
+  if(!poc)return;
+  const contractId=poc.contract_id;
+  const symbol=poc.underlying;
+  if(!symbol||!apiState[symbol])return;
+
+  const s=apiState[symbol];
+  const pending=s.pendingContracts.find(c=>c.contractId===contractId||c.id===String(contractId));
+  if(!pending)return;
+
+  s.pendingContracts=s.pendingContracts.filter(c=>c!==pending);
+
+  const profit=Number(poc.profit)||0;
+  const result=profit>0?'WIN':'LOSS';
+  const exitPrice=Number(poc.exit_tick)||Number(poc.sell_spot)||pending.entryPrice;
+
+  if(result==='WIN'){
+    s.statWins++;s.currentStepCount=0;globalStepCount=0;
+  }else{
+    s.statLosses++;s.currentStepCount++;globalStepCount++;
+    if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}
+  }
+
+  if(globalLockedSymbol===symbol)globalLockedSymbol=null;
+  orderInFlight=false;
+
+  s.resolvedContracts.unshift({
+    id:pending.id,dir:pending.dir,entryPrice:pending.entryPrice,
+    exitPrice:exitPrice,result:result,step:pending.step,
+    stakeValue:pending.stakeValue,resolvedAt:new Date(),
+    profit:profit,payout:Number(poc.payout)||0
   });
-  renderGlobalKpis(); if(sym === apiFocusedSymbol) renderTrackRecord();
+
+  // ดึง balance ใหม่
+  if(apiWs&&apiWs.readyState===WebSocket.OPEN){
+    apiWs.send(JSON.stringify({balance:1,req_id:++apiReqId}));
+  }
+
+  renderGlobalKpis();renderTrackRecord();
 }
 
-function apiConnectHandler(){ connectApiWS(); }
-function apiDisconnectHandler(){
-  stopPolling(); apiToken = ''; isAuthorized = false; apiAccountCurrency = 'USD'; apiCurrencyIsCrypto = false;
-  qs('accountInfoDisplay').style.display = 'none'; qs('apiGateInputs').style.display = 'block';
-  qs('apiTokenInput').value = ''; qs('accBalance').textContent = '$0.00'; qs('accEmail').textContent = '—';
-  apiWatchedSymbols.forEach(sym => { apiState[sym] = freshState(); });
-  globalStepCount = 0; globalLockedSymbol = null; orderInFlight = false; virtualDemoBalance = 10000;
-  renderTrackRecord(); renderGlobalKpis(); renderVirtualBalance(); setConn('live', 'STATIC');
+function evaluatePendingContracts(sym,currentPrice,currentTickNum){
+  const s=apiState[sym];if(!s||!s.pendingContracts.length)return;
+  const toResolve=s.pendingContracts.filter(c=>currentTickNum>=c.resolveAtTick&&c.isVirtual);
+  s.pendingContracts=s.pendingContracts.filter(c=>!(currentTickNum>=c.resolveAtTick&&c.isVirtual));
+  toResolve.forEach(c=>{
+    let result='LOSS';
+    if(c.dir==='HIGHER'&&currentPrice>c.entryPrice)result='WIN';
+    if(c.dir==='LOWER'&&currentPrice<c.entryPrice)result='WIN';
+    if(result==='WIN'){s.statWins++;s.currentStepCount=0;globalStepCount=0;if(c.isVirtual){virtualDemoBalance+=c.stakeValue*VIRTUAL_PAYOUT_RATIO;renderVirtualBalance();}}
+    else{s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}}
+    if(globalLockedSymbol===sym)globalLockedSymbol=null;
+    s.resolvedContracts.unshift({id:c.id,dir:c.dir,entryPrice:c.entryPrice,exitPrice:currentPrice,result:result,step:c.step,stakeValue:c.stakeValue,resolvedAt:new Date()});
+  });
+  renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-function apiDurationChanged(v){ apiDurationVal = v; apiWatchedSymbols.forEach(sym => { apiState[sym] = freshState(); }); globalStepCount = 0; globalLockedSymbol = null; orderInFlight = false; renderTrackRecord(); renderGlobalKpis(); }
-function apiBaseStakeChanged(v){ const val = parseFloat(v); if(!isNaN(val) && val > 0){ baseStake = val; renderGlobalKpis(); } else qs('apiBaseStakeInput').value = baseStake.toFixed(2); }
-function apiMartingaleChanged(v){ martingaleMultiplier = parseFloat(v); renderGlobalKpis(); }
-function apiMaxStepsChanged(v){ allowedMaxSteps = parseInt(v); }
-function apiResetStats(){ if(confirm('รีเซ็ต?')){ apiWatchedSymbols.forEach(sym => { apiState[sym] = freshState(); }); globalStepCount = 0; globalLockedSymbol = null; orderInFlight = false; virtualDemoBalance = 10000; renderTrackRecord(); renderGlobalKpis(); renderVirtualBalance(); } }
-function playSignalSound(type){ try{ const ctx = new(window.AudioContext || window.webkitAudioContext)(); function playTone(f, d, dl){ const o = ctx.createOscillator(); const g = ctx.createGain(); o.type = 'sine'; o.frequency.value = f; g.gain.setValueAtTime(0.14, ctx.currentTime + dl); g.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dl + d); o.connect(g); g.connect(ctx.destination); o.start(ctx.currentTime + dl); o.stop(ctx.currentTime + dl + d); } if(type === 'HIGHER'){ playTone(880, 0.1, 0); playTone(1318, 0.15, 0.12); } else { playTone(440, 0.12, 0); playTone(349, 0.2, 0.1); } } catch(e){} }
-function apiSubscribe(sym){}
-function apiUnsubscribe(sym){}
-function apiSendAuthorize(){}
-function apiFetchBalance(){ apiFetchBalanceREST(); }
+
+function apiConnectHandler(){connectApiWS();}
+function apiDisconnectHandler(){
+  if(apiWs){try{apiWs.close()}catch(e){}apiWs=null;}
+  stopPolling();apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
+  qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';
+  qs('apiTokenInput').value='';qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
+  apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
+  globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
+  renderTrackRecord();renderGlobalKpis();renderVirtualBalance();setConn('live','STATIC');
+}
+function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
+function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
+function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
+function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
+function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
+function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
+function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym,subscribe:1,req_id:++apiReqId}));}}
+function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({forget:sym,req_id:++apiReqId}));}}
+function apiSendAuthorize(){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({authorize:apiToken,req_id:++apiReqId}));}}
+function apiFetchBalance(){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({balance:1,req_id:++apiReqId}));}}
 
 function onApiTickReceived(tick){
-  const sym = tick.symbol; if(!apiWatchedSymbols.includes(sym)) return;
-  ensureApiState(sym); const s = apiState[sym]; const price = parseFloat(tick.quote);
-  s.tickCounter++; s.prevPrice = s.lastPrice; s.lastPrice = price; s.ticks.push(price); if(s.ticks.length > lookbackPeriod) s.ticks.shift();
-  evaluatePendingContracts(sym, price, s.tickCounter);
-  if(s.ticks.length >= 15){
-    s.resistance = Math.max(...s.ticks.slice(0, -2)); s.support = Math.min(...s.ticks.slice(0, -2));
-    const lp = s.ticks.length, sp = 4;
-    const mtfMain = s.ticks.reduce((a,b) => a+b, 0) / lp; const curMom = s.ticks.slice(-sp).reduce((a,b) => a+b, 0) / sp;
-    let bias = 'SIDEWAYS'; if(curMom > mtfMain) bias = 'BULLISH'; if(curMom < mtfMain) bias = 'BEARISH';
-    const range = s.resistance - s.support; const midMin = s.support + range * 0.35, midMax = s.support + range * 0.65; const prev = s.sigType;
-    if(price > midMin && price < midMax){ s.sigType = 'BLOCK'; }
-    else if(price >= s.resistance && bias === 'BULLISH'){
-      s.sigType = 'BUY';
-      if(prev !== 'BUY'){ playSignalSound('HIGHER'); if(passAutoScanFilter(sym, 'HIGHER')) executeRealContractREST(sym, 'HIGHER'); }
-    } else if(price <= s.support && bias === 'BEARISH'){
-      s.sigType = 'SELL';
-      if(prev !== 'SELL'){ playSignalSound('LOWER'); if(passAutoScanFilter(sym, 'LOWER')) executeRealContractREST(sym, 'LOWER'); }
-    } else { s.sigType = 'BLOCK'; }
+  const sym=tick.symbol;if(!apiWatchedSymbols.includes(sym))return;
+  ensureApiState(sym);const s=apiState[sym];const price=parseFloat(tick.quote);
+  s.tickCounter++;s.prevPrice=s.lastPrice;s.lastPrice=price;s.ticks.push(price);if(s.ticks.length>lookbackPeriod)s.ticks.shift();
+  evaluatePendingContracts(sym,price,s.tickCounter);
+  if(s.ticks.length>=15){
+    s.resistance=Math.max(...s.ticks.slice(0,-2));s.support=Math.min(...s.ticks.slice(0,-2));
+    const lp=s.ticks.length,sp=4;
+    const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
+    let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
+    const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
+    if(price>midMin&&price<midMax){s.sigType='BLOCK';}
+    else if(price>=s.resistance&&bias==='BULLISH'){
+      s.sigType='BUY';
+      if(prev!=='BUY'){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContractREST(sym,'HIGHER');}
+    }else if(price<=s.support&&bias==='BEARISH'){
+      s.sigType='SELL';
+      if(prev!=='SELL'){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContractREST(sym,'LOWER');}
+    }else{s.sigType='BLOCK';}
   }
-  renderGlobalKpis(); if(sym === apiFocusedSymbol) renderTrackRecord();
+  renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-/* ══════════════════════════════════════════════════════
-   SECTION D: TELEGRAM
-   ══════════════════════════════════════════════════════ */
-function loadTgConfig(){try{return JSON.parse(localStorage.getItem('v36TgConfig')||'{}')||{}}catch(e){return {}}}
-function saveTgConfigToStorage(cfg){try{localStorage.setItem('v36TgConfig',JSON.stringify(cfg))}catch(e){}}
+e(cfg){try{localStorage.setItem('v36TgConfig',JSON.stringify(cfg))}catch(e){}}
 function initTg(){
   const cfg=loadTgConfig();
   if(cfg.botToken)qs('tgBotToken').value=cfg.botToken;if(cfg.chatId)qs('tgChatId').value=cfg.chatId;
@@ -1345,7 +1384,8 @@ function bootApp(){
   loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
-  // ไม่เรียก connectApiWS() ที่นี่ — รอผู้ใช้กด "เชื่อมต่อพอร์ต"
+  // สแกนครั้งแรกอัตโนมัติเพื่อให้มีข้อมูลเริ่มต้น
+  setTimeout(()=>{runAutoScanOnce();},1500);
   const initData=valueFor(active);if(initData)render();
 }
 </script>
