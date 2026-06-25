@@ -1020,53 +1020,41 @@ function connectApiWS(){
 }
 
 async function apiConnectREST(){
-  const token=qs('apiTokenInput').value.trim();
-  if(!token){alert('กรุณากรอก API Token');return;}
+  const token = qs('apiTokenInput').value.trim();
+  if(!token){ alert('กรุณากรอก API Token'); return; }
   
-  apiToken=token;
-  accountMode=qs('accountModeSelect').value;
+  apiToken = token;
+  accountMode = qs('accountModeSelect').value;
   
   try{
-    const authRes=await fetch(API_BASE+'/websockets/v3',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({authorize:apiToken,req_id:1})
+    const authRes = await fetch('/.netlify/functions/deriv', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ authorize: apiToken, req_id: 1 })
     });
     
-    const authData=await authRes.json();
+    const authData = await authRes.json();
     
     if(authData.error){
-      console.error('Auth failed:',authData.error);
-      isAuthorized=false;
-      setConn('err','AUTH FAIL: '+authData.error.message);
-      qs('accEmail').textContent='AUTH FAIL';
-      qs('accEmail').style.color='var(--red)';
+      isAuthorized = false;
+      setConn('err', 'AUTH FAIL: ' + authData.error.message);
       return;
     }
     
-    console.log('Auth success:',authData.authorize);
-    isAuthorized=true;
-    apiAccountCurrency=authData.authorize?.currency||'USD';
-    apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+    isAuthorized = true;
+    apiAccountCurrency = authData.authorize?.currency || 'USD';
     
-    qs('apiGateInputs').style.display='none';
-    qs('accountInfoDisplay').style.display='flex';
-    qs('badgeAccountMode').textContent=accountMode.toUpperCase();
-    qs('badgeAccountMode').className='badge-mode '+accountMode;
-    qs('badgeCurrency').textContent=apiAccountCurrency;
-    qs('accEmail').textContent=authData.authorize?.email||authData.authorize?.loginid||'—';
-    qs('accEmail').style.color='var(--text)';
+    qs('apiGateInputs').style.display = 'none';
+    qs('accountInfoDisplay').style.display = 'flex';
+    qs('accEmail').textContent = authData.authorize?.loginid || '—';
     
-    await apiFetchBalanceREST();
-    setConn('live','AUTH OK');
-    startPolling();
+    setConn('live', 'AUTH OK');
     
-  }catch(err){
-    console.error('REST Error:',err);
-    setConn('err','CONNECTION FAIL: '+err.message);
+  } catch(err){
+    console.error('REST Error:', err);
+    setConn('err', 'CONNECTION FAIL');
   }
 }
-
 async function apiFetchBalanceREST(){
   if(!isAuthorized)return;
   try{
