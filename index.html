@@ -212,6 +212,7 @@ button{user-select:none;cursor:pointer}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -944,13 +945,14 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING  —  REST API VERSION
+   SECTION C: FULL API TRADING  —  REST API VERSION (Netlify)
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
   {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
   {sym:'R_75',label:'Vol 75',dec:4},{sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
-  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
-  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
+  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
+  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},
+  {sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
 const API_APP_ID='1089';
 const API_BASE = '/.netlify/functions/deriv';
@@ -966,12 +968,14 @@ let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
 let apiState={};
 let tickPollingTimer=null,balancePollingTimer=null;
+let apiWs = null; // สำหรับ WebSocket โดยตรง (fallback)
+let useDirectWS = false; // true = ใช้ WebSocket ตรง, false = ใช้ Netlify REST
 
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
 function ensureApiState(sym){if(!apiState[sym])apiState[sym]=freshState();}
 function isGlobalOrderLocked(){return globalLockedSymbol!==null;}
-function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='5_min')return 150;if(v==='15_min')return 450;return 5;}
+function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='1_min')return 30;if(v==='5_min')return 150;if(v==='15_min')return 450;return 5;}
 function renderGlobalKpis(){
   const s=qs('apiKpiStep');const sk=qs('apiKpiStake');const lk=qs('apiKpiLock');const wr=qs('apiKpiWinrate');if(!s)return;
   s.textContent='M-'+(globalStepCount+1);sk.textContent=apiFmtStake(baseStake*Math.pow(martingaleMultiplier,globalStepCount))+' '+apiAccountCurrency;
@@ -1000,7 +1004,7 @@ function renderTrackRecord(){
 }
 function renderWatchPicker(){
   const picker=qs('watchPicker');if(!picker)return;
-  picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(\''+item.sym+'\')">'+item.sym+'</span>';}).join('');
+  picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(''+item.sym+'')">'+item.sym+'</span>';}).join('');
 }
 function toggleWatchSym(sym){
   if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];}}
@@ -1012,56 +1016,46 @@ function toggleIndicator(key,el){
   const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
 }
 
-// ── REST API CONNECTION ──
-function connectApiWS(){
-  // ปิดเก่าก่อน
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
-    apiWs = null;
+/* ── REST API via Netlify Function ── */
+async function apiCall(payload){
+  const res = await fetch(API_BASE, {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify(payload)
+  });
+  if(!res.ok){
+    const text = await res.text().catch(()=>'');
+    throw new Error('HTTP '+res.status+': '+text);
   }
+  return await res.json();
+}
 
-  // ใช้ REST API ผ่าน Netlify แทน WebSocket
-  console.log('Using REST API via Netlify');
+function connectApiWS(){
+  if(apiWs){try{apiWs.close()}catch(e){}apiWs=null;}
+  console.log('Using REST API via Netlify Function');
   apiConnectREST();
 }
 
 async function apiConnectREST(){
   const token = qs('apiTokenInput').value.trim();
-  if(!token){
-    alert('กรุณากรอก API Token');
-    return;
-  }
-  
+  if(!token){alert('กรุณากรอก API Token');return;}
   apiToken = token;
   accountMode = qs('accountModeSelect').value;
-  
   try{
-    // ใช้ Netlify Functions
-    const authRes = await fetch('/.netlify/functions/deriv', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        authorize: apiToken,
-        req_id: 1
-      })
-    });
-    
-    const authData = await authRes.json();
-    
+    console.log('Connecting to:', API_BASE);
+    const authData = await apiCall({authorize: apiToken, req_id: 1});
     if(authData.error){
       console.error('Auth failed:', authData.error);
       isAuthorized = false;
-      setConn('err', 'AUTH FAIL: ' + authData.error.message);
+      setConn('err', 'AUTH FAIL: ' + (authData.error.message || JSON.stringify(authData.error)));
       qs('accEmail').textContent = 'AUTH FAIL';
       qs('accEmail').style.color = 'var(--red)';
       return;
     }
-    
     console.log('Auth success:', authData.authorize);
     isAuthorized = true;
     apiAccountCurrency = authData.authorize?.currency || 'USD';
     apiCurrencyIsCrypto = API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-    
     qs('apiGateInputs').style.display = 'none';
     qs('accountInfoDisplay').style.display = 'flex';
     qs('badgeAccountMode').textContent = accountMode.toUpperCase();
@@ -1069,16 +1063,12 @@ async function apiConnectREST(){
     qs('badgeCurrency').textContent = apiAccountCurrency;
     qs('accEmail').textContent = authData.authorize?.email || authData.authorize?.loginid || '—';
     qs('accEmail').style.color = 'var(--text)';
-    
-    // ดึง balance
+    // ดึง balance ครั้งแรก
     await apiFetchBalanceREST();
-    
     setConn('live', 'AUTH OK');
-    
-    // เริ่ม polling
+    // เริ่ม polling balance + ใช้ scanResults เป็น tick
     startPolling();
-    
-  } catch(err){
+  }catch(err){
     console.error('REST Error:', err);
     setConn('err', 'CONNECTION FAIL: ' + err.message);
   }
@@ -1086,21 +1076,9 @@ async function apiConnectREST(){
 
 async function apiFetchBalanceREST(){
   if(!isAuthorized) return;
-  
   try{
-    const res = await fetch('/.netlify/functions/deriv', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        balance: 1,
-        subscribe: 1,
-        req_id: Date.now()
-      })
-    });
-    
-    const data = await res.json();
+    const data = await apiCall({balance: 1, req_id: Date.now()});
     if(data.error){ console.warn('Balance error:', data.error); return; }
-    
     const bal = data.balance?.balance;
     if(bal !== undefined){
       qs('accBalance').textContent = '$' + Number(bal).toLocaleString('en-US', {
@@ -1108,16 +1086,16 @@ async function apiFetchBalanceREST(){
         maximumFractionDigits: apiCurrencyIsCrypto ? 4 : 2
       });
     }
-    
-  } catch(err){ console.error('Balance fetch error:', err); }
+  }catch(err){ console.error('Balance fetch error:', err); }
 }
 
 function startPolling(){
   stopPolling();
+  // Polling balance ทุก 5 วินาที
   balancePollingTimer = setInterval(() => apiFetchBalanceREST(), 5000);
+  // Polling "tick" จาก scanResults ทุก 1 วินาที
   tickPollingTimer = setInterval(() => {
     if(!isAuthorized) return;
-    // ใช้ scanResults แทน tick
     apiWatchedSymbols.forEach(sym => {
       ensureApiState(sym);
       const s = apiState[sym];
@@ -1159,47 +1137,124 @@ function stopPolling(){
 
 async function executeRealContractREST(symbol, direction){
   if(orderInFlight) return; ensureApiState(symbol); const s = apiState[symbol]; if(isGlobalOrderLocked()) return;
-  orderInFlight = true; const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(apiCurrencyIsCrypto ? 4 : 2));
+  orderInFlight = true;
+  const currentStake = parseFloat((baseStake * Math.pow(martingaleMultiplier, globalStepCount)).toFixed(apiCurrencyIsCrypto ? 4 : 2));
   const contractType = direction === 'HIGHER' ? 'CALL' : 'PUT';
   let durationNumber = 5, durationUnitStr = 't';
   if(apiDurationVal === '5_ticks'){ durationNumber = 5; durationUnitStr = 't'; }
   else if(apiDurationVal === '10_ticks'){ durationNumber = 10; durationUnitStr = 't'; }
+  else if(apiDurationVal === '1_min'){ durationNumber = 1; durationUnitStr = 'm'; }
   else if(apiDurationVal === '5_min'){ durationNumber = 5; durationUnitStr = 'm'; }
   else if(apiDurationVal === '15_min'){ durationNumber = 15; durationUnitStr = 'm'; }
   const calculatedWaitTicks = durationToWaitTicks(apiDurationVal);
   globalLockedSymbol = symbol;
+  // Virtual mode (ไม่ได้ authorize)
   if(!isAuthorized){
     const lc = { id: 'VIR-' + Math.floor(Math.random() * 99999), dir: direction, entryPrice: s.lastPrice, entryTick: s.tickCounter, resolveAtTick: s.tickCounter + calculatedWaitTicks, step: globalStepCount + 1, stakeValue: currentStake, apiTracked: false, isVirtual: true };
     s.pendingContracts.push(lc); renderGlobalKpis(); orderInFlight = false; return;
   }
   try{
-    const res = await fetch('/.netlify/functions/deriv', {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({
-        buy: 1, price: currentStake,
-        parameters: { amount: currentStake, basis: 'stake', contract_type: contractType, currency: apiAccountCurrency, duration: durationNumber, duration_unit: durationUnitStr, symbol: symbol },
-        req_id: Date.now()
-      })
+    // ขอ proposal ก่อน
+    const proposalPayload = {
+      proposal: 1,
+      amount: currentStake,
+      basis: 'stake',
+      contract_type: contractType,
+      currency: apiAccountCurrency,
+      duration: durationNumber,
+      duration_unit: durationUnitStr,
+      symbol: symbol,
+      req_id: Date.now()
+    };
+    const propData = await apiCall(proposalPayload);
+    if(propData.error){
+      console.warn('Proposal error:', propData.error);
+      orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
+      return;
+    }
+    const proposalId = propData.proposal?.id;
+    if(!proposalId){
+      console.warn('No proposal ID');
+      orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
+      return;
+    }
+    // ซื้อจริง
+    const buyData = await apiCall({
+      buy: proposalId,
+      price: currentStake,
+      req_id: Date.now() + 1
     });
-    const data = await res.json();
-    if(data.error){
-      console.warn('Buy error:', data.error); orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
+    if(buyData.error){
+      console.warn('Buy error:', buyData.error);
+      orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
     } else {
-      console.log('Buy success:', data.buy);
-      const ac = { id: data.buy?.contract_id || 'REST-' + Math.floor(Math.random() * 99999), dir: direction, entryPrice: s.lastPrice, entryTick: s.tickCounter, resolveAtTick: s.tickCounter + calculatedWaitTicks, step: globalStepCount + 1, stakeValue: currentStake, apiTracked: true, isVirtual: false };
+      console.log('Buy success:', buyData.buy);
+      const contractId = buyData.buy?.contract_id;
+      const ac = { id: contractId || 'REST-' + Math.floor(Math.random() * 99999), dir: direction, entryPrice: s.lastPrice, entryTick: s.tickCounter, resolveAtTick: s.tickCounter + calculatedWaitTicks, step: globalStepCount + 1, stakeValue: currentStake, apiTracked: true, isVirtual: false, contractId: contractId };
       s.pendingContracts.push(ac);
+      // ติดตามผล contract
+      if(contractId) trackContractResult(contractId, symbol, ac);
     }
   } catch(err){
-    console.error('Buy REST error:', err); orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
+    console.error('Buy REST error:', err);
+    orderInFlight = false; if(globalLockedSymbol) globalLockedSymbol = null;
   }
   renderGlobalKpis();
 }
 
+// ติดตามผลการเทรดจริงผ่าน proposal_open_contract
+async function trackContractResult(contractId, symbol, contract){
+  if(!contractId || !isAuthorized) return;
+  const maxAttempts = 60; // ติดตามสูงสุด 60 ครั้ง (ประมาณ 60 วินาที)
+  let attempts = 0;
+  const checkInterval = setInterval(async () => {
+    attempts++;
+    if(attempts > maxAttempts){ clearInterval(checkInterval); return; }
+    try{
+      const data = await apiCall({
+        proposal_open_contract: 1,
+        contract_id: contractId,
+        req_id: Date.now() + 1000 + attempts
+      });
+      if(data.error){ console.warn('Track error:', data.error); return; }
+      const poc = data.proposal_open_contract;
+      if(!poc) return;
+      // ถ้า contract ปิดแล้ว
+      if(poc.is_sold || poc.exit_tick){
+        clearInterval(checkInterval);
+        const profit = Number(poc.profit) || 0;
+        const result = profit > 0 ? 'WIN' : 'LOSS';
+        const exitPrice = Number(poc.exit_tick) || Number(poc.sell_spot) || contract.entryPrice;
+        // อัปเดตสถิติ
+        const s = apiState[symbol];
+        if(!s) return;
+        s.pendingContracts = s.pendingContracts.filter(c => c.id !== contract.id);
+        if(result === 'WIN'){
+          s.statWins++; s.currentStepCount = 0; globalStepCount = 0;
+        } else {
+          s.statLosses++; s.currentStepCount++; globalStepCount++;
+          if(globalStepCount >= allowedMaxSteps){ globalStepCount = 0; s.currentStepCount = 0; }
+        }
+        if(globalLockedSymbol === symbol) globalLockedSymbol = null;
+        orderInFlight = false;
+        s.resolvedContracts.unshift({
+          id: contract.id, dir: contract.dir, entryPrice: contract.entryPrice,
+          exitPrice: exitPrice, result: result, step: contract.step,
+          stakeValue: contract.stakeValue, resolvedAt: new Date(),
+          profit: profit, payout: Number(poc.payout) || 0
+        });
+        // ดึง balance ใหม่ทันที
+        await apiFetchBalanceREST();
+        renderGlobalKpis(); renderTrackRecord();
+      }
+    }catch(e){ console.error('Track interval error:', e); }
+  }, 1000);
+}
+
 function evaluatePendingContracts(sym, currentPrice, currentTickNum){
   const s = apiState[sym]; if(!s || !s.pendingContracts.length) return;
-  const toResolve = s.pendingContracts.filter(c => currentTickNum >= c.resolveAtTick);
-  s.pendingContracts = s.pendingContracts.filter(c => currentTickNum < c.resolveAtTick);
+  const toResolve = s.pendingContracts.filter(c => currentTickNum >= c.resolveAtTick && c.isVirtual);
+  s.pendingContracts = s.pendingContracts.filter(c => !(currentTickNum >= c.resolveAtTick && c.isVirtual));
   toResolve.forEach(c => {
     let result = 'LOSS';
     if(c.dir === 'HIGHER' && currentPrice > c.entryPrice) result = 'WIN';
