@@ -593,18 +593,10 @@ function buildTabs(){qs('tabs').innerHTML=SYMBOLS.map(s=>'<div class="tab '+(s.i
 function setActive(id){active=SYMBOLS.find(s=>s.id===id)||SYMBOLS[0];qs('symbolInput').value=active.tv;buildTabs();loadTradingView(active.tv,qs('intervalInput').value);render();}
 function loadTradingView(tvSymbol,interval){
   const sym=tvSymbol||active.tv;const tf=String(interval||'1');
-  const root=qs('tvContainer');
-  root.innerHTML='';
-  const wdiv=document.createElement('div');
-  wdiv.className='tradingview-widget-container__widget';
-  wdiv.style.width='100%';
-  wdiv.style.height='100%';
-  root.appendChild(wdiv);
-  const script=document.createElement('script');
-  script.type='text/javascript';
-  script.async=true;
+  const root=qs('tvContainer');root.innerHTML='<div class="tradingview-widget-container__widget"></div>';
+  const script=document.createElement('script');script.type='text/javascript';script.async=true;
   script.src='https://s3.tradingview.com/external-embedding/embed-widget-advanced-chart.js';
-  script.innerHTML=JSON.stringify({autosize:true,symbol:sym,interval:tf,timezone:'Asia/Bangkok',theme:'dark',style:'1',locale:'en',allow_symbol_change:true,calendar:false,details:false,hide_side_toolbar:false,hide_top_toolbar:false,hide_legend:false,hide_volume:false,hotlist:false,save_image:false,support_host:'https://www.tradingview.com',studies:['STD;EMA','STD;RSI']});
+  script.text=JSON.stringify({autosize:true,symbol:sym,interval:tf,timezone:'Asia/Bangkok',theme:'dark',style:'1',locale:'en',allow_symbol_change:true,calendar:false,details:false,hide_side_toolbar:false,hide_top_toolbar:false,hide_legend:false,hide_volume:false,hotlist:false,save_image:false,support_host:'https://www.tradingview.com',studies:['STD;EMA','STD;RSI']});
   root.appendChild(script);
   qs('chartNote').textContent='Chart: '+sym+' / '+tf+'m — AUTO SCAN สแกนจาก symbol นี้โดยตรง';
   setConn('live','STATIC');
