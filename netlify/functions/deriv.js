@@ -33,8 +33,9 @@ exports.handler = async function(event, context) {
   }
 
   try {
-    console.log('Sending to Deriv...');
+    console.log('Sending to Deriv with app_id=1089...');
     
+    // ใช้ app_id=1089 ใน URL
     const response = await fetch('https://ws.binaryws.com/websockets/v3?app_id=1089', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
