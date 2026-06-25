@@ -1,8 +1,15 @@
-exports.handler = async function(event, context) {
+// Netlify Function: Proxy to Deriv API via WebSocket
+// เพราะ Deriv API เป็น WebSocket protocol — ไม่รองรับ HTTP REST โดยตรง
+
+const WebSocket = require('ws');
+
+exports.handler = async (event, context) => {
+  // CORS headers
   const headers = {
     'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'Content-Type, Authorization',
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Allow-Headers': 'Content-Type'
+    'Content-Type': 'application/json'
   };
 
   if (event.httpMethod === 'OPTIONS') {
@@ -13,58 +20,89 @@ exports.handler = async function(event, context) {
     return {
       statusCode: 405,
       headers,
-      body: JSON.stringify({ error: 'Method not allowed' })
+      body: JSON.stringify({ error: { message: 'Method not allowed. Use POST.' } })
     };
   }
 
-  console.log('=== DERIV PROXY ===');
-  console.log('Received body:', event.body);
-
+  let requestBody;
   try {
-    const bodyObj = JSON.parse(event.body);
-    console.log('Parsed:', JSON.stringify(bodyObj, null, 2));
-    
-    if (bodyObj.authorize) {
-      console.log('Token prefix:', bodyObj.authorize.substring(0, 10) + '...');
-      console.log('Token length:', bodyObj.authorize.length);
-    }
+    requestBody = JSON.parse(event.body);
   } catch (e) {
-    console.log('Body not JSON:', event.body);
+    return {
+      statusCode: 400,
+      headers,
+      body: JSON.stringify({ error: { message: 'Invalid JSON body: ' + e.message } })
+    };
   }
 
-  try {
-    console.log('Sending to Deriv with app_id=1089...');
-    
-    // ใช้ app_id=1089 ใน URL
-    const response = await fetch('https://ws.binaryws.com/websockets/v3?app_id=1089', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: event.body
+  // เชื่อมต่อ Deriv WebSocket API ผ่าน Netlify Function (server-side)
+  return new Promise((resolve, reject) => {
+    const ws = new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id=1089');
+    let responseReceived = false;
+    let timeoutId;
+
+    const cleanup = () => {
+      clearTimeout(timeoutId);
+      try { ws.close(); } catch (e) {}
+    };
+
+    // Timeout 15 วินาที
+    timeoutId = setTimeout(() => {
+      if (!responseReceived) {
+        cleanup();
+        resolve({
+          statusCode: 504,
+          headers,
+          body: JSON.stringify({ error: { message: 'Gateway timeout — Deriv API did not respond within 15s' } })
+        });
+      }
+    }, 15000);
+
+    ws.on('open', () => {
+      // ส่ง request ไปยัง Deriv
+      ws.send(JSON.stringify(requestBody));
     });
 
-    const data = await response.json();
-    console.log('Deriv response:', JSON.stringify(data, null, 2));
+    ws.on('message', (data) => {
+      responseReceived = true;
+      cleanup();
 
-    if (data.error) {
-      console.log('❌ DERIV ERROR:', data.error.code, '-', data.error.message);
-    } else if (data.authorize) {
-      console.log('✅ AUTH SUCCESS:', data.authorize.loginid);
-    }
+      try {
+        const responseData = JSON.parse(data.toString());
+        resolve({
+          statusCode: 200,
+          headers,
+          body: JSON.stringify(responseData)
+        });
+      } catch (e) {
+        resolve({
+          statusCode: 500,
+          headers,
+          body: JSON.stringify({ error: { message: 'Failed to parse Deriv response: ' + e.message } })
+        });
+      }
+    });
 
-    return {
-      statusCode: 200,
-      headers,
-      body: JSON.stringify(data)
-    };
-  } catch (error) {
-    console.error('❌ PROXY ERROR:', error);
-    return {
-      statusCode: 500,
-      headers,
-      body: JSON.stringify({ 
-        error: 'Proxy failed', 
-        message: error.message 
-      })
-    };
-  }
+    ws.on('error', (err) => {
+      if (!responseReceived) {
+        cleanup();
+        resolve({
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({ error: { message: 'WebSocket error: ' + err.message } })
+        });
+      }
+    });
+
+    ws.on('close', () => {
+      if (!responseReceived) {
+        cleanup();
+        resolve({
+          statusCode: 502,
+          headers,
+          body: JSON.stringify({ error: { message: 'WebSocket closed unexpectedly' } })
+        });
+      }
+    });
+  });
 };
