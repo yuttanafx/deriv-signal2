@@ -1146,64 +1146,51 @@ function onApiTickReceived(tick){
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-function connectApiWS(){
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
-  }
+let apiWs = null;
+let reconnectAttempts = 0;
 
-  apiWs = new WebSocket(
-    'wss://ws.derivws.com/websockets/v3?app_id=' + API_APP_ID
-  );
+function connectApiWS() {
+    // ปิดการเชื่อมต่อเดิมถ้ามี
+    if (apiWs) { apiWs.close(); }
 
-  apiWs.onopen = () => {
-    console.log("WS CONNECTED");
+    apiWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
 
-    if(apiToken){
-      apiWs.send(JSON.stringify({
-        authorize: apiToken
-      }));
-    }
-  };
+    apiWs.onopen = () => {
+        console.log("Connected to Deriv API");
+        reconnectAttempts = 0; // Reset ตัวนับ
+        // ส่ง authorize ทันที
+        if (apiToken) {
+            apiWs.send(JSON.stringify({ authorize: apiToken }));
+        }
+    };
 
-  apiWs.onmessage = (msg) => {
-    const data = JSON.parse(msg.data);
+    apiWs.onmessage = (msg) => {
+        const data = JSON.parse(msg.data);
+        
+        // จัดการ Error Handling
+        if (data.error) {
+            console.error("API Error:", data.error.message);
+            return;
+        }
 
-    // AUTH
-    if(data.msg_type === "authorize"){
-      if(data.error){
+        switch (data.msg_type) {
+            case "authorize":
+                isAuthorized = true;
+                apiFetchBalance(); // ดึงยอดเงินทันทีหลัง Auth ผ่าน
+                break;
+            case "tick":
+                onApiTickReceived(data.tick); // เข้าสู่ระบบคำนวณราคาทันที
+                break;
+        }
+    };
+
+    apiWs.onclose = () => {
         isAuthorized = false;
-        renderVirtualBalance();
-      } else {
-        isAuthorized = true;
-        qs('apiGateInputs').style.display='none';
-        qs('accountInfoDisplay').style.display='flex';
-        renderVirtualBalance();
-      }
-    }
-
-    // BALANCE
-    if(data.msg_type === "balance" && !data.error){
-      qs('accBalance').textContent = data.balance.balance;
-    }
-
-    // TICK
-    if(data.msg_type === "tick"){
-      onApiTickReceived(data.tick);
-    }
-
-    // BUY
-    if(data.msg_type === "buy"){
-      if(data.error){
-        console.warn("BUY ERROR", data.error);
-      }
-    }
-  };
-
-  apiWs.onclose = () => {
-    isAuthorized = false;
-    renderVirtualBalance();
-    setTimeout(connectApiWS, 4000);
-  };
+        // ระบบ Reconnect อัตโนมัติ (Exponential Backoff)
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
+        setTimeout(connectApiWS, delay);
+        reconnectAttempts++;
+    };
 }
 function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({ticks:sym}));}
 function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
