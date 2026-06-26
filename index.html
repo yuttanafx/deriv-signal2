@@ -382,19 +382,8 @@ button{user-select:none;cursor:pointer}
             <div id="apiGateInputs">
               <div class="sp-row"><label>โหมด</label><select id="accountModeSelect"><option value="demo">🧪 Demo</option><option value="real">💰 Real</option></select></div>
               <div class="sp-row"><label>TOKEN</label><input type="password" id="apiTokenInput" placeholder="วาง API Token..."></div>
-              <div class="sp-btnrow">
-    <button id="btnConnect" class="btn green">เชื่อมต่อพอร์ต</button>
-</div>
+              <div class="sp-btnrow"><button class="btn green" onclick="apiConnectHandler()">เชื่อมต่อพอร์ต</button></div>
             </div>
-            document.addEventListener('DOMContentLoaded', () => {
-    const btn = document.querySelector('.btn.green'); // เลือกปุ่มที่มี class btn และ green
-    if(btn) {
-        btn.addEventListener('click', () => {
-            console.log("ปุ่มเชื่อมต่อถูกคลิก!");
-            apiConnectHandler();
-        });
-    }
-});
             <div id="accountInfoDisplay" style="display:none">
               <div class="sp-row">
                 <span class="badge-mode demo" id="badgeAccountMode">DEMO</span>
@@ -1168,52 +1157,33 @@ function connectApiWS(){
   apiWs.onopen = () => {
     console.log("WS CONNECTED");
 
-    if (apiToken) {
-        // 1. ส่งคำสั่ง Authorize ทันที
-        apiWs.send(JSON.stringify({ authorize: apiToken }));
-        
-        // 2. [แนะนำให้เพิ่ม] ทำการ Subscribe ข้อมูลราคาสำหรับ Symbol ที่สนใจทันที
-        // สมมติว่าคุณต้องการติดตาม R_75 เป็นค่าเริ่มต้น
-        apiWatchedSymbols.forEach(sym => {
-            apiSubscribe(sym);
-        });
-    } else {
-        console.warn("API Token not found, please check your input.");
+    if(apiToken){
+      apiWs.send(JSON.stringify({
+        authorize: apiToken
+      }));
     }
-};
+  };
 
   apiWs.onmessage = (msg) => {
     const data = JSON.parse(msg.data);
 
-   // AUTH
-if(data.msg_type === "authorize"){
-  if(data.error){
-    isAuthorized = false;
-    renderVirtualBalance();
-  } else {
-    isAuthorized = true;
-    qs('apiGateInputs').style.display='none';
-    qs('accountInfoDisplay').style.display='flex';
-    renderVirtualBalance();
-    
-    // --- บรรทัดที่ต้องเพิ่มเพื่อดึงข้อมูลพอร์ตให้ครบ ---
-    apiFetchBalance(); // ดึงยอดเงินจริงมาโชว์
-    
-    // Subscribe ทุก Symbol ที่อยู่ในรายการเฝ้าดูเพื่อให้ราคาเริ่มวิ่ง
-    if (typeof apiWatchedSymbols !== 'undefined') {
-        apiWatchedSymbols.forEach(sym => apiSubscribe(sym));
+    // AUTH
+    if(data.msg_type === "authorize"){
+      if(data.error){
+        isAuthorized = false;
+        renderVirtualBalance();
+      } else {
+        isAuthorized = true;
+        qs('apiGateInputs').style.display='none';
+        qs('accountInfoDisplay').style.display='flex';
+        renderVirtualBalance();
+      }
     }
-  }
-}
-   // BALANCE
-if(data.msg_type === "balance" && !data.error){
-    // ใช้ .toFixed(2) เพื่อให้แสดงทศนิยม 2 ตำแหน่งให้สวยงาม
-    const balance = parseFloat(data.balance.balance).toFixed(2);
-    qs('accBalance').textContent = balance;
-    
-    // ตรวจสอบ Currency และปรับสี
-    qs('badgeCurrency').textContent = data.balance.currency;
-}
+
+    // BALANCE
+    if(data.msg_type === "balance" && !data.error){
+      qs('accBalance').textContent = data.balance.balance;
+    }
 
     // TICK
     if(data.msg_type === "tick"){
