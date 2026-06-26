@@ -1173,7 +1173,7 @@ function executeRealContract(symbol,direction){
     const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
     s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
   }
-  apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,symbol:symbol}}));
+  apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,underlying_symbol:symbol}}));
   orderInFlight=false;
   const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
   s.pendingContracts.push(ac);renderGlobalKpis();
