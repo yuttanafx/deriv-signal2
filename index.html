@@ -666,7 +666,7 @@ function ingestSignal(payload,sourceLabel){
   signalHistory.unshift({ts:Date.now(),source:sourceLabel||'',symbol:sym.id||'CUSTOM',signal:sigClass(normalized.signal),price:normalized.price,rsi:normalized.rsi,score:normalized.score,confidence:normalized.confidence,filter:normalized.filter||'—'});
   signalHistory=signalHistory.slice(0,80);
   saveStore();saveHistory();
-  render();maybeNotifyTelegram(sym,normalized,sourceLabel);
+  render();
 }
 function parseSignals(text){
   const t=String(text||'').trim();if(!t)return [];
@@ -1191,10 +1191,13 @@ function executeRealContract(symbol,direction){
   globalLockedSymbol=symbol;
   if(!isAuthorized||!apiWs||apiWs.readyState!==WebSocket.OPEN){
     const lc={id:'VIR-'+Math.floor(Math.random()*99999),dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:true};
-    s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;return;
+    s.pendingContracts.push(lc);renderGlobalKpis();orderInFlight=false;
+    notifyTelegramOrder(symbol,direction,currentStake,globalStepCount+1,s.lastPrice,true);
+    return;
   }
   apiWs.send(JSON.stringify({buy:1,price:currentStake,parameters:{amount:currentStake,basis:'stake',contract_type:contractType,currency:apiAccountCurrency,duration:durationNumber,duration_unit:durationUnitStr,underlying_symbol:symbol}}));
   orderInFlight=false;
+  notifyTelegramOrder(symbol,direction,currentStake,globalStepCount+1,s.lastPrice,false);
   const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
   s.pendingContracts.push(ac);renderGlobalKpis();
 }
@@ -1273,13 +1276,18 @@ function saveTelegramConfig(){saveTgConfigToStorage(currentTgConfig());}
 function toggleTelegramBot(checked){setTgStatus(checked);saveTgConfigToStorage(currentTgConfig());}
 async function telegramSendMessage(text){const cfg=currentTgConfig();if(!cfg.botToken||!cfg.chatId)throw new Error('กรอก Token และ Chat ID ก่อน');const res=await fetch('https://api.telegram.org/bot'+cfg.botToken+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:cfg.chatId,text,parse_mode:'HTML'})});const data=await res.json().catch(()=>({}));if(!res.ok||data.ok===false)throw new Error(data&&data.description||'HTTP '+res.status);return data;}
 async function sendTelegramTest(){saveTelegramConfig();try{await telegramSendMessage('🔔 <b>Deriv PRO — Test</b>\n'+new Date().toLocaleString('th-TH',{hour12:false}));const el=qs('tgLastResult');el.style.display='block';el.className='sp-mini-note';el.textContent='✅ ส่งสำเร็จ';}catch(e){const el=qs('tgLastResult');el.style.display='block';el.className='sp-mini-note warn';el.textContent='❌ '+e.message;}}
-async function maybeNotifyTelegram(sym,normalized,sourceLabel){
+async function notifyTelegramOrder(symbol,direction,stake,step,entryPrice,isVirtual){
   const cfg=currentTgConfig();if(!cfg.enabled)return;
-  const sig=sigClass(normalized.signal);
-  if(sig==='CALL'&&!cfg.onCall)return;if(sig==='PUT'&&!cfg.onPut)return;if((sig==='WAIT'||sig==='NEUTRAL')&&!cfg.onWait)return;
-  const conf=Number(normalized.confidence)||0;if(conf<(cfg.minConf||0))return;
-  const emoji=sig==='CALL'?'🟢':sig==='PUT'?'🔴':'🟡';
-  const text=emoji+' <b>'+sig+'</b> — '+escapeHtml(sym.id||'')+'\nPrice: '+fmt(normalized.price,4)+'\nRSI: '+fmt(normalized.rsi,1)+' | Conf: '+pct(normalized.confidence)+'\nFilter: '+escapeHtml(normalized.filter||'—')+'\n<i>แจ้งเตือนเท่านั้น</i>';
+  const sig=direction==='HIGHER'?'CALL':'PUT';
+  if(sig==='CALL'&&!cfg.onCall)return;if(sig==='PUT'&&!cfg.onPut)return;
+  const emoji=sig==='CALL'?'🟢':'🔴';
+  const modeLabel=isVirtual?'VIRTUAL':accountMode.toUpperCase();
+  const text=emoji+' <b>เข้าออเดอร์ '+sig+'</b> — '+escapeHtml(symbol||'')+
+    '\nเข้าที่ราคา: '+fmt(entryPrice,4)+
+    '\nStake: '+apiFmtStake(stake)+' '+(isVirtual?'USD':apiAccountCurrency)+
+    '\nMartingale Step: M-'+step+
+    '\nโหมด: '+modeLabel+
+    '\n<i>แจ้งเตือนตอนยิงออเดอร์จริงเท่านั้น</i>';
   try{await telegramSendMessage(text);}catch(e){}
 }
 
