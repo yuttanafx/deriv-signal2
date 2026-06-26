@@ -952,7 +952,7 @@ const ALL_SYMBOLS_API=[
   {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
   {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
 ];
-const API_APP_ID='1089';
+const API_APP_ID='33E143WJ66weI33yinuxV';
 let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
 let apiAccountCurrency='USD';
 const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
@@ -1035,39 +1035,38 @@ function apiDisconnectHandler(){
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();setConn('live','STATIC');
 }
 
-function connectApiWS(){
-  try{
-    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
-  }catch(e){
-    setConn('err','WS FAIL');scheduleReconnect();return;
+const OPTIONS_API_BASE='https://api.derivws.com';
+
+async function fetchOptionsAccounts(){
+  const res=await fetch(OPTIONS_API_BASE+'/trading/v1/options/accounts',{
+    method:'GET',
+    headers:{'Deriv-App-ID':API_APP_ID,'Authorization':'Bearer '+apiToken}
+  });
+  const json=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const msg=(json&&json.errors&&json.errors[0]&&json.errors[0].message)||('HTTP '+res.status);
+    throw new Error(msg);
   }
-  apiWs.onopen=function(){
-    if(!apiWs)return;
-    setConn('live','API LIVE');wsIntentionalClose=false;
-    if(apiToken){apiWs.send(JSON.stringify({authorize:apiToken}));}
-    apiWatchedSymbols.forEach(function(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}});
-  };
+  return json.data||[];
+}
+
+async function fetchOtpWsUrl(accountId){
+  const res=await fetch(OPTIONS_API_BASE+'/trading/v1/options/accounts/'+encodeURIComponent(accountId)+'/otp',{
+    method:'POST',
+    headers:{'Deriv-App-ID':API_APP_ID,'Authorization':'Bearer '+apiToken}
+  });
+  const json=await res.json().catch(()=>({}));
+  if(!res.ok){
+    const msg=(json&&json.errors&&json.errors[0]&&json.errors[0].message)||('HTTP '+res.status);
+    throw new Error(msg);
+  }
+  return json.data&&json.data.url;
+}
+
+function bindOptionsWsHandlers(){
   apiWs.onmessage=function(msg){
     if(!apiWs)return;
     let data;try{data=JSON.parse(msg.data);}catch(e){return;}
-    if(data.msg_type==='authorize'){
-      if(data.error){
-        isAuthorized=false;setConn('err','AUTH FAIL');
-        qs('accEmail').textContent='AUTH FAIL';qs('accEmail').style.color='var(--red)';
-        console.error('DERIV AUTH ERROR >>>',data.error&&data.error.code,'-',data.error&&data.error.message,data.error);
-      } else {
-        isAuthorized=true;
-        apiAccountCurrency=data.authorize?.currency||'USD';
-        apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
-        qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';
-        qs('badgeAccountMode').textContent=accountMode.toUpperCase();
-        qs('badgeAccountMode').className='badge-mode '+accountMode;
-        qs('badgeCurrency').textContent=apiAccountCurrency;
-        qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
-        qs('accEmail').style.color='var(--text)';
-        apiFetchBalance();renderVirtualBalance();setConn('live','AUTH OK');
-      }
-    }
     if(data.msg_type==='balance' && !data.error){
       const bal=data.balance?.balance;
       if(bal!==undefined){
@@ -1081,6 +1080,7 @@ function connectApiWS(){
     if(data.msg_type==='buy'){
       if(data.error){
         orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
+        console.error('DERIV BUY ERROR >>>',data.error.code,'-',data.error.message,data.error);
       } else {
         const sym=data.buy?.symbol||globalLockedSymbol;
         if(sym && apiState[sym]){
@@ -1092,6 +1092,9 @@ function connectApiWS(){
         }
       }
     }
+    if(data.error&&data.msg_type!=='buy'){
+      console.error('DERIV WS ERROR >>>',data.error.code,'-',data.error.message,data.error);
+    }
   };
   apiWs.onerror=function(){if(apiWs)setConn('err','WS ERROR');};
   apiWs.onclose=function(ev){
@@ -1099,15 +1102,46 @@ function connectApiWS(){
   };
 }
 
-function scheduleReconnect(){
-  if(reconnectTimer)clearTimeout(reconnectTimer);
-  reconnectTimer=setTimeout(function(){connectApiWS();},4000);
+async function connectApiWS(){
+  try{
+    setConn('warn','GETTING ACCOUNT...');
+    const accounts=await fetchOptionsAccounts();
+    const acc=accounts.find(a=>(a.account_type||a.type)===accountMode)||accounts[0];
+    if(!acc){throw new Error('ไม่พบบัญชี Options ประเภท '+accountMode+' — ลองสร้างบัญชีที่ developers.deriv.com ก่อน');}
+    const accountId=acc.account_id||acc.id||acc.accountId;
+    setConn('warn','GETTING OTP...');
+    const wsUrl=await fetchOtpWsUrl(accountId);
+    if(!wsUrl){throw new Error('ไม่ได้รับ WebSocket URL จาก OTP endpoint');}
+
+    apiWs=new WebSocket(wsUrl);
+    apiWs.onopen=function(){
+      if(!apiWs)return;
+      isAuthorized=true;wsIntentionalClose=false;
+      apiAccountCurrency=acc.currency||'USD';
+      apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+      qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';
+      qs('badgeAccountMode').textContent=accountMode.toUpperCase();
+      qs('badgeAccountMode').className='badge-mode '+accountMode;
+      qs('badgeCurrency').textContent=apiAccountCurrency;
+      qs('accEmail').textContent=acc.loginid||acc.login_id||accountId||'—';
+      qs('accEmail').style.color='var(--text)';
+      setConn('live','API LIVE');
+      apiWs.send(JSON.stringify({balance:1,subscribe:1}));
+      apiWatchedSymbols.forEach(function(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}});
+      renderVirtualBalance();
+    };
+    bindOptionsWsHandlers();
+  }catch(e){
+    isAuthorized=false;setConn('err','AUTH FAIL');
+    qs('accEmail').textContent='AUTH FAIL';qs('accEmail').style.color='var(--red)';
+    console.error('DERIV AUTH ERROR >>>',e.message);
+    if(!wsIntentionalClose)scheduleReconnect();
+  }
 }
 
-function apiSendAuthorize(){
-  if(apiWs && apiWs.readyState===WebSocket.OPEN && apiToken){
-    apiWs.send(JSON.stringify({authorize:apiToken}));
-  }
+function scheduleReconnect(){
+  if(reconnectTimer)clearTimeout(reconnectTimer);
+  reconnectTimer=setTimeout(function(){if(!wsIntentionalClose)connectApiWS();},4000);
 }
 
 function apiFetchBalance(){
