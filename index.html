@@ -1146,16 +1146,15 @@ function onApiTickReceived(tick){
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
 function connectApiWS(){
-  if(apiWs){
-    try{apiWs.close()}catch(e){}
+  // ใช้ REST API ผ่าน Netlify แทน WebSocket
+  console.log('Using REST API via Netlify');
+  apiConnectREST();
+}
+  try{
+    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
+  }catch(e){
+    setConn('err','WS FAIL');scheduleReconnect();return;
   }
-
-  apiWs = new WebSocket(
-    'wss://ws.derivws.com/websockets/v3?app_id=' + API_APP_ID
-  );
-
-  apiWs.onopen = () => {
-    console.log("WS CONNECTED");
 
     if(apiToken){
       apiWs.send(JSON.stringify({
