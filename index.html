@@ -840,7 +840,7 @@ function analyzeCandles(candles,tvSymbol,derivSymbol){
     else if(mtfDn&&score<0){score-=1.2;reasons.push('Deep MTF ขาลง')}
     else reasons.push('MTF ยังขัดแย้ง');
   }
-  const signal=score>=2.4?'CALL':score<=-2.4?'PUT':'WAIT';
+  const signal=score>=3.2?'CALL':score<=-3.2?'PUT':'WAIT';
   return{type:'signal',symbol:tvSymbol,deriv_symbol:derivSymbol,timeframe:qs('intervalInput').value,signal,price,rsi,stoch:Number.isFinite(stoch)?stoch:undefined,atr,ema_fast,ema_slow,ema50:Number.isFinite(ema50)?ema50:undefined,support,resistance,score,confidence:Math.min(94,Math.max(50,50+Math.abs(score)*11)),filter:reasons.join(' · '),bar_time:last.epoch||Date.now(),source:'AUTO_SCAN'};
 }
 async function runAutoScanOnce(){
@@ -909,8 +909,8 @@ function onIntervalChanged(){
   }
 }
 
-const SR_CLEARANCE_MULT=1.2;
-const SR_TICK_MARGIN_MULT=0.5;
+const SR_CLEARANCE_MULT=1.8;
+const SR_TICK_MARGIN_MULT=0.8;
 
 function passAutoScanFilter(sym,direction){
   if(!autoScanOn)return true;
