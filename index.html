@@ -536,9 +536,27 @@ plotshape(signal=="PUT",style=shape.labeldown,location=location.abovebar,color=c
 
 </div><!-- end appRoot -->
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>
+const firebaseConfig = {
+  apiKey: "AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",
+  authDomain: "deriv-signal3.firebaseapp.com",
+  projectId: "deriv-signal3",
+  storageBucket: "deriv-signal3.firebasestorage.app",  // ← ใช้ค่านี้ตามที่คุณมี
+  messagingSenderId: "1047757017057",
+  appId: "1:1047757017057:web:02cb845e7f8fc345988ca0",
+  measurementId: "G-ZV32T1XVJC"
+};
+
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+
+// ตั้งค่า persistence
+fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+
+// ... ที่เหลือเหมือนเดิม แต่เพิ่ม error handling ครบ
+</script>
 /* ══════════════════════════════════════════════════════
    SECTION A: SIGNAL / CHART SYSTEM
    ══════════════════════════════════════════════════════ */
