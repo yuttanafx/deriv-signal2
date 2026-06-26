@@ -382,8 +382,19 @@ button{user-select:none;cursor:pointer}
             <div id="apiGateInputs">
               <div class="sp-row"><label>โหมด</label><select id="accountModeSelect"><option value="demo">🧪 Demo</option><option value="real">💰 Real</option></select></div>
               <div class="sp-row"><label>TOKEN</label><input type="password" id="apiTokenInput" placeholder="วาง API Token..."></div>
-              <div class="sp-btnrow"><button class="btn green" onclick="apiConnectHandler()">เชื่อมต่อพอร์ต</button></div>
+              <div class="sp-btnrow">
+    <button id="btnConnect" class="btn green">เชื่อมต่อพอร์ต</button>
+</div>
             </div>
+            document.addEventListener('DOMContentLoaded', () => {
+    const btn = document.querySelector('.btn.green'); // เลือกปุ่มที่มี class btn และ green
+    if(btn) {
+        btn.addEventListener('click', () => {
+            console.log("ปุ่มเชื่อมต่อถูกคลิก!");
+            apiConnectHandler();
+        });
+    }
+});
             <div id="accountInfoDisplay" style="display:none">
               <div class="sp-row">
                 <span class="badge-mode demo" id="badgeAccountMode">DEMO</span>
