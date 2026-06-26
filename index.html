@@ -944,7 +944,7 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING
+   SECTION C: FULL API TRADING  —  FIXED CONNECT
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
   {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
@@ -1036,6 +1036,10 @@ function apiDisconnectHandler(){
 }
 
 function connectApiWS(){
+  // ใช้ REST API ผ่าน Netlify แทน WebSocket
+  console.log('Using REST API via Netlify');
+  apiConnectREST();
+}
   try{
     apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
   }catch(e){
