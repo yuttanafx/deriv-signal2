@@ -1146,6 +1146,7 @@ function onApiTickReceived(tick){
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
+--- ORIGINAL connectApiWS (full) ---
 function connectApiWS(){
   if(apiWs){
     try{apiWs.close()}catch(e){}
