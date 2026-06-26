@@ -23,7 +23,6 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);display:flex
 button,input,textarea,select{font:inherit}
 button{user-select:none;cursor:pointer}
 
-/* ── LOGIN OVERLAY ── */
 #loginOverlay{position:fixed;inset:0;z-index:99999;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto}
 .login-box{width:100%;max-width:380px;background:var(--panel);border:1px solid var(--border2);border-radius:14px;padding:28px 24px}
 .login-box .lb-head{text-align:center;margin-bottom:20px}
@@ -37,7 +36,6 @@ button{user-select:none;cursor:pointer}
 .login-error{display:none;color:var(--red);font-size:11.5px;text-align:center;margin-top:8px}
 .login-loading{display:none;color:var(--muted);font-size:11.5px;text-align:center;margin-top:8px}
 
-/* ── TOPBAR ── */
 .topbar{height:50px;background:#07090d;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;padding:0 12px;flex-shrink:0;overflow:hidden}
 .brand{display:flex;align-items:center;gap:8px;flex-shrink:0}
 .brand svg{filter:drop-shadow(0 0 8px rgba(74,158,255,.4))}
@@ -65,7 +63,6 @@ button{user-select:none;cursor:pointer}
 .btn.amber{color:var(--amber);border-color:rgba(247,183,49,.28)}
 .btn.active-btn{background:rgba(0,217,145,.15)!important;border-color:var(--green)!important;color:var(--green)!important}
 
-/* ── PRICEBAR ── */
 .pricebar{display:flex;align-items:center;gap:12px;padding:5px 12px;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;flex-shrink:0}
 .pricebar::-webkit-scrollbar{display:none}
 .pb{display:flex;flex-direction:column;gap:1px;min-width:max-content}
@@ -74,11 +71,9 @@ button{user-select:none;cursor:pointer}
 .up{color:var(--green)!important}.dn{color:var(--red)!important}.neu{color:var(--amber)!important}.blueText{color:var(--blue)!important}.dim{color:var(--muted)!important}
 .pb-sep{width:1px;height:26px;background:var(--border);flex-shrink:0}
 
-/* ── LAYOUT: chart area ── */
 .body-wrap{display:flex;flex:1;flex-direction:column;overflow:hidden;min-height:0}
 .main-area{display:flex;flex:1;overflow:hidden;min-height:0;position:relative}
 
-/* ── TOOLBAR ── */
 .toolbar{background:var(--bg2);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:7px;padding:6px 10px;flex-shrink:0;overflow-x:auto;scrollbar-width:none}
 .toolbar::-webkit-scrollbar{display:none}
 .field{display:flex;align-items:center;gap:5px;flex-shrink:0}
@@ -90,21 +85,17 @@ button{user-select:none;cursor:pointer}
 .sep-v{width:1px;height:22px;background:var(--border);flex-shrink:0}
 .note-small{font-family:var(--mono);font-size:9px;color:var(--muted);white-space:nowrap}
 
-/* ── CHART SHELL ── */
 .chart-shell{flex:1;position:relative;background:#06080c;min-height:0}
 .tradingview-widget-container,.tradingview-widget-container__widget{height:100%;width:100%}
 .chart-note-bar{position:absolute;left:0;right:0;bottom:0;z-index:3;background:rgba(8,10,15,.7);backdrop-filter:blur(8px);border-top:1px solid var(--border);padding:4px 12px;font-family:var(--mono);font-size:9px;color:var(--muted);display:flex;align-items:center;gap:8px;pointer-events:none}
 
-/* ── BOTTOM SIGNAL PANEL (resizable, collapsible) ── */
 .sig-panel-wrap{flex-shrink:0;display:flex;flex-direction:column;background:var(--bg2);border-top:2px solid var(--border);position:relative;min-height:28px}
 .sig-panel-wrap.collapsed{height:28px!important}
 
-/* drag handle */
 .resize-handle{position:absolute;top:-5px;left:0;right:0;height:10px;cursor:ns-resize;z-index:20;display:flex;align-items:center;justify-content:center}
 .resize-handle::after{content:'';width:40px;height:3px;border-radius:2px;background:var(--border2);transition:.15s}
 .resize-handle:hover::after{background:var(--blue)}
 
-/* signal panel header/tab bar */
 .sig-panel-header{height:28px;display:flex;align-items:center;gap:6px;padding:0 10px;background:#07090d;border-bottom:1px solid var(--border);flex-shrink:0;overflow:hidden}
 .sig-panel-title{font-family:var(--mono);font-size:9px;letter-spacing:.8px;text-transform:uppercase;color:var(--muted);font-weight:700;white-space:nowrap}
 .sig-panel-tabs{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none;flex:1}
@@ -117,15 +108,12 @@ button{user-select:none;cursor:pointer}
 .sp-btn:hover{color:var(--text);border-color:var(--border2)}
 .sp-btn.collapse-btn{color:var(--amber);border-color:rgba(247,183,49,.28)}
 
-/* signal panel body */
 .sig-panel-body{flex:1;overflow:hidden;display:flex;min-height:0}
 .sig-panel-wrap.collapsed .sig-panel-body{display:none}
 
-/* ── SIGNAL PANES ── */
 .sp-pane{display:none;flex:1;overflow:hidden;flex-direction:row}
 .sp-pane.active{display:flex}
 
-/* pane: SIGNAL OVERVIEW */
 .sp-overview{display:flex;gap:0;width:100%;overflow:hidden}
 .sp-main-sig{min-width:180px;max-width:180px;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:8px 12px;border-right:1px solid var(--border)}
 .sp-sig-big{font-family:var(--mono);font-size:42px;font-weight:900;line-height:1}
@@ -144,7 +132,6 @@ button{user-select:none;cursor:pointer}
 .sp-filter-col{flex:1;min-width:160px;padding:6px 10px;overflow-y:auto;font-family:var(--mono);font-size:9.5px;color:var(--muted);line-height:1.7}
 .sp-filter-col b{color:var(--text)}
 
-/* pane: SIGNAL LOG */
 .sp-log{flex:1;overflow-y:auto;padding:0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .sp-log-row{display:flex;align-items:center;gap:8px;padding:5px 10px;border-bottom:1px solid rgba(255,255,255,.04);font-family:var(--mono);font-size:9.5px;cursor:pointer;transition:.1s}
 .sp-log-row:hover{background:var(--bg3)}
@@ -156,7 +143,6 @@ button{user-select:none;cursor:pointer}
 .sp-log-row .lr-time{color:var(--muted);margin-left:auto}
 .sp-log-empty{padding:14px;font-family:var(--mono);font-size:10px;color:var(--muted)}
 
-/* pane: API TRADING */
 .sp-api{flex:1;overflow-y:auto;display:flex;gap:0;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .sp-api-col{flex:1;min-width:220px;border-right:1px solid var(--border);padding:8px 10px;overflow-y:auto}
 .sp-api-col:last-child{border-right:none}
@@ -188,7 +174,6 @@ button{user-select:none;cursor:pointer}
 .badge-currency{background:rgba(74,158,255,.14);color:var(--blue);border:1px solid rgba(74,158,255,.4);padding:2px 5px;border-radius:3px;font-size:9px;font-weight:700;font-family:var(--mono)}
 .disconnect-btn{background:rgba(255,70,85,.12);color:var(--red);border:1px solid rgba(255,70,85,.28);padding:3px 8px;border-radius:4px;font-size:9px;font-family:var(--mono);cursor:pointer}
 
-/* track list */
 .track-list{list-style:none;padding:0;max-height:110px;overflow-y:auto}
 .track-list li{display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid var(--border);font-family:var(--mono);font-size:9.5px}
 .track-list li.empty{color:var(--muted)}
@@ -201,15 +186,12 @@ button{user-select:none;cursor:pointer}
 .track-bar-wrap{height:4px;border-radius:2px;background:rgba(255,70,85,.2);overflow:hidden;margin:4px 0}
 .track-bar-fill{height:100%;background:var(--green);border-radius:2px;transition:width .3s}
 
-/* pane: TELEGRAM */
 .sp-tg{flex:1;overflow-y:auto;padding:8px 12px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 
-/* pane: WATCHLIST */
 .sp-watch{flex:1;overflow-y:auto;padding:8px 10px;scrollbar-width:thin;scrollbar-color:var(--border) transparent}
 .chip-filter{font-family:var(--mono);font-size:9px;padding:3px 7px;border-radius:5px;border:1px solid var(--border);background:var(--bg3);color:var(--muted);cursor:pointer;display:inline-block;margin:2px}
 .chip-filter.active{border-color:rgba(74,158,255,.4);color:var(--blue);background:rgba(74,158,255,.07)}
 
-/* ── MODALS ── */
 .panel{display:none;position:fixed;left:50%;top:50%;transform:translate(-50%,-50%);z-index:9999;width:min(820px,calc(100vw - 20px));max-height:calc(100vh - 20px);overflow:auto;background:rgba(8,10,15,.97);border:1px solid var(--border2);border-radius:12px;padding:14px;box-shadow:0 20px 70px rgba(0,0,0,.7)}
 .panel.show{display:block}
 .modal-backdrop{display:none;position:fixed;inset:0;z-index:9998;background:rgba(0,0,0,.6);backdrop-filter:blur(3px)}
@@ -226,7 +208,6 @@ button{user-select:none;cursor:pointer}
 .paste-help{margin-top:6px;border:1px solid rgba(247,183,49,.28);background:rgba(247,183,49,.08);color:var(--amber);border-radius:7px;padding:7px 8px;font-family:var(--mono);font-size:9.5px;line-height:1.4;display:none}
 .paste-help.show{display:block}
 
-/* scrollbars */
 ::-webkit-scrollbar{width:5px;height:5px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
@@ -234,7 +215,6 @@ button{user-select:none;cursor:pointer}
 </head>
 <body>
 
-<!-- ═══ LOGIN OVERLAY (Firebase Auth — gate ก่อนเข้าใช้แอปทั้งหมด) ═══ -->
 <div id="loginOverlay">
   <div class="login-box">
     <div class="lb-head">
@@ -250,10 +230,8 @@ button{user-select:none;cursor:pointer}
   </div>
 </div>
 
-<!-- ═══ APP ROOT (ซ่อนไว้จนกว่าจะล็อกอินผ่าน) ═══ -->
 <div id="appRoot" style="display:none">
 
-<!-- ═══ TOPBAR ═══ -->
 <div class="topbar">
   <div class="brand">
     <svg width="24" height="24" viewBox="0 0 26 26" fill="none">
@@ -278,7 +256,6 @@ button{user-select:none;cursor:pointer}
   <div class="conn live" id="conn"><div class="dot live" id="dot"></div><span id="connText">STATIC</span></div>
 </div>
 
-<!-- ═══ PRICEBAR ═══ -->
 <div class="pricebar">
   <div class="pb"><label>SYMBOL</label><span id="pbSymbol" class="blueText">—</span></div><div class="pb-sep"></div>
   <div class="pb"><label>PRICE</label><span id="pbPrice" class="dim">—</span></div><div class="pb-sep"></div>
@@ -294,12 +271,9 @@ button{user-select:none;cursor:pointer}
   <div class="pb"><label>UPDATED</label><span id="pbUpdated" class="dim">—</span></div>
 </div>
 
-<!-- ═══ BODY WRAP ═══ -->
 <div class="body-wrap" id="bodyWrap">
-  <!-- TOOLBAR + CHART -->
   <div class="main-area" id="mainArea">
     <div style="display:flex;flex-direction:column;flex:1;min-height:0">
-      <!-- TOOLBAR -->
       <div class="toolbar">
         <div class="field"><label>TV SYMBOL</label><input id="symbolInput" value="DERIV:VOLATILITY_10_INDEX" spellcheck="false"></div>
         <div class="field"><label>TF</label>
@@ -316,7 +290,6 @@ button{user-select:none;cursor:pointer}
         <span class="note-small">สแกนจาก Deriv candles API ตาม symbol/TF ที่เลือก</span>
       </div>
 
-      <!-- CHART -->
       <div class="chart-shell" id="chartShell">
         <div id="tvContainer" class="tradingview-widget-container"></div>
         <div class="chart-note-bar" id="chartNote">กด AUTO SCAN เพื่อเริ่มสแกนสัญญาณจาก Deriv candles API</div>
@@ -324,7 +297,6 @@ button{user-select:none;cursor:pointer}
     </div>
   </div>
 
-  <!-- ═══ SIGNAL PANEL (bottom, resizable, collapsible) ═══ -->
   <div class="sig-panel-wrap" id="sigPanel" style="height:220px">
     <div class="resize-handle" id="resizeHandle"></div>
     <div class="sig-panel-header">
@@ -343,7 +315,6 @@ button{user-select:none;cursor:pointer}
       </div>
     </div>
     <div class="sig-panel-body">
-      <!-- PANE: OVERVIEW -->
       <div class="sp-pane active" id="spOverview">
         <div class="sp-overview">
           <div class="sp-main-sig">
@@ -370,11 +341,9 @@ button{user-select:none;cursor:pointer}
           </div>
         </div>
       </div>
-      <!-- PANE: LOG -->
       <div class="sp-pane" id="spLog">
         <div class="sp-log" id="spLogList"><div class="sp-log-empty">ยังไม่มีสัญญาณ — กด AUTO SCAN หรือ GET VALUE</div></div>
       </div>
-      <!-- PANE: API TRADING -->
       <div class="sp-pane" id="spApiPane">
         <div class="sp-api">
           <div class="sp-api-col">
@@ -447,7 +416,6 @@ button{user-select:none;cursor:pointer}
           </div>
         </div>
       </div>
-      <!-- PANE: TELEGRAM -->
       <div class="sp-pane" id="spTgPane">
         <div class="sp-tg">
           <div class="sp-row"><label>เปิด/ปิด</label><label class="sp-toggle"><input type="checkbox" id="tgEnableToggle" onchange="toggleTelegramBot(this.checked)"><span class="sl"></span></label><span class="status-pill off" id="tgStatusPill">OFF</span></div>
@@ -464,7 +432,6 @@ button{user-select:none;cursor:pointer}
           <div class="sp-mini-note warn" id="tgLastResult" style="display:none"></div>
         </div>
       </div>
-      <!-- PANE: WATCHLIST -->
       <div class="sp-pane" id="spWatchPane">
         <div class="sp-watch">
           <div class="sp-section">สัญลักษณ์ที่ติดตาม (Trading API)</div>
@@ -475,7 +442,6 @@ button{user-select:none;cursor:pointer}
   </div>
 </div>
 
-<!-- ═══ MODALS ═══ -->
 <div id="modalBackdrop" class="modal-backdrop" onclick="hidePanels()"></div>
 <div class="panel" id="chartPanel">
   <h3>วางกราฟ / Symbol</h3><p>วาง symbol หรือ JSON เช่น <b>DERIV:VOLATILITY_100_INDEX</b></p>
@@ -534,7 +500,7 @@ plotshape(signal=="PUT",style=shape.labeldown,location=location.abovebar,color=c
   <div class="panel-actions"><button class="btn" onclick="hidePanels()">CLOSE</button><button class="btn green" onclick="copyPine()">COPY</button></div>
 </div>
 
-</div><!-- end appRoot -->
+</div>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
@@ -639,7 +605,6 @@ function applyChartFromInputs(){
   const found=SYMBOLS.find(s=>compactKey(s.tv)===compactKey(tv));
   if(found){active=found;buildTabs()}
   loadTradingView(tv,interval);render();
-  // re-scan ทันทีด้วย TF/Symbol ใหม่ถ้า AUTO SCAN เปิดอยู่
   if(autoScanOn){runAutoScanOnce();runAutoScanAll();}
 }
 function showPanel(id){hidePanels();const p=qs(id);if(p){p.classList.add('show');qs('modalBackdrop').classList.add('show')}}
@@ -903,7 +868,6 @@ function toggleAutoScan(){
   }
 }
 
-/* ── WATCHLIST AUTO SCAN ── */
 let scanResults={};
 let aggregateSignal='WAIT',aggregateScore=0;
 let autoScanAllTimer=null;
@@ -935,46 +899,35 @@ function renderWatchScan(){
   list.innerHTML=rows||'ยังไม่ได้สแกน — กด AUTO SCAN';
 }
 
-/* ── onIntervalChanged: เมื่อเปลี่ยน TF dropdown — re-scan ทันทีด้วย granularity ใหม่ ── */
 function onIntervalChanged(){
   const tv=qs('symbolInput').value.trim()||active.tv;const interval=qs('intervalInput').value;
   loadTradingView(tv,interval);
   if(autoScanOn){
-    // ล้างผลเก่าจาก TF ที่แล้วก่อน เพื่อไม่ให้ค้างข้าม TF
     scanResults={};aggregateSignal='WAIT';aggregateScore=0;renderWatchScan();
-    runAutoScanOnce();   // chart symbol เดี่ยว
-    runAutoScanAll();    // watchlist ทุก symbol
+    runAutoScanOnce();
+    runAutoScanAll();
   }
 }
 
-/* ── passAutoScanFilter (UPDATED) ──
-   รวม score จาก AUTO SCAN (chart) + WATCHLIST aggregate
-   + ตรวจ S/R clearance จาก candle scan ก่อนอนุญาตเข้าออเดอร์
-   ถ้า AUTO SCAN ปิด — คืน true เสมอ (backward-compat) */
-const SR_CLEARANCE_MULT=1.2;   // ห่างจาก S/R อีกฝั่ง >= ATR*1.2 จึงเข้าออเดอร์
-const SR_TICK_MARGIN_MULT=0.5; // tick-level margin >= ATR*0.5
+const SR_CLEARANCE_MULT=1.2;
+const SR_TICK_MARGIN_MULT=0.5;
 
 function passAutoScanFilter(sym,direction){
   if(!autoScanOn)return true;
   const wantCall=direction==='HIGHER';
-  // ── 1. รวม score chart scan + watchlist aggregate ──
   const chartDerivSym=getChartDerivSymbol();
   const chartResult=scanResults[chartDerivSym]||null;
   const symResult=scanResults[sym]||null;
   const chartScore=chartResult?(Number(chartResult.score)||0):0;
   const watchScore=aggregateScore||0;
-  // combined = chart 50% + watchlist 50% (ถ้าไม่มี chart result ใช้ watchlist 100%)
   const combinedScore=chartResult?(chartScore*0.5+watchScore*0.5):watchScore;
   if(wantCall&&combinedScore<=0)return false;
   if(!wantCall&&combinedScore>=0)return false;
-  // aggregate ต้องไม่ขัดแย้ง
   if(aggregateSignal&&aggregateSignal!=='WAIT'){
     if(wantCall&&aggregateSignal!=='CALL')return false;
     if(!wantCall&&aggregateSignal!=='PUT')return false;
   }
-  // symbol เฉพาะตัวต้องไม่ขัดแย้ง
   if(symResult){const rs=sigClass(symResult.signal);if(wantCall&&rs==='PUT')return false;if(!wantCall&&rs==='CALL')return false;}
-  // ── 2. ตรวจ S/R clearance จาก candle scan ──
   const srSrc=symResult||chartResult;
   if(srSrc){
     const p=Number(srSrc.price),sup=Number(srSrc.support),res=Number(srSrc.resistance),atrVal=Number(srSrc.atr);
@@ -982,8 +935,8 @@ function passAutoScanFilter(sym,direction){
       const range=res-sup;
       if(range>0){
         const clearance=(Number.isFinite(atrVal)&&atrVal>0)?(atrVal*SR_CLEARANCE_MULT):(range*0.12);
-        if(wantCall){if((res-p)<clearance)return false;}  // CALL: ราคาต้องห่าง resistance >= clearance
-        else{if((p-sup)<clearance)return false;}           // PUT: ราคาต้องห่าง support >= clearance
+        if(wantCall){if((res-p)<clearance)return false;}
+        else{if((p-sup)<clearance)return false;}
       }
     }
   }
@@ -991,7 +944,7 @@ function passAutoScanFilter(sym,direction){
 }
 
 /* ══════════════════════════════════════════════════════
-   SECTION C: FULL API TRADING
+   SECTION C: FULL API TRADING  —  FIXED CONNECT
    ══════════════════════════════════════════════════════ */
 const ALL_SYMBOLS_API=[
   {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
@@ -1011,6 +964,10 @@ let apiDurationVal='5_ticks',lookbackPeriod=30,allowedMaxSteps=5,martingaleMulti
 let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
 let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
 let apiState={};
+
+let reconnectTimer=null;
+let wsIntentionalClose=false;
+
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
 function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
 function ensureApiState(sym){if(!apiState[sym])apiState[sym]=freshState();}
@@ -1055,27 +1012,121 @@ function toggleIndicator(key,el){
   indicatorToggles[key]=!indicatorToggles[key];el.classList.toggle('active',indicatorToggles[key]);
   const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
 }
-function apiConnectHandler(){const token=qs('apiTokenInput').value.trim();if(!token){alert('กรุณากรอก API Token');return;}apiToken=token;accountMode=qs('accountModeSelect').value;apiSendAuthorize();}
+
+function apiConnectHandler(){
+  const token=qs('apiTokenInput').value.trim();
+  if(!token){alert('กรุณากรอก API Token');return;}
+  apiToken=token;
+  accountMode=qs('accountModeSelect').value;
+  wsIntentionalClose=false;
+  if(apiWs){try{apiWs.close();}catch(e){}apiWs=null;}
+  connectApiWS();
+}
+
 function apiDisconnectHandler(){
-  if(confirm('ตัดการเชื่อมต่อ?')){
-    if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget_all:'ticks'}));
-    apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
-    const bc=qs('badgeCurrency');if(bc)bc.textContent='USD';
-    qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';qs('apiTokenInput').value='';
-    qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
-    apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
-    globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
-    renderTrackRecord();renderGlobalKpis();renderVirtualBalance();
+  wsIntentionalClose=true;
+  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+  if(apiWs){const oldWs=apiWs;apiWs=null;try{oldWs.send(JSON.stringify({forget_all:'ticks'}));oldWs.close();}catch(e){}}
+  apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
+  qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';
+  qs('apiTokenInput').value='';qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
+  apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
+  globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
+  renderTrackRecord();renderGlobalKpis();renderVirtualBalance();setConn('live','STATIC');
+}
+
+function connectApiWS(){
+  // ใช้ REST API ผ่าน Netlify แทน WebSocket
+  console.log('Using REST API via Netlify');
+  apiConnectREST();
+}
+  try{
+    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
+  }catch(e){
+    setConn('err','WS FAIL');scheduleReconnect();return;
+  }
+  apiWs.onopen=function(){
+    if(!apiWs)return;
+    setConn('live','API LIVE');wsIntentionalClose=false;
+    if(apiToken){apiWs.send(JSON.stringify({authorize:apiToken}));}
+    apiWatchedSymbols.forEach(function(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}});
+  };
+  apiWs.onmessage=function(msg){
+    if(!apiWs)return;
+    let data;try{data=JSON.parse(msg.data);}catch(e){return;}
+    if(data.msg_type==='authorize'){
+      if(data.error){
+        isAuthorized=false;setConn('err','AUTH FAIL');
+        qs('accEmail').textContent='AUTH FAIL';qs('accEmail').style.color='var(--red)';
+      } else {
+        isAuthorized=true;
+        apiAccountCurrency=data.authorize?.currency||'USD';
+        apiCurrencyIsCrypto=API_CRYPTO_CURRENCIES.includes(apiAccountCurrency);
+        qs('apiGateInputs').style.display='none';qs('accountInfoDisplay').style.display='flex';
+        qs('badgeAccountMode').textContent=accountMode.toUpperCase();
+        qs('badgeAccountMode').className='badge-mode '+accountMode;
+        qs('badgeCurrency').textContent=apiAccountCurrency;
+        qs('accEmail').textContent=data.authorize?.email||data.authorize?.loginid||'—';
+        qs('accEmail').style.color='var(--text)';
+        apiFetchBalance();renderVirtualBalance();setConn('live','AUTH OK');
+      }
+    }
+    if(data.msg_type==='balance' && !data.error){
+      const bal=data.balance?.balance;
+      if(bal!==undefined){
+        qs('accBalance').textContent='$'+Number(bal).toLocaleString('en-US',{
+          minimumFractionDigits:apiCurrencyIsCrypto?4:2,
+          maximumFractionDigits:apiCurrencyIsCrypto?4:2
+        });
+      }
+    }
+    if(data.msg_type==='tick'){onApiTickReceived(data.tick);}
+    if(data.msg_type==='buy'){
+      if(data.error){
+        orderInFlight=false;if(globalLockedSymbol)globalLockedSymbol=null;
+      } else {
+        const sym=data.buy?.symbol||globalLockedSymbol;
+        if(sym && apiState[sym]){
+          const pending=apiState[sym].pendingContracts;
+          if(pending.length>0){
+            const last=pending[pending.length-1];
+            if(last.id==='AWAIT-ID'){last.id=data.buy.contract_id;last.apiTracked=true;}
+          }
+        }
+      }
+    }
+  };
+  apiWs.onerror=function(){if(apiWs)setConn('err','WS ERROR');};
+  apiWs.onclose=function(ev){
+    if(apiWs){apiWs=null;isAuthorized=false;setConn('warn','RECONNECTING...');renderVirtualBalance();if(!wsIntentionalClose)scheduleReconnect();}
+  };
+}
+
+function scheduleReconnect(){
+  if(reconnectTimer)clearTimeout(reconnectTimer);
+  reconnectTimer=setTimeout(function(){connectApiWS();},4000);
+}
+
+function apiSendAuthorize(){
+  if(apiWs && apiWs.readyState===WebSocket.OPEN && apiToken){
+    apiWs.send(JSON.stringify({authorize:apiToken}));
   }
 }
-function apiSendAuthorize(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&apiToken)apiWs.send(JSON.stringify({authorize:apiToken}));}
-function apiFetchBalance(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&isAuthorized)apiWs.send(JSON.stringify({balance:1,subscribe:1}));}
+
+function apiFetchBalance(){
+  if(apiWs && apiWs.readyState===WebSocket.OPEN && isAuthorized){
+    apiWs.send(JSON.stringify({balance:1,subscribe:1}));
+  }
+}
+
 function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
 function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
 function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
 function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
 function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
+
 function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
+
 function executeRealContract(symbol,direction){
   if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
   orderInFlight=true;const currentStake=parseFloat((baseStake*Math.pow(martingaleMultiplier,globalStepCount)).toFixed(apiCurrencyIsCrypto?4:2));
@@ -1096,6 +1147,7 @@ function executeRealContract(symbol,direction){
   const ac={id:'AWAIT-ID',dir:direction,entryPrice:s.lastPrice,entryTick:s.tickCounter,resolveAtTick:s.tickCounter+calculatedWaitTicks,step:globalStepCount+1,stakeValue:currentStake,apiTracked:false,isVirtual:false};
   s.pendingContracts.push(ac);renderGlobalKpis();
 }
+
 function evaluatePendingContracts(sym,currentPrice,currentTickNum){
   const s=apiState[sym];if(!s||!s.pendingContracts.length)return;
   const toResolve=s.pendingContracts.filter(c=>currentTickNum>=c.resolveAtTick);
@@ -1111,6 +1163,7 @@ function evaluatePendingContracts(sym,currentPrice,currentTickNum){
   });
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
+
 function onApiTickReceived(tick){
   const sym=tick.symbol;if(!apiWatchedSymbols.includes(sym))return;
   ensureApiState(sym);const s=apiState[sym];const price=parseFloat(tick.quote);
@@ -1122,7 +1175,6 @@ function onApiTickReceived(tick){
     const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
     let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
     const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
-    // tick-level S/R clearance: ใช้ ATR จาก candle scan ถ้ามี fallback range*0.10
     const srSrcTick=scanResults[sym]||null;
     const tickClearance=(srSrcTick&&Number.isFinite(srSrcTick.atr)&&srSrcTick.atr>0)?(srSrcTick.atr*SR_TICK_MARGIN_MULT):(range>0?range*0.10:0);
     if(price>midMin&&price<midMax){
@@ -1130,14 +1182,12 @@ function onApiTickReceived(tick){
     }else if(price>=s.resistance&&bias==='BULLISH'){
       s.sigType='BUY';
       if(prev!=='BUY'){
-        // ราคา BUY ต้องห่างจาก support >= tickClearance
         const srOk=(range<=0)||((price-s.support)>=tickClearance);
         if(srOk){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}
       }
     }else if(price<=s.support&&bias==='BEARISH'){
       s.sigType='SELL';
       if(prev!=='SELL'){
-        // ราคา SELL ต้องห่างจาก resistance >= tickClearance
         const srOk=(range<=0)||((s.resistance-price)>=tickClearance);
         if(srOk){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}
       }
@@ -1145,66 +1195,14 @@ function onApiTickReceived(tick){
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-function connectApiWS(){
-  // ใช้ REST API ผ่าน Netlify แทน WebSocket
-  console.log('Using REST API via Netlify');
-  apiConnectREST();
+
+function apiSubscribe(sym){
+  if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({ticks:sym}));}
 }
-  try{
-    apiWs=new WebSocket('wss://ws.binaryws.com/websockets/v3?app_id='+API_APP_ID);
-  }catch(e){
-    setConn('err','WS FAIL');scheduleReconnect();return;
-  }
 
-    if(apiToken){
-      apiWs.send(JSON.stringify({
-        authorize: apiToken
-      }));
-    }
-  };
-
-  apiWs.onmessage = (msg) => {
-    const data = JSON.parse(msg.data);
-
-    // AUTH
-    if(data.msg_type === "authorize"){
-      if(data.error){
-        isAuthorized = false;
-        renderVirtualBalance();
-      } else {
-        isAuthorized = true;
-        qs('apiGateInputs').style.display='none';
-        qs('accountInfoDisplay').style.display='flex';
-        renderVirtualBalance();
-      }
-    }
-
-    // BALANCE
-    if(data.msg_type === "balance" && !data.error){
-      qs('accBalance').textContent = data.balance.balance;
-    }
-
-    // TICK
-    if(data.msg_type === "tick"){
-      onApiTickReceived(data.tick);
-    }
-
-    // BUY
-    if(data.msg_type === "buy"){
-      if(data.error){
-        console.warn("BUY ERROR", data.error);
-      }
-    }
-  };
-
-  apiWs.onclose = () => {
-    isAuthorized = false;
-    renderVirtualBalance();
-    setTimeout(connectApiWS, 4000);
-  };
+function apiUnsubscribe(sym){
+  if(apiWs&&apiWs.readyState===WebSocket.OPEN){apiWs.send(JSON.stringify({forget:sym}));}
 }
-function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({ticks:sym}));}
-function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
 
 /* ══════════════════════════════════════════════════════
    SECTION D: TELEGRAM
@@ -1242,7 +1240,7 @@ function bootApp(){
   loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
-  connectApiWS();
+  // ไม่เรียก connectApiWS() ที่นี่ — รอผู้ใช้กด "เชื่อมต่อพอร์ต"
   const initData=valueFor(active);if(initData)render();
 }
 </script>
