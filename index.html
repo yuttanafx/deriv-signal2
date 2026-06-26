@@ -231,6 +231,7 @@ button{user-select:none;cursor:pointer}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -539,129 +540,47 @@ plotshape(signal=="PUT",style=shape.labeldown,location=location.abovebar,color=c
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
 <script>
-const firebaseConfig = {
-  apiKey: "AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",
-  authDomain: "deriv-signal3.firebaseapp.com",
-  projectId: "deriv-signal3",
-  storageBucket: "deriv-signal3.firebasestorage.app",
-  messagingSenderId: "1047757017057",
-  appId: "1:1047757017057:web:02cb845e7f8fc345988ca0",
-  measurementId: "G-ZV32T1XVJC"
-};
-
+const firebaseConfig={apiKey:"AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",authDomain:"deriv-signal3.firebaseapp.com",projectId:"deriv-signal3",storageBucket:"deriv-signal3.firebasestorage.app",messagingSenderId:"1047757017057",appId:"1:1047757017057:web:02cb845e7f8fc345988ca0",measurementId:"G-ZV32T1XVJC"};
 firebase.initializeApp(firebaseConfig);
-const fbAuth = firebase.auth();
-fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
-
-const loginOverlayEl = document.getElementById('loginOverlay');
-const appRootEl = document.getElementById('appRoot');
-const loginEmailEl = document.getElementById('loginEmail');
-const loginPasswordEl = document.getElementById('loginPassword');
-const loginSubmitBtnEl = document.getElementById('loginSubmitBtn');
-const loginErrorEl = document.getElementById('loginError');
-const loginLoadingEl = document.getElementById('loginLoading');
-
-function showLoginErr(msg) {
-  loginErrorEl.textContent = msg;
-  loginErrorEl.style.display = 'block';
-  console.error('LOGIN ERROR:', msg);
-}
-
-function clearLoginErr() {
-  loginErrorEl.style.display = 'none';
-  loginErrorEl.textContent = '';
-}
-
-function doFirebaseLogin() {
-  const email = loginEmailEl.value.trim();
-  const password = loginPasswordEl.value;
-  
-  if (!email || !password) {
-    showLoginErr('กรุณากรอกอีเมลและรหัสผ่านให้ครบครับ');
-    return;
-  }
-  
-  clearLoginErr();
-  loginLoadingEl.style.display = 'block';
-  loginSubmitBtnEl.disabled = true;
-
-  fbAuth.signInWithEmailAndPassword(email, password)
-    .then((userCredential) => {
-      console.log('LOGIN SUCCESS:', userCredential.user.email);
-    })
-    .catch((err) => {
-      console.error('FIREBASE ERROR:', err.code, err.message);
-      let msg = 'เข้าสู่ระบบไม่สำเร็จ';
-      
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
-        msg = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
-      } else if (err.code === 'auth/invalid-email') {
-        msg = 'รูปแบบอีเมลไม่ถูกต้อง';
-      } else if (err.code === 'auth/too-many-requests') {
-        msg = 'พยายามเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอสักครู่';
-      } else if (err.code === 'auth/network-request-failed') {
-        msg = 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ หรือ Firebase บล็อก domain นี้';
-      } else if (err.code === 'auth/invalid-api-key') {
-        msg = 'API Key ไม่ถูกต้อง';
-      } else if (err.code === 'auth/configuration-not-found') {
-        msg = 'Authentication ยังไม่เปิดใน Firebase Console';
-      } else {
-        msg = err.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ';
-      }
-      
+const fbAuth=firebase.auth();
+const loginOverlayEl=document.getElementById('loginOverlay');
+const appRootEl=document.getElementById('appRoot');
+const loginEmailEl=document.getElementById('loginEmail');
+const loginPasswordEl=document.getElementById('loginPassword');
+const loginSubmitBtnEl=document.getElementById('loginSubmitBtn');
+const loginErrorEl=document.getElementById('loginError');
+const loginLoadingEl=document.getElementById('loginLoading');
+function showLoginErr(msg){loginErrorEl.textContent=msg;loginErrorEl.style.display='block';}
+function clearLoginErr(){loginErrorEl.style.display='none';loginErrorEl.textContent='';}
+function doFirebaseLogin(){
+  const email=loginEmailEl.value.trim();const password=loginPasswordEl.value;
+  if(!email||!password){showLoginErr('กรุณากรอกอีเมลและรหัสผ่านให้ครบครับ');return;}
+  clearLoginErr();loginLoadingEl.style.display='block';loginSubmitBtnEl.disabled=true;
+  fbAuth.signInWithEmailAndPassword(email,password)
+    .catch((err)=>{
+      let msg='เข้าสู่ระบบไม่สำเร็จ กรุณาตรวจสอบอีเมล/รหัสผ่าน';
+      if(err.code==='auth/invalid-credential'||err.code==='auth/wrong-password'||err.code==='auth/user-not-found'){msg='อีเมลหรือรหัสผ่านไม่ถูกต้อง';}
+      else if(err.code==='auth/invalid-email'){msg='รูปแบบอีเมลไม่ถูกต้อง';}
+      else if(err.code==='auth/too-many-requests'){msg='พยายามเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอสักครู่';}
       showLoginErr(msg);
     })
-    .finally(() => {
-      loginLoadingEl.style.display = 'none';
-      loginSubmitBtnEl.disabled = false;
-    });
+    .finally(()=>{loginLoadingEl.style.display='none';loginSubmitBtnEl.disabled=false;});
 }
-
-loginSubmitBtnEl.addEventListener('click', doFirebaseLogin);
-loginPasswordEl.addEventListener('keydown', e => { if (e.key === 'Enter') doFirebaseLogin(); });
-loginEmailEl.addEventListener('keydown', e => { if (e.key === 'Enter') doFirebaseLogin(); });
-
-let appBootedFlag = false;
-
-fbAuth.onAuthStateChanged((user) => {
-  if (user) {
-    console.log('LOGGED IN:', user.email);
-    loginOverlayEl.style.display = 'none';
-    appRootEl.style.display = 'flex';
-    appRootEl.style.flexDirection = 'column';
-    appRootEl.style.height = '100vh';
-    
-    loginEmailEl.value = '';
-    loginPasswordEl.value = '';
-    clearLoginErr();
-    
-    if (!appBootedFlag) {
-      appBootedFlag = true;
-      if (typeof bootApp === 'function') bootApp();
-    }
-    
-    const lb = document.getElementById('logoutBtn');
-    if (lb) {
-      lb.onclick = () => {
-        if (confirm('ออกจากระบบใช่ไหมครับ?')) {
-          fbAuth.signOut();
-        }
-      };
-    }
-  } else {
-    console.log('LOGGED OUT');
-    loginOverlayEl.style.display = 'flex';
-    appRootEl.style.display = 'none';
-  }
+loginSubmitBtnEl.addEventListener('click',doFirebaseLogin);
+loginPasswordEl.addEventListener('keydown',e=>{if(e.key==='Enter')doFirebaseLogin();});
+loginEmailEl.addEventListener('keydown',e=>{if(e.key==='Enter')doFirebaseLogin();});
+let appBootedFlag=false;
+fbAuth.onAuthStateChanged((user)=>{
+  if(user){
+    loginOverlayEl.style.display='none';appRootEl.style.display='flex';appRootEl.style.flexDirection='column';appRootEl.style.height='100vh';
+    loginEmailEl.value='';loginPasswordEl.value='';clearLoginErr();
+    if(!appBootedFlag){appBootedFlag=true;bootApp();}
+    const lb=document.getElementById('logoutBtn');
+    if(lb)lb.addEventListener('click',()=>{if(confirm('ออกจากระบบใช่ไหมครับ?'))fbAuth.signOut();},{once:false});
+  }else{loginOverlayEl.style.display='flex';appRootEl.style.display='none';}
 });
-
-console.log('Firebase initialized');
 </script>
 
-<script>
-/* ══════════════════════════════════════════════════════
-   SECTION A: SIGNAL / CHART SYSTEM
-   ══════════════════════════════════════════════════════ */
 <script>
 /* ══════════════════════════════════════════════════════
    SECTION A: SIGNAL / CHART SYSTEM
@@ -1075,7 +994,83 @@ function passAutoScanFilter(sym,direction){
 /* ══════════════════════════════════════════════════════
    SECTION C: FULL API TRADING
    ══════════════════════════════════════════════════════ */
-const ALL_SYMBOLS_API
+const ALL_SYMBOLS_API=[
+  {sym:'R_10',label:'Vol 10',dec:3},{sym:'R_25',label:'Vol 25',dec:3},{sym:'R_50',label:'Vol 50',dec:4},
+  {sym:'R_75',label:'Vol 75',dec:4},{sym:'R_100',label:'Vol 100',dec:2},{sym:'1HZ10V',label:'Vol 10 (1s)',dec:3},
+  {sym:'1HZ25V',label:'Vol 25 (1s)',dec:3},{sym:'1HZ30V',label:'Vol 30 (1s)',dec:3},{sym:'1HZ50V',label:'Vol 50 (1s)',dec:4},
+  {sym:'1HZ75V',label:'Vol 75 (1s)',dec:4},{sym:'1HZ100V',label:'Vol 100 (1s)',dec:2},{sym:'R_150',label:'Vol 150',dec:4},{sym:'R_250',label:'Vol 250',dec:4}
+];
+const API_APP_ID='1089';
+let apiWs=null,apiToken='',isAuthorized=false,accountMode='demo';
+let apiAccountCurrency='USD';
+const API_CRYPTO_CURRENCIES=['BTC','ETH','LTC','USDC','USDT','eUSDT','tUSDT','UST'];
+let apiCurrencyIsCrypto=false;
+let baseStake=1.0,virtualDemoBalance=10000;
+const VIRTUAL_PAYOUT_RATIO=0.85;
+let apiWatchedSymbols=['R_75','R_100','1HZ75V'],apiFocusedSymbol='R_75';
+let apiDurationVal='5_ticks',lookbackPeriod=30,allowedMaxSteps=5,martingaleMultiplier=2.0;
+let globalStepCount=0,globalLockedSymbol=null,orderInFlight=false;
+let indicatorToggles={rsi:false,atr:false,velocity:false,deepmtf:false};
+let apiState={};
+function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
+function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
+function ensureApiState(sym){if(!apiState[sym])apiState[sym]=freshState();}
+function isGlobalOrderLocked(){return globalLockedSymbol!==null;}
+function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='5_min')return 150;if(v==='15_min')return 450;return 5;}
+function renderGlobalKpis(){
+  const s=qs('apiKpiStep');const sk=qs('apiKpiStake');const lk=qs('apiKpiLock');const wr=qs('apiKpiWinrate');if(!s)return;
+  s.textContent='M-'+(globalStepCount+1);sk.textContent=apiFmtStake(baseStake*Math.pow(martingaleMultiplier,globalStepCount))+' '+apiAccountCurrency;
+  lk.textContent=isGlobalOrderLocked()?globalLockedSymbol:'ว่าง';lk.style.color=isGlobalOrderLocked()?'var(--amber)':'var(--muted)';
+  let tw=0,tl=0;apiWatchedSymbols.forEach(sym=>{const st=apiState[sym];if(st){tw+=st.statWins;tl+=st.statLosses;}});
+  const tot=tw+tl;wr.textContent=tot>0?((tw/tot)*100).toFixed(1)+'%':'—';
+}
+function renderVirtualBalance(){
+  const panel=qs('virtualBalancePanel');if(panel)panel.style.display=isAuthorized?'none':'block';
+  const el=qs('virtualBalanceVal');if(el)el.textContent='$'+virtualDemoBalance.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function renderTrackRecord(){
+  qs('trackFocusLabel').textContent=apiFocusedSymbol;const s=apiState[apiFocusedSymbol];
+  if(!s){qs('tsWins').textContent='0';qs('tsLosses').textContent='0';qs('tsPending').textContent='0';qs('tsWinrate').textContent='—';qs('tbFill').style.width='0%';qs('trackList').innerHTML='<li class="empty">ยังไม่มีข้อมูล</li>';return;}
+  const total=s.statWins+s.statLosses;
+  qs('tsWins').textContent=s.statWins;qs('tsLosses').textContent=s.statLosses;qs('tsPending').textContent=s.pendingContracts.length;
+  qs('tsWinrate').textContent=total>0?((s.statWins/total)*100).toFixed(0)+'%':'—';qs('tbFill').style.width=total>0?((s.statWins/total)*100)+'%':'0%';
+  const meta=ALL_SYMBOLS_API.find(i=>i.sym===apiFocusedSymbol)||{dec:4};const list=qs('trackList');
+  if(!s.resolvedContracts.length){list.innerHTML='<li class="empty">ยังไม่มีคำสั่งที่ปิด</li>';return;}
+  list.innerHTML=s.resolvedContracts.slice(0,20).map(r=>{
+    const rc=r.result.toLowerCase();const rs=r.result==='WIN'?'W':'L';
+    const dc=r.dir.toLowerCase()==='higher'?'buy':'sell';const dl=r.dir==='HIGHER'?'CALL':'PUT';
+    const t=r.resolvedAt.toLocaleTimeString('th-TH',{hour12:false});
+    return '<li><span class="tl-r '+rc+'">'+rs+'</span><span class="tl-dir '+dc+'">'+dl+'</span><span class="tl-pr">'+r.entryPrice.toFixed(meta.dec)+'→'+r.exitPrice.toFixed(meta.dec)+'</span><span class="tl-t">'+t+' M-'+r.step+'</span></li>';
+  }).join('');
+}
+function renderWatchPicker(){
+  const picker=qs('watchPicker');if(!picker)return;
+  picker.innerHTML=ALL_SYMBOLS_API.map(item=>{const isAct=apiWatchedSymbols.includes(item.sym);return '<span class="chip-filter'+(isAct?' active':'')+'" onclick="toggleWatchSym(\''+item.sym+'\')">'+item.sym+'</span>';}).join('');
+}
+function toggleWatchSym(sym){
+  if(apiWatchedSymbols.includes(sym)){if(apiWatchedSymbols.length>1){apiWatchedSymbols=apiWatchedSymbols.filter(s=>s!==sym);if(apiFocusedSymbol===sym)apiFocusedSymbol=apiWatchedSymbols[0];apiUnsubscribe(sym);}}
+  else{apiWatchedSymbols.push(sym);apiFocusedSymbol=sym;ensureApiState(sym);apiSubscribe(sym);}
+  renderWatchPicker();renderTrackRecord();renderGlobalKpis();renderWatchScan();
+}
+function toggleIndicator(key,el){
+  indicatorToggles[key]=!indicatorToggles[key];el.classList.toggle('active',indicatorToggles[key]);
+  const count=Object.values(indicatorToggles).filter(Boolean).length;const s=qs('indFilterSummary');if(s)s.textContent=count+'/4';
+}
+function apiConnectHandler(){const token=qs('apiTokenInput').value.trim();if(!token){alert('กรุณากรอก API Token');return;}apiToken=token;accountMode=qs('accountModeSelect').value;apiSendAuthorize();}
+function apiDisconnectHandler(){
+  if(confirm('ตัดการเชื่อมต่อ?')){
+    if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget_all:'ticks'}));
+    apiToken='';isAuthorized=false;apiAccountCurrency='USD';apiCurrencyIsCrypto=false;
+    const bc=qs('badgeCurrency');if(bc)bc.textContent='USD';
+    qs('accountInfoDisplay').style.display='none';qs('apiGateInputs').style.display='block';qs('apiTokenInput').value='';
+    qs('accBalance').textContent='$0.00';qs('accEmail').textContent='—';
+    apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});
+    globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;
+    renderTrackRecord();renderGlobalKpis();renderVirtualBalance();
+  }
+}
+function apiSendAuthorize(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&apiToken)apiWs.send(JSON.stringify({authorize:apiToken}));}
+function apiFetchBalance(){if(apiWs&&apiWs.readyState===WebSocket.OPEN&&isAuthorized)apiWs.send(JSON.stringify({balance:1,subscribe:1}));}
 function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
 function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
 function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobalKpis();}
