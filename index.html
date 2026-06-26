@@ -536,26 +536,128 @@ plotshape(signal=="PUT",style=shape.labeldown,location=location.abovebar,color=c
 
 </div><!-- end appRoot -->
 
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script>
 const firebaseConfig = {
   apiKey: "AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",
   authDomain: "deriv-signal3.firebaseapp.com",
   projectId: "deriv-signal3",
-  storageBucket: "deriv-signal3.firebasestorage.app",  // ← ใช้ค่านี้ตามที่คุณมี
+  storageBucket: "deriv-signal3.firebasestorage.app",
   messagingSenderId: "1047757017057",
   appId: "1:1047757017057:web:02cb845e7f8fc345988ca0",
   measurementId: "G-ZV32T1XVJC"
 };
 
-
 firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
 
-// ตั้งค่า persistence
-fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
+// ตั้งค่าให้จำการล็อกอิน (ไม่ต้องล็อกอินซ้ำ)
+fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(console.error);
 
-// ... ที่เหลือเหมือนเดิม แต่เพิ่ม error handling ครบ
+const loginOverlayEl = document.getElementById('loginOverlay');
+const appRootEl = document.getElementById('appRoot');
+const loginEmailEl = document.getElementById('loginEmail');
+const loginPasswordEl = document.getElementById('loginPassword');
+const loginSubmitBtnEl = document.getElementById('loginSubmitBtn');
+const loginErrorEl = document.getElementById('loginError');
+const loginLoadingEl = document.getElementById('loginLoading');
+
+function showLoginErr(msg) {
+  loginErrorEl.textContent = msg;
+  loginErrorEl.style.display = 'block';
+  console.error('LOGIN ERROR:', msg);
+}
+
+function clearLoginErr() {
+  loginErrorEl.style.display = 'none';
+  loginErrorEl.textContent = '';
+}
+
+function doFirebaseLogin() {
+  const email = loginEmailEl.value.trim();
+  const password = loginPasswordEl.value;
+  
+  if (!email || !password) {
+    showLoginErr('กรุณากรอกอีเมลและรหัสผ่านให้ครบครับ');
+    return;
+  }
+  
+  clearLoginErr();
+  loginLoadingEl.style.display = 'block';
+  loginSubmitBtnEl.disabled = true;
+
+  fbAuth.signInWithEmailAndPassword(email, password)
+    .then((userCredential) => {
+      console.log('LOGIN SUCCESS:', userCredential.user.email);
+    })
+    .catch((err) => {
+      console.error('FIREBASE ERROR:', err.code, err.message);
+      let msg = 'เข้าสู่ระบบไม่สำเร็จ';
+      
+      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+        msg = 'อีเมลหรือรหัสผ่านไม่ถูกต้อง';
+      } else if (err.code === 'auth/invalid-email') {
+        msg = 'รูปแบบอีเมลไม่ถูกต้อง';
+      } else if (err.code === 'auth/too-many-requests') {
+        msg = 'พยายามเข้าสู่ระบบผิดหลายครั้งเกินไป กรุณารอสักครู่';
+      } else if (err.code === 'auth/network-request-failed') {
+        msg = 'เชื่อมต่ออินเทอร์เน็ตไม่ได้ หรือ Firebase บล็อก domain นี้';
+      } else if (err.code === 'auth/invalid-api-key') {
+        msg = 'API Key ไม่ถูกต้อง';
+      } else if (err.code === 'auth/configuration-not-found') {
+        msg = 'Authentication ยังไม่เปิดใน Firebase Console';
+      } else {
+        msg = err.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ';
+      }
+      
+      showLoginErr(msg);
+    })
+    .finally(() => {
+      loginLoadingEl.style.display = 'none';
+      loginSubmitBtnEl.disabled = false;
+    });
+}
+
+loginSubmitBtnEl.addEventListener('click', doFirebaseLogin);
+loginPasswordEl.addEventListener('keydown', e => { if (e.key === 'Enter') doFirebaseLogin(); });
+loginEmailEl.addEventListener('keydown', e => { if (e.key === 'Enter') doFirebaseLogin(); });
+
+let appBootedFlag = false;
+
+fbAuth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log('LOGGED IN:', user.email);
+    loginOverlayEl.style.display = 'none';
+    appRootEl.style.display = 'flex';
+    appRootEl.style.flexDirection = 'column';
+    appRootEl.style.height = '100vh';
+    
+    loginEmailEl.value = '';
+    loginPasswordEl.value = '';
+    clearLoginErr();
+    
+    if (!appBootedFlag) {
+      appBootedFlag = true;
+      if (typeof bootApp === 'function') bootApp();
+    }
+    
+    const lb = document.getElementById('logoutBtn');
+    if (lb) {
+      lb.onclick = () => {
+        if (confirm('ออกจากระบบใช่ไหมครับ?')) {
+          fbAuth.signOut();
+        }
+      };
+    }
+  } else {
+    console.log('LOGGED OUT');
+    loginOverlayEl.style.display = 'flex';
+    appRootEl.style.display = 'none';
+  }
+});
+
+console.log('Firebase initialized');
 </script>
 /* ══════════════════════════════════════════════════════
    SECTION A: SIGNAL / CHART SYSTEM
