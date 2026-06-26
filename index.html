@@ -231,7 +231,6 @@ button{user-select:none;cursor:pointer}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
 </style>
-<base target="_blank">
 </head>
 <body>
 
@@ -537,8 +536,8 @@ plotshape(signal=="PUT",style=shape.labeldown,location=location.abovebar,color=c
 
 </div><!-- end appRoot -->
 
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script>
 const firebaseConfig={apiKey:"AIzaSyBdcAy8tLMZ3jeGcPGOdbR7qF9DDh0Uidc",authDomain:"deriv-signal3.firebaseapp.com",projectId:"deriv-signal3",storageBucket:"deriv-signal3.firebasestorage.app",messagingSenderId:"1047757017057",appId:"1:1047757017057:web:02cb845e7f8fc345988ca0",measurementId:"G-ZV32T1XVJC"};
 firebase.initializeApp(firebaseConfig);
@@ -1146,51 +1145,64 @@ function onApiTickReceived(tick){
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
-let apiWs = null;
-let reconnectAttempts = 0;
+function connectApiWS(){
+  if(apiWs){
+    try{apiWs.close()}catch(e){}
+  }
 
-function connectApiWS() {
-    // ปิดการเชื่อมต่อเดิมถ้ามี
-    if (apiWs) { apiWs.close(); }
+  apiWs = new WebSocket(
+    'wss://ws.derivws.com/websockets/v3?app_id=' + API_APP_ID
+  );
 
-    apiWs = new WebSocket('wss://ws.derivws.com/websockets/v3?app_id=1089');
+  apiWs.onopen = () => {
+    console.log("WS CONNECTED");
 
-    apiWs.onopen = () => {
-        console.log("Connected to Deriv API");
-        reconnectAttempts = 0; // Reset ตัวนับ
-        // ส่ง authorize ทันที
-        if (apiToken) {
-            apiWs.send(JSON.stringify({ authorize: apiToken }));
-        }
-    };
+    if(apiToken){
+      apiWs.send(JSON.stringify({
+        authorize: apiToken
+      }));
+    }
+  };
 
-    apiWs.onmessage = (msg) => {
-        const data = JSON.parse(msg.data);
-        
-        // จัดการ Error Handling
-        if (data.error) {
-            console.error("API Error:", data.error.message);
-            return;
-        }
+  apiWs.onmessage = (msg) => {
+    const data = JSON.parse(msg.data);
 
-        switch (data.msg_type) {
-            case "authorize":
-                isAuthorized = true;
-                apiFetchBalance(); // ดึงยอดเงินทันทีหลัง Auth ผ่าน
-                break;
-            case "tick":
-                onApiTickReceived(data.tick); // เข้าสู่ระบบคำนวณราคาทันที
-                break;
-        }
-    };
-
-    apiWs.onclose = () => {
+    // AUTH
+    if(data.msg_type === "authorize"){
+      if(data.error){
         isAuthorized = false;
-        // ระบบ Reconnect อัตโนมัติ (Exponential Backoff)
-        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts), 30000);
-        setTimeout(connectApiWS, delay);
-        reconnectAttempts++;
-    };
+        renderVirtualBalance();
+      } else {
+        isAuthorized = true;
+        qs('apiGateInputs').style.display='none';
+        qs('accountInfoDisplay').style.display='flex';
+        renderVirtualBalance();
+      }
+    }
+
+    // BALANCE
+    if(data.msg_type === "balance" && !data.error){
+      qs('accBalance').textContent = data.balance.balance;
+    }
+
+    // TICK
+    if(data.msg_type === "tick"){
+      onApiTickReceived(data.tick);
+    }
+
+    // BUY
+    if(data.msg_type === "buy"){
+      if(data.error){
+        console.warn("BUY ERROR", data.error);
+      }
+    }
+  };
+
+  apiWs.onclose = () => {
+    isAuthorized = false;
+    renderVirtualBalance();
+    setTimeout(connectApiWS, 4000);
+  };
 }
 function apiSubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({ticks:sym}));}
 function apiUnsubscribe(sym){if(apiWs&&apiWs.readyState===WebSocket.OPEN)apiWs.send(JSON.stringify({forget:sym}));}
