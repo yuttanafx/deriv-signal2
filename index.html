@@ -760,6 +760,7 @@ window.addEventListener('keydown',ev=>{if(ev.key==='Escape')hidePanels()});
    SECTION B: AUTO SCAN
    ══════════════════════════════════════════════════════ */
 const DERIV_SYM_MAP={R_10:'R_10',R_25:'R_25',R_50:'R_50',R_75:'R_75',R_100:'R_100',V10_1S:'1HZ10V',V25_1S:'1HZ25V',V50_1S:'1HZ50V',V75_1S:'1HZ75V',V100_1S:'1HZ100V','1HZ10V':'1HZ10V','1HZ25V':'1HZ25V','1HZ50V':'1HZ50V','1HZ75V':'1HZ75V','1HZ100V':'1HZ100V'};
+const CHOP_ATR_MULT=0.35;
 let autoScanOn=false,autoScanTimer=null,scanWs=null,scanReqId=2000;
 function getChartDerivSymbol(){
   const tvSym=qs('symbolInput').value.trim()||active.tv;
@@ -840,8 +841,11 @@ function analyzeCandles(candles,tvSymbol,derivSymbol){
     else if(mtfDn&&score<0){score-=1.2;reasons.push('Deep MTF ขาลง')}
     else reasons.push('MTF ยังขัดแย้ง');
   }
-  const signal=score>=3.2?'CALL':score<=-3.2?'PUT':'WAIT';
-  return{type:'signal',symbol:tvSymbol,deriv_symbol:derivSymbol,timeframe:qs('intervalInput').value,signal,price,rsi,stoch:Number.isFinite(stoch)?stoch:undefined,atr,ema_fast,ema_slow,ema50:Number.isFinite(ema50)?ema50:undefined,support,resistance,score,confidence:Math.min(94,Math.max(50,50+Math.abs(score)*11)),filter:reasons.join(' · '),bar_time:last.epoch||Date.now(),source:'AUTO_SCAN'};
+  let signal=score>=3.2?'CALL':score<=-3.2?'PUT':'WAIT';
+  const emaGap=Math.abs(ema_fast-ema_slow);
+  const isChoppy=Number.isFinite(atr)&&atr>0&&emaGap<(atr*CHOP_ATR_MULT);
+  if(isChoppy){signal='WAIT';reasons.push('⚠ Sideways (EMA gap < ATR×'+CHOP_ATR_MULT+')')}
+  return{type:'signal',symbol:tvSymbol,deriv_symbol:derivSymbol,timeframe:qs('intervalInput').value,signal,price,rsi,stoch:Number.isFinite(stoch)?stoch:undefined,atr,ema_fast,ema_slow,ema50:Number.isFinite(ema50)?ema50:undefined,support,resistance,score,is_choppy:isChoppy,confidence:Math.min(94,Math.max(50,50+Math.abs(score)*11)),filter:reasons.join(' · '),bar_time:last.epoch||Date.now(),source:'AUTO_SCAN'};
 }
 async function runAutoScanOnce(){
   const tvSym=qs('symbolInput').value.trim()||active.tv;const derivSym=getChartDerivSymbol();const gran=granularityFromInterval();
@@ -918,6 +922,8 @@ function passAutoScanFilter(sym,direction){
   const chartDerivSym=getChartDerivSymbol();
   const chartResult=scanResults[chartDerivSym]||null;
   const symResult=scanResults[sym]||null;
+  if(chartResult&&chartResult.is_choppy)return false;
+  if(symResult&&symResult.is_choppy)return false;
   const chartScore=chartResult?(Number(chartResult.score)||0):0;
   const watchScore=aggregateScore||0;
   const combinedScore=chartResult?(chartScore*0.5+watchScore*0.5):watchScore;
