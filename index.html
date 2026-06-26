@@ -1162,7 +1162,21 @@ function apiMartingaleChanged(v){martingaleMultiplier=parseFloat(v);renderGlobal
 function apiMaxStepsChanged(v){allowedMaxSteps=parseInt(v);}
 function apiResetStats(){if(confirm('รีเซ็ต?')){apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;virtualDemoBalance=10000;renderTrackRecord();renderGlobalKpis();renderVirtualBalance();}}
 
-function playSignalSound(type){try{const ctx=new(window.AudioContext||window.webkitAudioContext)();function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);}if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}}catch(e){}}
+let sharedAudioCtx=null;
+function getSharedAudioCtx(){
+  if(!sharedAudioCtx){
+    try{sharedAudioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){return null;}
+  }
+  if(sharedAudioCtx.state==='suspended'){try{sharedAudioCtx.resume();}catch(e){}}
+  return sharedAudioCtx;
+}
+function playSignalSound(type){
+  try{
+    const ctx=getSharedAudioCtx();if(!ctx)return;
+    function playTone(f,d,dl){const o=ctx.createOscillator();const g=ctx.createGain();o.type='sine';o.frequency.value=f;g.gain.setValueAtTime(0.14,ctx.currentTime+dl);g.gain.exponentialRampToValueAtTime(0.0001,ctx.currentTime+dl+d);o.connect(g);g.connect(ctx.destination);o.start(ctx.currentTime+dl);o.stop(ctx.currentTime+dl+d);o.onended=function(){try{o.disconnect();g.disconnect();}catch(e){}};}
+    if(type==='HIGHER'){playTone(880,0.1,0);playTone(1318,0.15,0.12);}else{playTone(440,0.12,0);playTone(349,0.2,0.1);}
+  }catch(e){}
+}
 
 function executeRealContract(symbol,direction){
   if(orderInFlight)return;ensureApiState(symbol);const s=apiState[symbol];if(isGlobalOrderLocked())return;
