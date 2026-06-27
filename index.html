@@ -433,7 +433,7 @@ button{user-select:none;cursor:pointer}
             <label style="display:flex;align-items:center;gap:4px;font-family:var(--mono);font-size:9px;color:var(--muted)"><input type="checkbox" id="tgOnWait"> WAIT</label>
           </div>
           <div class="sp-row"><label>Conf ≥</label><input type="number" id="tgMinConf" value="0" min="0" max="100" step="1" style="max-width:70px"><span style="font-family:var(--mono);font-size:9px;color:var(--muted)">%</span></div>
-          <div class="sp-btnrow"><button class="btn blue" onclick="saveTelegramConfig()">SAVE</button><button class="btn green" onclick="sendTelegramTest()">TEST</button></div>
+          <div class="sp-btnrow"><button class="btn blue" onclick="saveTelegramConfig()">SAVE</button><button class="btn green" onclick="sendTelegramTest()">TEST</button><button class="btn amber" onclick="sendTodaySummaryNow()">ส่งสรุปวันนี้</button></div>
           <div class="sp-mini-note" style="margin-top:6px">แจ้งเตือนเท่านั้น — ไม่ส่งคำสั่งเทรด</div>
           <div class="sp-mini-note warn" id="tgLastResult" style="display:none"></div>
         </div>
@@ -1227,10 +1227,13 @@ function evaluatePendingContracts(sym,currentPrice,currentTickNum){
     let result='LOSS';
     if(c.dir==='HIGHER'&&currentPrice>c.entryPrice)result='WIN';
     if(c.dir==='LOWER'&&currentPrice<c.entryPrice)result='WIN';
-    if(result==='WIN'){s.statWins++;s.currentStepCount=0;globalStepCount=0;if(c.isVirtual){virtualDemoBalance+=c.stakeValue*VIRTUAL_PAYOUT_RATIO;renderVirtualBalance();}}
-    else{s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}}
+    let pnl=0;
+    if(result==='WIN'){pnl=c.stakeValue*VIRTUAL_PAYOUT_RATIO;s.statWins++;s.currentStepCount=0;globalStepCount=0;if(c.isVirtual){virtualDemoBalance+=pnl;renderVirtualBalance();}}
+    else{pnl=-c.stakeValue;s.statLosses++;s.currentStepCount++;globalStepCount++;if(c.isVirtual){virtualDemoBalance-=c.stakeValue;renderVirtualBalance();}if(globalStepCount>=allowedMaxSteps){globalStepCount=0;s.currentStepCount=0;}}
     if(globalLockedSymbol===sym)globalLockedSymbol=null;
     s.resolvedContracts.unshift({id:c.id,dir:c.dir,entryPrice:c.entryPrice,exitPrice:currentPrice,result:result,step:c.step,stakeValue:c.stakeValue,resolvedAt:new Date()});
+    recordDailyResult(result,c.stakeValue,pnl);
+    notifyTelegramTradeResult(sym,c.dir,result,c.stakeValue,c.entryPrice,currentPrice,c.step,pnl,c.isVirtual);
   });
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
@@ -1308,6 +1311,54 @@ async function notifyTelegramOrder(symbol,direction,stake,step,entryPrice,isVirt
   try{await telegramSendMessage(text);}catch(e){}
 }
 
+async function notifyTelegramTradeResult(symbol,direction,result,stake,entryPrice,exitPrice,step,pnl,isVirtual){
+  const cfg=currentTgConfig();if(!cfg.enabled)return;
+  const sig=direction==='HIGHER'?'CALL':'PUT';
+  const isWin=result==='WIN';
+  const emoji=isWin?'✅':'❌';
+  const ccy=isVirtual?'USD':apiAccountCurrency;
+  const text=emoji+' <b>ผลออเดอร์: '+result+'</b> — '+escapeHtml(symbol||'')+' ('+sig+')'+
+    '\nเข้า: '+fmt(entryPrice,4)+' → ออก: '+fmt(exitPrice,4)+
+    '\nStake: '+apiFmtStake(stake)+' '+ccy+
+    '\nกำไร/ขาดทุน: '+(pnl>=0?'+':'')+apiFmtStake(pnl)+' '+ccy+
+    '\nMartingale Step: M-'+step;
+  try{await telegramSendMessage(text);}catch(e){}
+}
+
+let dailyStats={};
+function todayKey(){const d=new Date();return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');}
+function ensureDailyStats(key){if(!dailyStats[key])dailyStats[key]={wins:0,losses:0,pnl:0,stakeTotal:0};return dailyStats[key];}
+function recordDailyResult(result,stake,pnl){
+  const key=todayKey();const d=ensureDailyStats(key);
+  if(result==='WIN')d.wins++;else d.losses++;
+  d.pnl+=pnl;d.stakeTotal+=stake;
+  try{localStorage.setItem('v36DailyStats',JSON.stringify(dailyStats));}catch(e){}
+}
+function loadDailyStats(){try{dailyStats=JSON.parse(localStorage.getItem('v36DailyStats')||'{}')||{};}catch(e){dailyStats={};}}
+async function notifyTelegramDailySummary(dateKey){
+  const cfg=currentTgConfig();if(!cfg.enabled)return;
+  const d=dailyStats[dateKey];if(!d||(d.wins+d.losses)===0)return;
+  const total=d.wins+d.losses;const wr=((d.wins/total)*100).toFixed(1);
+  const emoji=d.pnl>=0?'📈':'📉';
+  const ccy=apiAccountCurrency||'USD';
+  const text='📊 <b>สรุปผลประจำวัน '+dateKey+'</b>'+
+    '\nไม้ทั้งหมด: '+total+
+    '\nWin: '+d.wins+' | Loss: '+d.losses+
+    '\nWin Rate: '+wr+'%'+
+    '\n'+emoji+' กำไร/ขาดทุนสุทธิ: '+(d.pnl>=0?'+':'')+apiFmtStake(d.pnl)+' '+ccy+
+    '\nStake รวม: '+apiFmtStake(d.stakeTotal)+' '+ccy;
+  try{await telegramSendMessage(text);}catch(e){}
+}
+let lastTrackedDayKey=todayKey();
+function checkDailyRollover(){
+  const nowKey=todayKey();
+  if(nowKey!==lastTrackedDayKey){
+    notifyTelegramDailySummary(lastTrackedDayKey);
+    lastTrackedDayKey=nowKey;
+  }
+}
+async function sendTodaySummaryNow(){await notifyTelegramDailySummary(todayKey());}
+
 /* ══════════════════════════════════════════════════════
    SECTION E: INIT
    ══════════════════════════════════════════════════════ */
@@ -1316,6 +1367,8 @@ function bootApp(){
   loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
   renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
+  loadDailyStats();lastTrackedDayKey=todayKey();
+  setInterval(checkDailyRollover,60000);
   // ไม่เรียก connectApiWS() ที่นี่ — รอผู้ใช้กด "เชื่อมต่อพอร์ต"
   const initData=valueFor(active);if(initData)render();
 }
