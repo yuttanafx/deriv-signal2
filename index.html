@@ -373,8 +373,12 @@ button{user-select:none;cursor:pointer}
             <div class="sp-row"><label>Duration</label>
               <select id="apiDurationSelect" onchange="apiDurationChanged(this.value)">
                 <option value="5_ticks" selected>5 Ticks</option><option value="10_ticks">10 Ticks</option>
-                <option value="1_min">1 นาที</option><option value="5_min">5 นาที</option><option value="15_min">15 นาที</option>
+                <option value="1_min">1 นาที</option><option value="5_min">5 นาที</option><option value="15_min">15 นาที</option><option value="30_min">30 นาที</option>
               </select>
+            </div>
+            <div class="sp-row"><label>ซิงค์ TF</label>
+              <label class="sp-toggle"><input type="checkbox" id="durationSyncToggle" checked onchange="durationSyncToggled(this.checked)"><span class="sl"></span></label>
+              <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">ปรับ Duration ตาม TF กราฟอัตโนมัติ</span>
             </div>
             <div class="sp-row"><label>Base Stake</label><input type="number" id="apiBaseStakeInput" value="1.00" min="0.35" step="0.01" style="max-width:80px" onchange="apiBaseStakeChanged(this.value)"></div>
             <div class="sp-row"><label>โหมดล็อต</label>
@@ -392,6 +396,14 @@ button{user-select:none;cursor:pointer}
               <select id="apiMaxStepsSelect" onchange="apiMaxStepsChanged(this.value)">
                 <option value="3">3 ไม้</option><option value="5" selected>5 ไม้</option><option value="7">7 ไม้</option><option value="10">10 ไม้</option>
               </select>
+            </div>
+            <div class="sp-row"><label>Cooldown</label>
+              <select id="cooldownModeSelect" onchange="cooldownModeChanged(this.value)" style="max-width:110px">
+                <option value="auto" selected>Auto (ตามอายุสัญญา)</option>
+                <option value="manual">กำหนดเอง</option>
+              </select>
+              <input type="number" id="cooldownManualInput" value="12" min="1" step="1" style="max-width:60px" disabled onchange="cooldownManualChanged(this.value)">
+              <span style="font-family:var(--mono);font-size:9px;color:var(--muted)">วิ — ปัจจุบัน: <b id="cooldownEffectiveLabel" style="color:var(--text)">—</b></span>
             </div>
             <div class="sp-section" style="margin-top:6px">ตัวกรอง <span id="indFilterSummary" style="color:var(--muted)">0/4</span></div>
             <div>
@@ -909,9 +921,24 @@ function renderWatchScan(){
   list.innerHTML=rows||'ยังไม่ได้สแกน — กด AUTO SCAN';
 }
 
+let durationSyncEnabled=true;
+const TF_DURATION_MAP={'1':'5_ticks','3':'1_min','5':'5_min','15':'15_min','30':'30_min','60':'30_min','240':'30_min','D':'30_min'};
+function syncDurationFromTF(){
+  if(!durationSyncEnabled)return;
+  const tf=qs('intervalInput').value;
+  const suggested=TF_DURATION_MAP[tf];
+  if(!suggested)return;
+  const sel=qs('apiDurationSelect');if(sel)sel.value=suggested;
+  apiDurationChanged(suggested);
+}
+function durationSyncToggled(checked){
+  durationSyncEnabled=checked;
+  if(checked)syncDurationFromTF();
+}
 function onIntervalChanged(){
   const tv=qs('symbolInput').value.trim()||active.tv;const interval=qs('intervalInput').value;
   loadTradingView(tv,interval);
+  syncDurationFromTF();
   if(autoScanOn){
     scanResults={};aggregateSignal='WAIT';aggregateScore=0;renderWatchScan();
     runAutoScanOnce();
@@ -920,6 +947,27 @@ function onIntervalChanged(){
 }
 
 const SR_CLEARANCE_MULT=1.8;
+const CONFIRM_TICKS_REQUIRED=3;
+let cooldownMode='auto';
+let cooldownManualSeconds=12;
+const DURATION_AUTO_COOLDOWN_SEC={'5_ticks':10,'10_ticks':20,'1_min':60,'5_min':300,'15_min':900,'30_min':1800};
+function getEffectiveCooldownMs(){
+  if(cooldownMode==='manual')return Math.max(1,cooldownManualSeconds)*1000;
+  return (DURATION_AUTO_COOLDOWN_SEC[apiDurationVal]||12)*1000;
+}
+function refreshCooldownLabel(){
+  const el=qs('cooldownEffectiveLabel');if(!el)return;
+  el.textContent=(getEffectiveCooldownMs()/1000)+'s';
+}
+function cooldownModeChanged(v){
+  cooldownMode=v;
+  const inp=qs('cooldownManualInput');if(inp)inp.disabled=(v==='auto');
+  refreshCooldownLabel();
+}
+function cooldownManualChanged(v){
+  const n=parseFloat(v);if(Number.isFinite(n)&&n>0)cooldownManualSeconds=n;
+  refreshCooldownLabel();
+}
 const SR_TICK_MARGIN_MULT=0.8;
 
 function passAutoScanFilter(sym,direction){
@@ -982,10 +1030,10 @@ let reconnectTimer=null;
 let wsIntentionalClose=false;
 
 function apiFmtStake(amount){return amount.toFixed(apiCurrencyIsCrypto?4:2);}
-function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null}}
+function freshState(){return{ticks:[],tickCounter:0,lastPrice:null,prevPrice:null,resistance:null,support:null,sigType:'NEUTRAL',pendingContracts:[],resolvedContracts:[],statWins:0,statLosses:0,currentStepCount:0,gains:[],losses:[],rsiValue:null,stochValue:null,trueRanges:[],atrValue:null,confirmStreak:0,streakFired:false,lastOrderAt:0}}
 function ensureApiState(sym){if(!apiState[sym])apiState[sym]=freshState();}
 function isGlobalOrderLocked(){return globalLockedSymbol!==null;}
-function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='5_min')return 150;if(v==='15_min')return 450;return 5;}
+function durationToWaitTicks(v){if(v==='5_ticks')return 5;if(v==='10_ticks')return 10;if(v==='1_min')return 30;if(v==='5_min')return 150;if(v==='15_min')return 450;if(v==='30_min')return 900;return 5;}
 function renderGlobalKpis(){
   const s=qs('apiKpiStep');const sk=qs('apiKpiStake');const lk=qs('apiKpiLock');const wr=qs('apiKpiWinrate');if(!s)return;
   s.textContent='M-'+(globalStepCount+1);sk.textContent=apiFmtStake(computeCurrentStake())+' '+apiAccountCurrency;
@@ -1163,7 +1211,7 @@ function apiFetchBalance(){
   }
 }
 
-function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();}
+function apiDurationChanged(v){apiDurationVal=v;apiWatchedSymbols.forEach(sym=>{apiState[sym]=freshState();});globalStepCount=0;globalLockedSymbol=null;orderInFlight=false;renderTrackRecord();renderGlobalKpis();refreshCooldownLabel();}
 function apiBaseStakeChanged(v){const val=parseFloat(v);if(!isNaN(val)&&val>0){baseStake=val;renderGlobalKpis();}else qs('apiBaseStakeInput').value=baseStake.toFixed(2);}
 function computeCurrentStake(){
   if(lotMode==='fixed')return baseStake;
@@ -1202,8 +1250,10 @@ function executeRealContract(symbol,direction){
   let durationNumber=5,durationUnitStr='t';
   if(apiDurationVal==='5_ticks'){durationNumber=5;durationUnitStr='t';}
   else if(apiDurationVal==='10_ticks'){durationNumber=10;durationUnitStr='t';}
+  else if(apiDurationVal==='1_min'){durationNumber=1;durationUnitStr='m';}
   else if(apiDurationVal==='5_min'){durationNumber=5;durationUnitStr='m';}
   else if(apiDurationVal==='15_min'){durationNumber=15;durationUnitStr='m';}
+  else if(apiDurationVal==='30_min'){durationNumber=30;durationUnitStr='m';}
   const calculatedWaitTicks=durationToWaitTicks(apiDurationVal);
   globalLockedSymbol=symbol;
   if(!isAuthorized||!apiWs||apiWs.readyState!==WebSocket.OPEN){
@@ -1248,24 +1298,33 @@ function onApiTickReceived(tick){
     const lp=s.ticks.length,sp=4;
     const mtfMain=s.ticks.reduce((a,b)=>a+b,0)/lp;const curMom=s.ticks.slice(-sp).reduce((a,b)=>a+b,0)/sp;
     let bias='SIDEWAYS';if(curMom>mtfMain)bias='BULLISH';if(curMom<mtfMain)bias='BEARISH';
-    const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;const prev=s.sigType;
+    const range=s.resistance-s.support;const midMin=s.support+range*0.35,midMax=s.support+range*0.65;
     const srSrcTick=scanResults[sym]||null;
     const tickClearance=(srSrcTick&&Number.isFinite(srSrcTick.atr)&&srSrcTick.atr>0)?(srSrcTick.atr*SR_TICK_MARGIN_MULT):(range>0?range*0.10:0);
-    if(price>midMin&&price<midMax){
-      s.sigType='BLOCK';
-    }else if(price>=s.resistance&&bias==='BULLISH'){
-      s.sigType='BUY';
-      if(prev!=='BUY'){
-        const srOk=(range<=0)||((price-s.support)>=tickClearance);
-        if(srOk){playSignalSound('HIGHER');if(passAutoScanFilter(sym,'HIGHER'))executeRealContract(sym,'HIGHER');}
+
+    let zone='BLOCK';
+    if(price>midMin&&price<midMax){zone='BLOCK';}
+    else if(price>=s.resistance&&bias==='BULLISH'){zone='BUY';}
+    else if(price<=s.support&&bias==='BEARISH'){zone='SELL';}
+
+    if(zone===s.sigType&&zone!=='BLOCK'){
+      s.confirmStreak++;
+    }else{
+      s.confirmStreak=(zone==='BLOCK')?0:1;
+      s.streakFired=false;
+    }
+    s.sigType=zone;
+
+    if((zone==='BUY'||zone==='SELL')&&s.confirmStreak>=CONFIRM_TICKS_REQUIRED&&!s.streakFired){
+      const onCooldown=(Date.now()-s.lastOrderAt)<getEffectiveCooldownMs();
+      const srOk=zone==='BUY'?((range<=0)||((price-s.support)>=tickClearance)):((range<=0)||((s.resistance-price)>=tickClearance));
+      if(!onCooldown&&srOk){
+        s.streakFired=true;s.lastOrderAt=Date.now();
+        const direction=zone==='BUY'?'HIGHER':'LOWER';
+        playSignalSound(direction);
+        if(passAutoScanFilter(sym,direction))executeRealContract(sym,direction);
       }
-    }else if(price<=s.support&&bias==='BEARISH'){
-      s.sigType='SELL';
-      if(prev!=='SELL'){
-        const srOk=(range<=0)||((s.resistance-price)>=tickClearance);
-        if(srOk){playSignalSound('LOWER');if(passAutoScanFilter(sym,'LOWER'))executeRealContract(sym,'LOWER');}
-      }
-    }else{s.sigType='BLOCK';}
+    }
   }
   renderGlobalKpis();if(sym===apiFocusedSymbol)renderTrackRecord();
 }
@@ -1366,7 +1425,7 @@ function bootApp(){
   initResize();initTg();buildTabs();qs('symbolInput').value=active.tv;
   loadTradingView(active.tv,'1');render();
   apiWatchedSymbols.forEach(sym=>ensureApiState(sym));
-  renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();
+  renderTrackRecord();renderGlobalKpis();renderVirtualBalance();renderWatchPicker();refreshCooldownLabel();
   loadDailyStats();lastTrackedDayKey=todayKey();
   setInterval(checkDailyRollover,60000);
   // ไม่เรียก connectApiWS() ที่นี่ — รอผู้ใช้กด "เชื่อมต่อพอร์ต"
